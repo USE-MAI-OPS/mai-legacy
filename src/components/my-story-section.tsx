@@ -1,0 +1,618 @@
+"use client";
+
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Briefcase,
+  MapPin,
+  GraduationCap,
+  Heart,
+  Wrench,
+  Medal,
+  Flag,
+  Plus,
+  X,
+  ChevronDown,
+  ChevronRight,
+  Save,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import type {
+  LifeStory,
+  CareerItem,
+  PlaceItem,
+  EducationItem,
+  MilestoneItem,
+} from "@/types/database";
+
+// Re-export for convenience
+export type { LifeStory };
+
+// ---------------------------------------------------------------------------
+// Empty default
+// ---------------------------------------------------------------------------
+const EMPTY_LIFE_STORY: LifeStory = {
+  career: [],
+  places: [],
+  education: [],
+  skills: [],
+  hobbies: [],
+  military: null,
+  milestones: [],
+};
+
+// ---------------------------------------------------------------------------
+// Expandable section wrapper
+// ---------------------------------------------------------------------------
+function StorySection({
+  title,
+  icon: Icon,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className="border rounded-lg">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center justify-between w-full px-4 py-3 text-left hover:bg-accent/50 transition-colors rounded-lg"
+      >
+        <div className="flex items-center gap-2.5">
+          <Icon className="size-4 text-muted-foreground" />
+          <span className="text-sm font-medium">{title}</span>
+        </div>
+        {open ? (
+          <ChevronDown className="size-4 text-muted-foreground" />
+        ) : (
+          <ChevronRight className="size-4 text-muted-foreground" />
+        )}
+      </button>
+      {open && (
+        <div className="px-4 pb-4 pt-1 border-t">{children}</div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tag input component
+// ---------------------------------------------------------------------------
+function TagList({
+  items,
+  onAdd,
+  onRemove,
+  placeholder,
+}: {
+  items: string[];
+  onAdd: (item: string) => void;
+  onRemove: (index: number) => void;
+  placeholder: string;
+}) {
+  const [value, setValue] = useState("");
+
+  const handleAdd = () => {
+    const trimmed = value.trim();
+    if (trimmed && !items.includes(trimmed)) {
+      onAdd(trimmed);
+      setValue("");
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5">
+        {items.map((item, i) => (
+          <Badge
+            key={i}
+            variant="secondary"
+            className="gap-1 pl-2.5 pr-1.5 py-1"
+          >
+            {item}
+            <button
+              onClick={() => onRemove(i)}
+              className="ml-0.5 hover:text-destructive transition-colors"
+            >
+              <X className="size-3" />
+            </button>
+          </Badge>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) =>
+            e.key === "Enter" && (e.preventDefault(), handleAdd())
+          }
+          placeholder={placeholder}
+          className="text-sm h-8"
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleAdd}
+          className="h-8 px-2.5"
+        >
+          <Plus className="size-3.5" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+export function MyStorySection({
+  initialData,
+  onSave,
+}: {
+  initialData?: LifeStory;
+  onSave?: (story: LifeStory) => Promise<void>;
+}) {
+  const [story, setStory] = useState<LifeStory>(
+    initialData ?? EMPTY_LIFE_STORY
+  );
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  // Wrapper to mark changes
+  const update = (updater: (s: LifeStory) => LifeStory) => {
+    setStory((prev) => {
+      const next = updater(prev);
+      setDirty(true);
+      return next;
+    });
+  };
+
+  const handleSave = async () => {
+    if (!onSave) return;
+    setSaving(true);
+    try {
+      await onSave(story);
+      setDirty(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // --- Add item forms state ---
+  const [showCareerForm, setShowCareerForm] = useState(false);
+  const [showPlaceForm, setShowPlaceForm] = useState(false);
+  const [showEduForm, setShowEduForm] = useState(false);
+  const [showMilestoneForm, setShowMilestoneForm] = useState(false);
+  const [showMilitaryForm, setShowMilitaryForm] = useState(false);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Heart className="size-4 text-pink-500" />
+              My Story
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Your life resume — the places, experiences, and milestones that
+              shaped you.
+            </p>
+          </div>
+          {onSave && dirty && (
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={saving}
+              className="gap-1.5"
+            >
+              <Save className="size-3.5" />
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Career */}
+        <StorySection title="Career History" icon={Briefcase} defaultOpen>
+          <div className="space-y-2 mt-2">
+            {story.career.map((c, i) => (
+              <div
+                key={i}
+                className="flex items-start justify-between py-1.5"
+              >
+                <div>
+                  <p className="text-sm font-medium">{c.title}</p>
+                  <p className="text-xs text-muted-foreground">{c.company}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-4">
+                  <span className="text-xs text-muted-foreground">
+                    {c.years}
+                  </span>
+                  <button
+                    onClick={() =>
+                      update((s) => ({
+                        ...s,
+                        career: s.career.filter((_, idx) => idx !== i),
+                      }))
+                    }
+                    className="text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {story.career.length === 0 && !showCareerForm && (
+              <p className="text-xs text-muted-foreground py-2">
+                No career history added yet.
+              </p>
+            )}
+            {showCareerForm ? (
+              <InlineForm
+                fields={["Title", "Company", "Years"]}
+                onSubmit={([title, company, years]) => {
+                  update((s) => ({
+                    ...s,
+                    career: [...s.career, { title, company, years }],
+                  }));
+                  setShowCareerForm(false);
+                }}
+                onCancel={() => setShowCareerForm(false)}
+              />
+            ) : (
+              <AddButton onClick={() => setShowCareerForm(true)} />
+            )}
+          </div>
+        </StorySection>
+
+        {/* Places Lived */}
+        <StorySection title="Places Lived" icon={MapPin}>
+          <div className="space-y-2 mt-2">
+            {story.places.map((p, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between py-1.5"
+              >
+                <div className="flex items-center gap-2">
+                  <MapPin className="size-3.5 text-muted-foreground" />
+                  <span className="text-sm">
+                    {p.city}, {p.state}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {p.years}
+                  </span>
+                  <button
+                    onClick={() =>
+                      update((s) => ({
+                        ...s,
+                        places: s.places.filter((_, idx) => idx !== i),
+                      }))
+                    }
+                    className="text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {story.places.length === 0 && !showPlaceForm && (
+              <p className="text-xs text-muted-foreground py-2">
+                No places added yet.
+              </p>
+            )}
+            {showPlaceForm ? (
+              <InlineForm
+                fields={["City", "State", "Years"]}
+                onSubmit={([city, state, years]) => {
+                  update((s) => ({
+                    ...s,
+                    places: [...s.places, { city, state, years }],
+                  }));
+                  setShowPlaceForm(false);
+                }}
+                onCancel={() => setShowPlaceForm(false)}
+              />
+            ) : (
+              <AddButton onClick={() => setShowPlaceForm(true)} />
+            )}
+          </div>
+        </StorySection>
+
+        {/* Education */}
+        <StorySection title="Education" icon={GraduationCap}>
+          <div className="space-y-2 mt-2">
+            {story.education.map((e, i) => (
+              <div
+                key={i}
+                className="flex items-start justify-between py-1.5"
+              >
+                <div>
+                  <p className="text-sm font-medium">{e.school}</p>
+                  <p className="text-xs text-muted-foreground">{e.degree}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 ml-4">
+                  <span className="text-xs text-muted-foreground">
+                    {e.year}
+                  </span>
+                  <button
+                    onClick={() =>
+                      update((s) => ({
+                        ...s,
+                        education: s.education.filter((_, idx) => idx !== i),
+                      }))
+                    }
+                    className="text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {story.education.length === 0 && !showEduForm && (
+              <p className="text-xs text-muted-foreground py-2">
+                No education added yet.
+              </p>
+            )}
+            {showEduForm ? (
+              <InlineForm
+                fields={["School", "Degree", "Year"]}
+                onSubmit={([school, degree, year]) => {
+                  update((s) => ({
+                    ...s,
+                    education: [...s.education, { school, degree, year }],
+                  }));
+                  setShowEduForm(false);
+                }}
+                onCancel={() => setShowEduForm(false)}
+              />
+            ) : (
+              <AddButton onClick={() => setShowEduForm(true)} />
+            )}
+          </div>
+        </StorySection>
+
+        {/* Skills & Talents */}
+        <StorySection title="Skills & Talents" icon={Wrench}>
+          <div className="mt-2">
+            <TagList
+              items={story.skills}
+              onAdd={(s) =>
+                update((prev) => ({
+                  ...prev,
+                  skills: [...prev.skills, s],
+                }))
+              }
+              onRemove={(i) =>
+                update((prev) => ({
+                  ...prev,
+                  skills: prev.skills.filter((_, idx) => idx !== i),
+                }))
+              }
+              placeholder="Add a skill..."
+            />
+          </div>
+        </StorySection>
+
+        {/* Hobbies & Interests */}
+        <StorySection title="Hobbies & Interests" icon={Heart}>
+          <div className="mt-2">
+            <TagList
+              items={story.hobbies}
+              onAdd={(h) =>
+                update((prev) => ({
+                  ...prev,
+                  hobbies: [...prev.hobbies, h],
+                }))
+              }
+              onRemove={(i) =>
+                update((prev) => ({
+                  ...prev,
+                  hobbies: prev.hobbies.filter((_, idx) => idx !== i),
+                }))
+              }
+              placeholder="Add a hobby..."
+            />
+          </div>
+        </StorySection>
+
+        {/* Military Service */}
+        <StorySection title="Military Service" icon={Medal}>
+          <div className="mt-2">
+            {story.military ? (
+              <div className="flex items-start justify-between py-1.5">
+                <div>
+                  <p className="text-sm font-medium">
+                    {story.military.branch}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {story.military.rank}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {story.military.years}
+                  </span>
+                  <button
+                    onClick={() => update((s) => ({ ...s, military: null }))}
+                    className="text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              </div>
+            ) : showMilitaryForm ? (
+              <InlineForm
+                fields={["Branch", "Rank", "Years"]}
+                onSubmit={([branch, rank, years]) => {
+                  update((s) => ({
+                    ...s,
+                    military: { branch, rank, years },
+                  }));
+                  setShowMilitaryForm(false);
+                }}
+                onCancel={() => setShowMilitaryForm(false)}
+              />
+            ) : (
+              <div className="text-center py-3">
+                <p className="text-xs text-muted-foreground mb-2">
+                  No military service recorded.
+                </p>
+                <AddButton
+                  onClick={() => setShowMilitaryForm(true)}
+                  label="Add Service Record"
+                />
+              </div>
+            )}
+          </div>
+        </StorySection>
+
+        {/* Life Milestones */}
+        <StorySection title="Life Milestones" icon={Flag}>
+          <div className="space-y-2 mt-2">
+            {story.milestones
+              .sort((a, b) => (b.year > a.year ? 1 : -1))
+              .map((m, i) => (
+                <div key={i} className="flex items-center gap-3 py-1.5">
+                  <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Flag className="size-3" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm">{m.event}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-xs text-muted-foreground">
+                      {m.year}
+                    </span>
+                    <button
+                      onClick={() =>
+                        update((s) => ({
+                          ...s,
+                          milestones: s.milestones.filter(
+                            (_, idx) => idx !== i
+                          ),
+                        }))
+                      }
+                      className="text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            {story.milestones.length === 0 && !showMilestoneForm && (
+              <p className="text-xs text-muted-foreground py-2">
+                No milestones added yet.
+              </p>
+            )}
+            {showMilestoneForm ? (
+              <InlineForm
+                fields={["Event", "Year"]}
+                onSubmit={([event, year]) => {
+                  update((s) => ({
+                    ...s,
+                    milestones: [...s.milestones, { event, year }],
+                  }));
+                  setShowMilestoneForm(false);
+                }}
+                onCancel={() => setShowMilestoneForm(false)}
+              />
+            ) : (
+              <AddButton onClick={() => setShowMilestoneForm(true)} />
+            )}
+          </div>
+        </StorySection>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Shared sub-components
+// ---------------------------------------------------------------------------
+function AddButton({
+  onClick,
+  label = "Add",
+}: {
+  onClick: () => void;
+  label?: string;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={onClick}
+      className="gap-1.5 text-xs h-7 mt-1"
+    >
+      <Plus className="size-3" />
+      {label}
+    </Button>
+  );
+}
+
+function InlineForm({
+  fields,
+  onSubmit,
+  onCancel,
+}: {
+  fields: string[];
+  onSubmit: (values: string[]) => void;
+  onCancel: () => void;
+}) {
+  const [values, setValues] = useState<string[]>(fields.map(() => ""));
+
+  const handleSubmit = () => {
+    if (values.every((v) => v.trim())) {
+      onSubmit(values.map((v) => v.trim()));
+    }
+  };
+
+  return (
+    <div className="space-y-2 pt-2 border-t">
+      <div
+        className={cn(
+          "grid gap-2",
+          fields.length === 2 ? "grid-cols-2" : "grid-cols-3"
+        )}
+      >
+        {fields.map((field, i) => (
+          <Input
+            key={field}
+            placeholder={field}
+            value={values[i]}
+            onChange={(e) => {
+              const newValues = [...values];
+              newValues[i] = e.target.value;
+              setValues(newValues);
+            }}
+            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+            className="text-sm h-8"
+            autoFocus={i === 0}
+          />
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" onClick={handleSubmit} className="h-7 text-xs">
+          Save
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onCancel}
+          className="h-7 text-xs"
+        >
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}

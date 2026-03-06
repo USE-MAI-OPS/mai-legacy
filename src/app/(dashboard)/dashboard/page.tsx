@@ -6,8 +6,7 @@ import {
   Users,
   Plus,
   ArrowRight,
-  Sparkles,
-  CalendarHeart,
+  Target,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/server";
+import { TraditionsSection } from "@/components/traditions-section";
+import { LegacyBoard } from "@/components/legacy-board";
 
 // ---------------------------------------------------------------------------
 // Mock fallback data
@@ -69,32 +70,48 @@ const MOCK_TRADITIONS = [
   {
     id: "1",
     name: "Sunday Family Dinner",
-    frequency: "Weekly",
+    frequency: "weekly",
     description: "Everyone gathers at Grandma's house for a big family meal.",
+    created_by: "",
   },
   {
     id: "2",
     name: "Annual Family Reunion",
-    frequency: "Annual",
+    frequency: "annual",
     description: "Third Saturday of July — potluck, games, and storytelling.",
+    created_by: "",
   },
   {
     id: "3",
     name: "Christmas Eve Stories",
-    frequency: "Annual",
+    frequency: "annual",
     description: "Elders share family stories by the fireplace on Christmas Eve.",
+    created_by: "",
+  },
+];
+
+// TODO: Replace with real goal data once family_goals CRUD is wired up
+const MOCK_GOALS = [
+  {
+    id: "g1",
+    title: "Document 50 family recipes",
+    current: 12,
+    target: 50,
+    status: "active",
   },
   {
-    id: "4",
-    name: "New Year's Cornbread",
-    frequency: "Annual",
-    description: "Everyone eats Grandma Mae's cornbread for good luck.",
+    id: "g2",
+    title: "Interview all elders",
+    current: 3,
+    target: 6,
+    status: "active",
   },
   {
-    id: "5",
-    name: "Saturday Morning Chores",
-    frequency: "Weekly",
-    description: "Kids help with yard work and learn home repair skills.",
+    id: "g3",
+    title: "Digitize photo albums",
+    current: 1,
+    target: 4,
+    status: "active",
   },
 ];
 
@@ -179,6 +196,8 @@ async function getDashboardData() {
       recentEntriesResult,
       familyMembersResult,
       familyResult,
+      traditionsResult,
+      entryTypesResult,
     ] = await Promise.all([
       sb.from("entries").select("id", { count: "exact", head: true }).eq("family_id", familyId),
       sb.from("griot_conversations").select("id", { count: "exact", head: true }).eq("family_id", familyId),
@@ -196,9 +215,51 @@ async function getDashboardData() {
         .eq("family_id", familyId)
         .order("joined_at", { ascending: true }),
       sb.from("families").select("name").eq("id", familyId).single(),
+      sb
+        .from("family_traditions")
+        .select("*")
+        .eq("family_id", familyId)
+        .order("created_at", { ascending: true }),
+      sb
+        .from("entries")
+        .select("type, author_id, family_members!entries_author_id_fkey(display_name)")
+        .eq("family_id", familyId),
     ]);
 
+    // Aggregate entry type counts for Legacy Board
+    const allEntries: Array<{
+      type: string;
+      author_id: string;
+      family_members: { display_name: string } | { display_name: string }[] | null;
+    }> = entryTypesResult.data ?? [];
+
+    const typeCounts: Record<string, number> = {};
+    const authorCounts: Record<string, { name: string; count: number }> = {};
+
+    for (const entry of allEntries) {
+      typeCounts[entry.type] = (typeCounts[entry.type] ?? 0) + 1;
+
+      // Count contributions per author
+      const authorJoin = entry.family_members;
+      const authorName = Array.isArray(authorJoin)
+        ? authorJoin[0]?.display_name ?? "Unknown"
+        : (authorJoin as { display_name: string } | null)?.display_name ?? "Unknown";
+      if (!authorCounts[entry.author_id]) {
+        authorCounts[entry.author_id] = { name: authorName, count: 0 };
+      }
+      authorCounts[entry.author_id].count += 1;
+    }
+
+    // Find top contributor
+    let topContributor: { name: string; count: number } | undefined;
+    for (const ac of Object.values(authorCounts)) {
+      if (!topContributor || ac.count > topContributor.count) {
+        topContributor = { name: ac.name, count: ac.count };
+      }
+    }
+
     return {
+      userId: user.id,
       displayName,
       familyName: familyResult.data?.name ?? "Your Family",
       stats: {
@@ -209,6 +270,14 @@ async function getDashboardData() {
       },
       recentEntries: recentEntriesResult.data ?? [],
       familyMembers: familyMembersResult.data ?? [],
+      traditions: traditionsResult.data ?? [],
+      entryTypeCounts: {
+        recipe: typeCounts["recipe"] ?? 0,
+        story: typeCounts["story"] ?? 0,
+        skill: typeCounts["skill"] ?? 0,
+        lesson: typeCounts["lesson"] ?? 0,
+      },
+      topContributor,
     };
   } catch (err) {
     console.error("Dashboard data fetch failed:", err);
@@ -276,6 +345,55 @@ export default async function DashboardPage() {
 
   const familyName = data?.familyName ?? "Powell Family";
 
+  // Resolve traditions
+  const traditions = data
+    ? data.traditions.map(
+        (t: {
+          id: string;
+          name: string;
+          description: string;
+          frequency: string;
+          created_by: string;
+        }) => ({
+          id: t.id,
+          name: t.name,
+          description: t.description ?? "",
+          frequency: t.frequency ?? "annual",
+          created_by: t.created_by,
+        })
+      )
+    : MOCK_TRADITIONS;
+
+  const userId = data?.userId;
+
+  // Legacy board data
+  const legacyBoardStats = data
+    ? {
+        totalEntries: data.stats.entries,
+        totalMembers: data.stats.members,
+        totalRecipes: data.entryTypeCounts.recipe,
+        totalStories: data.entryTypeCounts.story,
+        totalSkills: data.entryTypeCounts.skill,
+        totalLessons: data.entryTypeCounts.lesson,
+      }
+    : {
+        totalEntries: 24,
+        totalMembers: 5,
+        totalRecipes: 8,
+        totalStories: 6,
+        totalSkills: 5,
+        totalLessons: 3,
+      };
+
+  const legacyBoardActivity = recentEntries.map(
+    (e: { id: string; title: string; type: string; date: string }) => ({
+      id: e.id,
+      title: e.title,
+      type: e.type,
+      date: e.date,
+    })
+  );
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -315,41 +433,16 @@ export default async function DashboardPage() {
         ))}
       </div>
 
+      {/* Legacy Board */}
+      <LegacyBoard
+        stats={legacyBoardStats}
+        recentActivity={legacyBoardActivity}
+        topContributor={data?.topContributor}
+        familyName={familyName}
+      />
+
       {/* Family Traditions */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <CalendarHeart className="h-5 w-5 text-pink-500" />
-            Family Traditions
-          </CardTitle>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/entries/new">
-              <Plus className="mr-1 h-3 w-3" />
-              Add Tradition
-            </Link>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {MOCK_TRADITIONS.map((tradition) => (
-              <div
-                key={tradition.id}
-                className="rounded-lg border p-3 hover:bg-accent/50 transition-colors"
-              >
-                <div className="flex items-start justify-between mb-1">
-                  <h3 className="text-sm font-medium">{tradition.name}</h3>
-                  <Badge variant="outline" className="text-[10px] shrink-0 ml-2">
-                    {tradition.frequency}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {tradition.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <TraditionsSection traditions={traditions} userId={userId} />
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Recent Entries */}
@@ -482,6 +575,43 @@ export default async function DashboardPage() {
           </Card>
         </div>
       </div>
+
+      {/* Family Goals Preview */}
+      {/* TODO: Replace MOCK_GOALS with real data from family_goals table once goals CRUD is wired up */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-emerald-500" />
+            Family Goals
+          </CardTitle>
+          <Badge variant="outline" className="text-xs">
+            {MOCK_GOALS.length} active
+          </Badge>
+        </CardHeader>
+        <CardContent>
+          <div className="grid sm:grid-cols-3 gap-4">
+            {MOCK_GOALS.map((goal) => {
+              const pct = Math.round((goal.current / goal.target) * 100);
+              return (
+                <div key={goal.id} className="space-y-2">
+                  <p className="text-sm font-medium leading-tight">
+                    {goal.title}
+                  </p>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div
+                      className="bg-emerald-500 h-2 rounded-full transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {goal.current} / {goal.target} ({pct}%)
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

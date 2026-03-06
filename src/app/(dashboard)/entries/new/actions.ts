@@ -2,42 +2,26 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import type { EntryType } from "@/types/database";
+import type { EntryType, EntryStructuredData } from "@/types/database";
 
 interface CreateEntryInput {
   title: string;
   content: string;
   type: EntryType;
   tags: string[];
+  structured_data?: EntryStructuredData;
 }
 
-/**
- * Server action to create a new entry.
- *
- * NOTE: The explicit `as any` casts below are intentional. The hand-written
- * Database type definition in `@/types/database` does not yet include the
- * `PostgrestVersion` field expected by `@supabase/supabase-js` v2.98+, which
- * causes all table Row / Insert generics to collapse to `never`. Once the
- * database types are regenerated from `supabase gen types typescript`, these
- * casts can be removed.
- */
 export async function createEntry(input: CreateEntryInput) {
   try {
     const supabase = await createClient();
-
-    // Get the current user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return { error: "You must be signed in to create an entry." };
     }
 
-    // Get the user's family membership
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: membership, error: memberError } = await (supabase as any)
+    const sb = supabase as any;
+    const { data: membership, error: memberError } = await sb
       .from("family_members")
       .select("family_id")
       .eq("user_id", user.id)
@@ -47,23 +31,27 @@ export async function createEntry(input: CreateEntryInput) {
       return { error: "You must belong to a family to create an entry." };
     }
 
-    // Insert the entry
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: entry, error: insertError } = await (supabase as any)
+    const insertData: Record<string, unknown> = {
+      family_id: membership.family_id,
+      author_id: user.id,
+      title: input.title,
+      content: input.content,
+      type: input.type,
+      tags: input.tags,
+    };
+
+    if (input.structured_data) {
+      insertData.structured_data = input.structured_data;
+    }
+
+    const { data: entry, error: insertError } = await sb
       .from("entries")
-      .insert({
-        family_id: membership.family_id,
-        author_id: user.id,
-        title: input.title,
-        content: input.content,
-        type: input.type,
-        tags: input.tags,
-      })
+      .insert(insertData)
       .select()
       .single();
 
     if (insertError) {
-      return { error: (insertError as { message: string }).message };
+      return { error: insertError.message };
     }
 
     // Trigger embedding generation (fire-and-forget)
@@ -77,12 +65,12 @@ export async function createEntry(input: CreateEntryInput) {
         console.error("Failed to trigger embedding:", err);
       });
     } catch {
-      // Non-critical: embedding can be re-triggered later
       console.error("Failed to trigger embedding for entry:", entry.id);
     }
 
     revalidatePath("/entries");
     revalidatePath("/dashboard");
+    revalidatePath("/skills");
 
     return { data: entry };
   } catch {

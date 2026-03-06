@@ -18,6 +18,14 @@ import {
   X,
   Check,
   Sparkles,
+  Phone,
+  Mail,
+  Globe,
+  UtensilsCrossed,
+  Hammer,
+  Flower2,
+  Archive,
+  BookOpen,
 } from "lucide-react";
 import {
   Card,
@@ -39,12 +47,13 @@ import type {
   EducationItem,
   MilitaryInfo,
   MilestoneItem,
+  MemberSpecialty,
 } from "@/types/database";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 8;
 
 const EMPTY_LIFE_STORY: LifeStory = {
   career: [],
@@ -55,6 +64,19 @@ const EMPTY_LIFE_STORY: LifeStory = {
   military: null,
   milestones: [],
 };
+
+const SPECIALTY_OPTIONS: {
+  value: MemberSpecialty;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { value: "cook", label: "Cook", icon: UtensilsCrossed },
+  { value: "storyteller", label: "Storyteller", icon: BookOpen },
+  { value: "handyman", label: "Handyman", icon: Hammer },
+  { value: "gardener", label: "Gardener", icon: Flower2 },
+  { value: "historian", label: "Historian", icon: Archive },
+  { value: "other", label: "A Bit of Everything", icon: Sparkles },
+];
 
 // ---------------------------------------------------------------------------
 // Progress bar
@@ -221,6 +243,13 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(0);
   const [familyName, setFamilyName] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [occupation, setOccupation] = useState("");
+  const [country, setCountry] = useState("");
+  const [stateName, setStateName] = useState("");
+  const [specialty, setSpecialty] = useState<MemberSpecialty | "">("");
   const [lifeStory, setLifeStory] = useState<LifeStory>(EMPTY_LIFE_STORY);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -238,7 +267,15 @@ export default function OnboardingPage() {
     setError(null);
 
     try {
-      const result = await createFamily(familyName, displayName, lifeStory);
+      const result = await createFamily(familyName, displayName, lifeStory, {
+        nickname: nickname.trim() || undefined,
+        phone: phone.trim() || undefined,
+        email: email.trim() || undefined,
+        occupation: occupation.trim() || undefined,
+        country: country.trim() || undefined,
+        state: stateName.trim() || undefined,
+        specialty: specialty || undefined,
+      });
       if (result?.error) {
         setError(result.error);
         setLoading(false);
@@ -279,10 +316,16 @@ export default function OnboardingPage() {
       description: "How should your family know you?",
     },
     {
-      icon: MapPin,
+      icon: Globe,
       title: "Where You're From",
       description:
         "The places that shaped you. Add as many as you'd like, or skip for now.",
+    },
+    {
+      icon: Sparkles,
+      title: "What's Your Specialty?",
+      description:
+        "Pick what you're known for in the family. You can always change this later.",
     },
     {
       icon: Briefcase,
@@ -303,7 +346,7 @@ export default function OnboardingPage() {
         "The moments that defined your journey — big or small.",
     },
     {
-      icon: Sparkles,
+      icon: Check,
       title: "You're All Set!",
       description: "Here's a summary of your profile. Ready to start your legacy?",
     },
@@ -341,11 +384,11 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* ---- STEP 1: Display Name ---- */}
+          {/* ---- STEP 1: About You ---- */}
           {step === 1 && (
-            <>
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="display-name">Your Display Name</Label>
+                <Label htmlFor="display-name">Display Name *</Label>
                 <Input
                   id="display-name"
                   placeholder="e.g., Kobe, Grandma Rose, Uncle Ray"
@@ -357,6 +400,58 @@ export default function OnboardingPage() {
                   autoFocus
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="nickname">Nickname</Label>
+                <Input
+                  id="nickname"
+                  placeholder="e.g., Big K, Rosie, etc."
+                  value={nickname}
+                  onChange={(e) => setNickname(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email" className="flex items-center gap-1.5">
+                  <Mail className="size-3.5" />
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Visible to family members so they can reach you.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="phone" className="flex items-center gap-1.5">
+                  <Phone className="size-3.5" />
+                  Phone
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="(555) 123-4567"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="occupation">Current Occupation</Label>
+                <Input
+                  id="occupation"
+                  placeholder="e.g., Retired Teacher, Software Engineer"
+                  value={occupation}
+                  onChange={(e) => setOccupation(e.target.value)}
+                />
+              </div>
+
               <div className="rounded-md border p-3 bg-muted/50">
                 <p className="text-sm">
                   <span className="font-medium">{familyName}</span>
@@ -366,78 +461,154 @@ export default function OnboardingPage() {
                   </span>
                 </p>
               </div>
-            </>
-          )}
-
-          {/* ---- STEP 2: Places Lived ---- */}
-          {step === 2 && (
-            <div className="space-y-3">
-              {lifeStory.places.length > 0 && (
-                <div className="space-y-1">
-                  {lifeStory.places.map((p, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50"
-                    >
-                      <div className="flex items-center gap-2">
-                        <MapPin className="size-3.5 text-muted-foreground" />
-                        <span className="text-sm">
-                          {p.city}, {p.state}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {p.years}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setLifeStory((s) => ({
-                              ...s,
-                              places: s.places.filter((_, idx) => idx !== i),
-                            }))
-                          }
-                          className="text-muted-foreground hover:text-destructive transition-colors"
-                        >
-                          <X className="size-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {showPlaceForm ? (
-                <InlineFormRow
-                  fields={[
-                    { label: "City", placeholder: "Atlanta" },
-                    { label: "State", placeholder: "GA" },
-                    { label: "Years", placeholder: "2020 - Present" },
-                  ]}
-                  onSubmit={([city, state, years]) => {
-                    setLifeStory((s) => ({
-                      ...s,
-                      places: [...s.places, { city, state, years }],
-                    }));
-                    setShowPlaceForm(false);
-                  }}
-                  onCancel={() => setShowPlaceForm(false)}
-                />
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowPlaceForm(true)}
-                  className="gap-1.5 w-full"
-                >
-                  <Plus className="size-4" />
-                  Add a Place
-                </Button>
-              )}
             </div>
           )}
 
-          {/* ---- STEP 3: Career & Education ---- */}
+          {/* ---- STEP 2: Where You're From ---- */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="country">Country</Label>
+                  <Input
+                    id="country"
+                    placeholder="e.g., United States"
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="state-name">State / Province</Label>
+                  <Input
+                    id="state-name"
+                    placeholder="e.g., Georgia"
+                    value={stateName}
+                    onChange={(e) => setStateName(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <Label className="flex items-center gap-1.5 text-sm font-medium">
+                  <MapPin className="size-3.5" />
+                  Places Lived
+                </Label>
+                {lifeStory.places.length > 0 && (
+                  <div className="space-y-1">
+                    {lifeStory.places.map((p, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50"
+                      >
+                        <div className="flex items-center gap-2">
+                          <MapPin className="size-3.5 text-muted-foreground" />
+                          <span className="text-sm">
+                            {p.city}, {p.state}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            {p.years}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setLifeStory((s) => ({
+                                ...s,
+                                places: s.places.filter((_, idx) => idx !== i),
+                              }))
+                            }
+                            className="text-muted-foreground hover:text-destructive transition-colors"
+                          >
+                            <X className="size-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {showPlaceForm ? (
+                  <InlineFormRow
+                    fields={[
+                      { label: "City", placeholder: "Atlanta" },
+                      { label: "State", placeholder: "GA" },
+                      { label: "Years", placeholder: "2020 - Present" },
+                    ]}
+                    onSubmit={([city, state, years]) => {
+                      setLifeStory((s) => ({
+                        ...s,
+                        places: [...s.places, { city, state, years }],
+                      }));
+                      setShowPlaceForm(false);
+                    }}
+                    onCancel={() => setShowPlaceForm(false)}
+                  />
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowPlaceForm(true)}
+                    className="gap-1.5 w-full"
+                  >
+                    <Plus className="size-4" />
+                    Add a Place
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ---- STEP 3: What's Your Specialty? ---- */}
           {step === 3 && (
+            <div className="grid grid-cols-2 gap-3">
+              {SPECIALTY_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                const isSelected = specialty === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() =>
+                      setSpecialty(isSelected ? "" : opt.value)
+                    }
+                    className={`relative flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all hover:bg-muted/50 ${
+                      isSelected
+                        ? "border-primary bg-primary/5"
+                        : "border-muted bg-background"
+                    }`}
+                  >
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                        <Check className="size-3" />
+                      </div>
+                    )}
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                        isSelected
+                          ? "bg-primary/10 text-primary"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      <Icon className="size-5" />
+                    </div>
+                    <span
+                      className={`text-sm font-medium ${
+                        isSelected ? "text-primary" : "text-foreground"
+                      }`}
+                    >
+                      {opt.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* ---- STEP 4: Career & Education ---- */}
+          {step === 4 && (
             <div className="space-y-4">
               {/* Career */}
               <div className="space-y-2">
@@ -588,8 +759,8 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* ---- STEP 4: Skills & Interests ---- */}
-          {step === 4 && (
+          {/* ---- STEP 5: Skills & Interests ---- */}
+          {step === 5 && (
             <div className="space-y-5">
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5 text-sm font-medium">
@@ -641,8 +812,8 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* ---- STEP 5: Life Milestones + Military ---- */}
-          {step === 5 && (
+          {/* ---- STEP 6: Life Milestones + Military ---- */}
+          {step === 6 && (
             <div className="space-y-4">
               {/* Milestones */}
               <div className="space-y-2">
@@ -782,8 +953,8 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* ---- STEP 6: Review & Create ---- */}
-          {step === 6 && (
+          {/* ---- STEP 7: Review & Create ---- */}
+          {step === 7 && (
             <div className="space-y-4">
               {/* Summary card */}
               <div className="rounded-lg border p-4 space-y-3">
@@ -792,12 +963,72 @@ export default function OnboardingPage() {
                     {displayName.charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-semibold">{displayName}</p>
+                    <p className="font-semibold">
+                      {displayName}
+                      {nickname && (
+                        <span className="text-muted-foreground font-normal">
+                          {" "}
+                          &ldquo;{nickname}&rdquo;
+                        </span>
+                      )}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       Admin of {familyName}
                     </p>
                   </div>
                 </div>
+
+                {(occupation || email || phone) && (
+                  <>
+                    <Separator />
+                    <div className="space-y-1.5 text-sm">
+                      {occupation && (
+                        <div className="flex items-center gap-2">
+                          <Briefcase className="size-3.5 text-muted-foreground" />
+                          <span>{occupation}</span>
+                        </div>
+                      )}
+                      {email && (
+                        <div className="flex items-center gap-2">
+                          <Mail className="size-3.5 text-muted-foreground" />
+                          <span>{email}</span>
+                        </div>
+                      )}
+                      {phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="size-3.5 text-muted-foreground" />
+                          <span>{phone}</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {(country || stateName) && (
+                  <>
+                    <Separator />
+                    <div className="flex items-center gap-2 text-sm">
+                      <Globe className="size-3.5 text-muted-foreground" />
+                      <span>
+                        {[stateName, country].filter(Boolean).join(", ")}
+                      </span>
+                    </div>
+                  </>
+                )}
+
+                {specialty && (
+                  <>
+                    <Separator />
+                    <div className="flex items-center gap-2 text-sm">
+                      <Sparkles className="size-3.5 text-muted-foreground" />
+                      <span>
+                        Specialty:{" "}
+                        {SPECIALTY_OPTIONS.find((o) => o.value === specialty)
+                          ?.label ?? specialty}
+                      </span>
+                    </div>
+                  </>
+                )}
 
                 <Separator />
 

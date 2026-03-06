@@ -10,6 +10,16 @@ export type FamilyRole = "admin" | "member";
 
 export type PlanTier = "seedling" | "roots" | "legacy";
 
+export type MemberSpecialty =
+  | "cook"
+  | "storyteller"
+  | "handyman"
+  | "gardener"
+  | "historian"
+  | "other";
+
+export type GoalStatus = "active" | "completed" | "archived";
+
 // ---------------------------------------------------------------------------
 // Life Story types — used in onboarding, profile, and My Story section
 // ---------------------------------------------------------------------------
@@ -80,6 +90,69 @@ export function normalizeLifeStory(raw: unknown): LifeStory {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Structured entry data — type-specific fields for each entry type
+// ---------------------------------------------------------------------------
+export interface RecipeData {
+  ingredients: { item: string; amount: string; unit: string }[];
+  instructions: { step: number; text: string }[];
+  prep_time: string;
+  cook_time: string;
+  servings: string;
+  difficulty: "easy" | "medium" | "hard";
+  cuisine: string;
+  story: string;
+  images?: string[];
+}
+
+export interface ConnectionData {
+  name: string;
+  relationship: string;
+  phone: string;
+  email: string;
+  address: string;
+  notes: string;
+  birthday: string;
+}
+
+export interface SkillData {
+  difficulty: "beginner" | "intermediate" | "advanced";
+  prerequisites: string[];
+  what_you_need: string[];
+  steps: { order: number; title: string; description: string; tips?: string }[];
+  practice_exercises: string[];
+  story: string;
+  images?: string[];
+}
+
+export interface StoryData {
+  year: string;
+  location: string;
+  people_involved: string[];
+  narrative: string;
+  images?: string[];
+}
+
+export interface LessonData {
+  context: string;
+  lesson_text: string;
+  taught_by: string;
+  key_takeaways: string[];
+  when_learned: string;
+  images?: string[];
+}
+
+export type EntryStructuredData =
+  | { type: "recipe"; data: RecipeData }
+  | { type: "connection"; data: ConnectionData }
+  | { type: "skill"; data: SkillData }
+  | { type: "story"; data: StoryData }
+  | { type: "lesson"; data: LessonData }
+  | null;
+
+// ---------------------------------------------------------------------------
+// Database schema types
+// ---------------------------------------------------------------------------
 export interface Database {
   public: {
     Tables: {
@@ -117,6 +190,13 @@ export interface Database {
           avatar_url: string | null;
           life_story: LifeStory;
           joined_at: string;
+          nickname: string | null;
+          phone: string | null;
+          email: string | null;
+          occupation: string | null;
+          country: string | null;
+          state: string | null;
+          specialty: MemberSpecialty | null;
         };
         Insert: {
           id?: string;
@@ -127,6 +207,13 @@ export interface Database {
           avatar_url?: string | null;
           life_story?: LifeStory;
           joined_at?: string;
+          nickname?: string | null;
+          phone?: string | null;
+          email?: string | null;
+          occupation?: string | null;
+          country?: string | null;
+          state?: string | null;
+          specialty?: MemberSpecialty | null;
         };
         Update: {
           id?: string;
@@ -137,6 +224,13 @@ export interface Database {
           avatar_url?: string | null;
           life_story?: LifeStory;
           joined_at?: string;
+          nickname?: string | null;
+          phone?: string | null;
+          email?: string | null;
+          occupation?: string | null;
+          country?: string | null;
+          state?: string | null;
+          specialty?: MemberSpecialty | null;
         };
         Relationships: [];
       };
@@ -149,6 +243,7 @@ export interface Database {
           content: string;
           type: EntryType;
           tags: string[];
+          structured_data: EntryStructuredData;
           created_at: string;
           updated_at: string;
         };
@@ -160,6 +255,7 @@ export interface Database {
           content: string;
           type: EntryType;
           tags?: string[];
+          structured_data?: EntryStructuredData;
           created_at?: string;
           updated_at?: string;
         };
@@ -171,6 +267,7 @@ export interface Database {
           content?: string;
           type?: EntryType;
           tags?: string[];
+          structured_data?: EntryStructuredData;
           created_at?: string;
           updated_at?: string;
         };
@@ -290,6 +387,84 @@ export interface Database {
           accepted?: boolean;
           created_at?: string;
           expires_at?: string;
+        };
+        Relationships: [];
+      };
+      family_traditions: {
+        Row: {
+          id: string;
+          family_id: string;
+          name: string;
+          description: string;
+          frequency: string;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          name: string;
+          description?: string;
+          frequency?: string;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          name?: string;
+          description?: string;
+          frequency?: string;
+          created_by?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      family_goals: {
+        Row: {
+          id: string;
+          family_id: string;
+          title: string;
+          description: string;
+          target_count: number;
+          current_count: number;
+          status: GoalStatus;
+          assigned_to: string[];
+          due_date: string | null;
+          created_by: string;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          title: string;
+          description?: string;
+          target_count?: number;
+          current_count?: number;
+          status?: GoalStatus;
+          assigned_to?: string[];
+          due_date?: string | null;
+          created_by: string;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          title?: string;
+          description?: string;
+          target_count?: number;
+          current_count?: number;
+          status?: GoalStatus;
+          assigned_to?: string[];
+          due_date?: string | null;
+          created_by?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };

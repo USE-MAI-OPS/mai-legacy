@@ -12,6 +12,8 @@ import {
   LogOut,
   Menu,
   X,
+  Wrench,
+  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -33,6 +35,8 @@ const navItems = [
   { href: "/entries", label: "Entries", icon: BookOpen },
   { href: "/griot", label: "The Griot", icon: MessageCircle },
   { href: "/tutorials", label: "Tutorials", icon: GraduationCap },
+  { href: "/skills", label: "Skills Hub", icon: Wrench },
+  { href: "/goals", label: "Goals", icon: Target },
   { href: "/profile", label: "Profile", icon: User },
 ];
 

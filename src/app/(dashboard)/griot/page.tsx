@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { ChatMessage } from "@/components/chat-message";
-import { NeuralNetwork } from "@/components/neural-network";
 import {
   AlertTriangleIcon,
   MessageSquareIcon,
@@ -143,7 +144,9 @@ export default function GriotPage() {
       }
     }
     init();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // -- Build history for API -----------------------------------------------
@@ -152,7 +155,10 @@ export default function GriotPage() {
       role: m.role,
       content: m.content,
       timestamp: m.timestamp.toISOString(),
-      sources: m.sources?.map((s) => ({ entry_id: s.entry_id, chunk_text: s.chunk_text })),
+      sources: m.sources?.map((s) => ({
+        entry_id: s.entry_id,
+        chunk_text: s.chunk_text,
+      })),
     }));
   }, [messages]);
 
@@ -160,12 +166,17 @@ export default function GriotPage() {
   const persistConversation = useCallback(
     async (allMessages: Message[]) => {
       if (!isConnected || !familyId) return;
-      const conversationMessages: ConversationMessage[] = allMessages.map((m) => ({
-        role: m.role,
-        content: m.content,
-        timestamp: m.timestamp.toISOString(),
-        sources: m.sources?.map((s) => ({ entry_id: s.entry_id, chunk_text: s.chunk_text })),
-      }));
+      const conversationMessages: ConversationMessage[] = allMessages.map(
+        (m) => ({
+          role: m.role,
+          content: m.content,
+          timestamp: m.timestamp.toISOString(),
+          sources: m.sources?.map((s) => ({
+            entry_id: s.entry_id,
+            chunk_text: s.chunk_text,
+          })),
+        })
+      );
       await saveConversation(conversationId, familyId, conversationMessages);
       const convos = await loadConversations(familyId);
       setConversations(convos);
@@ -177,17 +188,32 @@ export default function GriotPage() {
   const handleSendConnected = useCallback(
     async (userContent: string) => {
       if (!familyId) return;
-      const userMessage: Message = { id: generateId(), role: "user", content: userContent, timestamp: new Date() };
+      const userMessage: Message = {
+        id: generateId(),
+        role: "user",
+        content: userContent,
+        timestamp: new Date(),
+      };
       const updatedMessages = [...messages, userMessage];
       setMessages(updatedMessages);
       setIsLoading(true);
 
       const assistantId = generateId();
-      const assistantMessage: Message = { id: assistantId, role: "assistant", content: "", timestamp: new Date() };
+      const assistantMessage: Message = {
+        id: assistantId,
+        role: "assistant",
+        content: "",
+        timestamp: new Date(),
+      };
 
       try {
         const history = buildHistory();
-        const { reader } = await streamGriotResponse(userContent, familyId, history, conversationId);
+        const { reader } = await streamGriotResponse(
+          userContent,
+          familyId,
+          history,
+          conversationId
+        );
         setIsLoading(false);
         setIsStreaming(true);
         setMessages([...updatedMessages, assistantMessage]);
@@ -209,7 +235,10 @@ export default function GriotPage() {
         }
 
         setIsStreaming(false);
-        const finalMessages: Message[] = [...updatedMessages, { ...assistantMessage, content: fullContent }];
+        const finalMessages: Message[] = [
+          ...updatedMessages,
+          { ...assistantMessage, content: fullContent },
+        ];
         setMessages(finalMessages);
         await persistConversation(finalMessages);
       } catch (err) {
@@ -222,7 +251,9 @@ export default function GriotPage() {
           {
             id: assistantId,
             role: "assistant",
-            content: mock.content + "\n\n---\n*Note: Connect Supabase and OpenRouter to enable the Griot.*",
+            content:
+              mock.content +
+              "\n\n---\n*Note: Connect Supabase and OpenRouter to enable the Griot.*",
             sources: mock.sources,
             timestamp: new Date(),
           },
@@ -230,20 +261,38 @@ export default function GriotPage() {
         setResponseIndex((p) => p + 1);
       }
     },
-    [familyId, messages, buildHistory, conversationId, persistConversation, responseIndex]
+    [
+      familyId,
+      messages,
+      buildHistory,
+      conversationId,
+      persistConversation,
+      responseIndex,
+    ]
   );
 
   // -- Send (disconnected) -------------------------------------------------
   const handleSendDisconnected = useCallback(
     async (userContent: string) => {
-      const userMessage: Message = { id: generateId(), role: "user", content: userContent, timestamp: new Date() };
+      const userMessage: Message = {
+        id: generateId(),
+        role: "user",
+        content: userContent,
+        timestamp: new Date(),
+      };
       setMessages((p) => [...p, userMessage]);
       setIsLoading(true);
       await new Promise((r) => setTimeout(r, 1500 + Math.random() * 1000));
       const mock = MOCK_RESPONSES[responseIndex % MOCK_RESPONSES.length];
       setMessages((p) => [
         ...p,
-        { id: generateId(), role: "assistant", content: mock.content, sources: mock.sources, timestamp: new Date() },
+        {
+          id: generateId(),
+          role: "assistant",
+          content: mock.content,
+          sources: mock.sources,
+          timestamp: new Date(),
+        },
       ]);
       setResponseIndex((p) => p + 1);
       setIsLoading(false);
@@ -262,7 +311,10 @@ export default function GriotPage() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   };
 
   // -- Conversation management ---------------------------------------------
@@ -290,7 +342,11 @@ export default function GriotPage() {
           id: `${convo.id}-${i}`,
           role: m.role,
           content: m.content,
-          sources: m.sources?.map((s) => ({ entry_id: s.entry_id, title: "", chunk_text: s.chunk_text })),
+          sources: m.sources?.map((s) => ({
+            entry_id: s.entry_id,
+            title: "",
+            chunk_text: s.chunk_text,
+          })),
           timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
         }))
       );
@@ -299,7 +355,10 @@ export default function GriotPage() {
     }
   };
 
-  const handleDeleteConversation = async (e: React.MouseEvent, convoId: string) => {
+  const handleDeleteConversation = async (
+    e: React.MouseEvent,
+    convoId: string
+  ) => {
     e.stopPropagation();
     const ok = await deleteConversation(convoId);
     if (ok) {
@@ -313,46 +372,56 @@ export default function GriotPage() {
   const isDisconnected = isConnected === false;
 
   return (
-    <div className="dark relative h-[calc(100vh-3.5rem)] md:h-screen overflow-hidden bg-black">
-      {/* ============ Neural network canvas ============ */}
-      <NeuralNetwork
-        className="absolute inset-0 z-0"
-        isQuerying={isLoading || isStreaming}
-      />
-
-      {/* Gradient overlays for readability */}
-      <div className="absolute inset-0 z-[1] pointer-events-none bg-gradient-to-t from-black/70 via-transparent to-black/40" />
-
-      {/* ============ Content layer ============ */}
-      <div className="relative z-10 flex h-full">
+    <div className="relative h-[calc(100vh-3.5rem)] md:h-screen overflow-hidden bg-background">
+      <div className="flex h-full">
         {/* -------- Conversation sidebar -------- */}
         {showSidebar && (
-          <aside className="hidden md:flex w-56 shrink-0 flex-col border-r border-white/10 bg-black/50 backdrop-blur-xl">
-            <div className="flex items-center justify-between px-3 py-3 border-b border-white/10">
-              <span className="text-xs font-medium text-slate-300">Conversations</span>
+          <aside className="hidden md:flex w-56 shrink-0 flex-col border-r bg-muted/30">
+            <div className="flex items-center justify-between px-3 py-3 border-b">
+              <span className="text-xs font-medium text-muted-foreground">
+                Conversations
+              </span>
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-white hover:bg-white/10" onClick={handleNewConversation} title="New conversation">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                  onClick={handleNewConversation}
+                  title="New conversation"
+                >
                   <PlusIcon className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-6 w-6 text-slate-400 hover:text-white hover:bg-white/10" onClick={() => setShowSidebar(false)} title="Hide sidebar">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowSidebar(false)}
+                  title="Hide sidebar"
+                >
                   <PanelLeftCloseIcon className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto griot-scrollbar">
+            <div className="flex-1 overflow-y-auto">
               <div className="p-2 space-y-0.5">
                 {!conversationsLoaded ? (
                   <div className="px-3 py-8 text-center">
-                    <span className="text-[10px] text-slate-500">Loading...</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Loading...
+                    </span>
                   </div>
                 ) : isDisconnected ? (
                   <div className="px-3 py-8 text-center">
-                    <span className="text-[10px] text-slate-500">Connect Supabase to save conversations</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      Connect Supabase to save conversations
+                    </span>
                   </div>
                 ) : conversations.length === 0 ? (
                   <div className="px-3 py-8 text-center">
-                    <MessageSquareIcon className="h-6 w-6 mx-auto text-slate-700 mb-2" />
-                    <span className="text-[10px] text-slate-500">No conversations yet</span>
+                    <MessageSquareIcon className="h-6 w-6 mx-auto text-muted-foreground/40 mb-2" />
+                    <span className="text-[10px] text-muted-foreground">
+                      No conversations yet
+                    </span>
                   </div>
                 ) : (
                   conversations.map((convo) => {
@@ -365,13 +434,21 @@ export default function GriotPage() {
                         onClick={() => handleSelectConversation(convo)}
                         className={cn(
                           "group w-full text-left px-2.5 py-2 rounded-md text-xs transition-colors relative",
-                          isActive ? "bg-white/10 text-white" : "hover:bg-white/5 text-slate-400"
+                          isActive
+                            ? "bg-accent text-accent-foreground"
+                            : "hover:bg-accent/50 text-muted-foreground"
                         )}
                       >
                         <p className="truncate font-medium">{preview}</p>
-                        <p className="text-[9px] text-slate-500 mt-0.5">
-                          {updatedAt.toLocaleDateString([], { month: "short", day: "numeric" })}{" "}
-                          {updatedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        <p className="text-[9px] text-muted-foreground mt-0.5">
+                          {updatedAt.toLocaleDateString([], {
+                            month: "short",
+                            day: "numeric",
+                          })}{" "}
+                          {updatedAt.toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </p>
                         <Button
                           variant="ghost"
@@ -379,9 +456,11 @@ export default function GriotPage() {
                           className={cn(
                             "absolute right-1 top-1/2 -translate-y-1/2 h-5 w-5",
                             "opacity-0 group-hover:opacity-100 transition-opacity",
-                            "text-slate-500 hover:text-red-400 hover:bg-transparent"
+                            "text-muted-foreground hover:text-destructive hover:bg-transparent"
                           )}
-                          onClick={(e) => handleDeleteConversation(e, convo.id)}
+                          onClick={(e) =>
+                            handleDeleteConversation(e, convo.id)
+                          }
                           title="Delete"
                         >
                           <Trash2Icon className="h-3 w-3" />
@@ -399,33 +478,43 @@ export default function GriotPage() {
         <div className="flex flex-col flex-1 min-w-0">
           {/* Demo banner */}
           {isDisconnected && (
-            <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 shrink-0">
-              <AlertTriangleIcon className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-              <span className="text-[11px] text-amber-300">Demo mode — connect Supabase for real AI responses</span>
+            <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 shrink-0">
+              <AlertTriangleIcon className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <span className="text-[11px] text-amber-700 dark:text-amber-400">
+                Demo mode — connect Supabase for real AI responses
+              </span>
             </div>
           )}
 
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 bg-black/20 backdrop-blur-sm shrink-0">
+          <div className="flex items-center justify-between px-4 py-2.5 border-b bg-background shrink-0">
             <div className="flex items-center gap-2.5">
               {!showSidebar && (
-                <Button variant="ghost" size="icon" className="hidden md:flex h-7 w-7 text-slate-400 hover:text-white hover:bg-white/10" onClick={() => setShowSidebar(true)} title="Show sidebar">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden md:flex h-7 w-7 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowSidebar(true)}
+                  title="Show sidebar"
+                >
                   <PanelLeftOpenIcon className="h-4 w-4" />
                 </Button>
               )}
-              <div className="flex size-8 items-center justify-center rounded-lg bg-indigo-500/20 border border-indigo-500/30">
-                <SparklesIcon className="size-4 text-indigo-400" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
+                <SparklesIcon className="size-4 text-primary" />
               </div>
               <div>
-                <h1 className="text-sm font-semibold text-white">The Griot</h1>
-                <p className="text-[10px] text-slate-400">Your family&apos;s AI knowledge keeper</p>
+                <h1 className="text-sm font-semibold">The Griot</h1>
+                <p className="text-[10px] text-muted-foreground">
+                  Your family&apos;s AI knowledge keeper
+                </p>
               </div>
             </div>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={handleNewConversation}
-              className="gap-1.5 text-xs text-slate-300 hover:text-white hover:bg-white/10 h-7"
+              className="gap-1.5 text-xs h-7"
             >
               <PlusIcon className="size-3.5" />
               New
@@ -433,23 +522,25 @@ export default function GriotPage() {
           </div>
 
           {/* Messages / empty state */}
-          <div className="flex-1 min-h-0 overflow-y-auto griot-scrollbar" ref={scrollRef}>
+          <div
+            className="flex-1 min-h-0 overflow-y-auto"
+            ref={scrollRef}
+          >
             {isEmpty && !isLoading ? (
-              /* ---- Empty state: show network prominently ---- */
+              /* ---- Empty state ---- */
               <div className="flex flex-col items-center justify-center h-full text-center px-4">
                 <div className="max-w-lg">
-                  <div className="flex size-16 items-center justify-center rounded-2xl bg-indigo-500/15 border border-indigo-500/20 mx-auto mb-6">
-                    <SparklesIcon className="size-8 text-indigo-400" />
+                  <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 mx-auto mb-6">
+                    <SparklesIcon className="size-8 text-primary" />
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">
-                    Ask the Griot
-                  </h2>
-                  <p className="text-slate-400 text-sm mb-8 leading-relaxed max-w-md mx-auto">
-                    Your family&apos;s neural knowledge network is alive. Each node represents a piece of your
-                    family&apos;s wisdom. Ask anything — stories, recipes, skills, traditions.
+                  <h2 className="text-2xl font-bold mb-2">Ask the Griot</h2>
+                  <p className="text-muted-foreground text-sm mb-8 leading-relaxed max-w-md mx-auto">
+                    Your family&apos;s AI knowledge keeper. Ask anything —
+                    stories, recipes, skills, traditions — and the Griot will
+                    search your family&apos;s documented wisdom.
                   </p>
                   <div className="grid gap-2 max-w-sm mx-auto">
-                    <p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest mb-1">
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">
                       Try asking
                     </p>
                     {[
@@ -459,8 +550,11 @@ export default function GriotPage() {
                     ].map((suggestion) => (
                       <button
                         key={suggestion}
-                        onClick={() => { setInput(suggestion); textareaRef.current?.focus(); }}
-                        className="text-left text-sm px-4 py-2.5 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all"
+                        onClick={() => {
+                          setInput(suggestion);
+                          textareaRef.current?.focus();
+                        }}
+                        className="text-left text-sm px-4 py-2.5 rounded-xl bg-muted hover:bg-accent border border-border text-foreground transition-colors"
                       >
                         {suggestion}
                       </button>
@@ -488,12 +582,14 @@ export default function GriotPage() {
                 {isLoading && (
                   <div className="flex justify-start mb-4">
                     <div className="max-w-[80%] space-y-2">
-                      <span className="text-xs font-medium text-slate-400 ml-1">Griot</span>
-                      <div className="rounded-2xl rounded-bl-md bg-white/5 backdrop-blur-sm border border-white/10 px-4 py-3">
+                      <span className="text-xs font-medium text-muted-foreground ml-1">
+                        Griot
+                      </span>
+                      <div className="rounded-2xl rounded-bl-md bg-muted px-4 py-3">
                         <div className="flex items-center gap-1.5">
-                          <span className="size-1.5 rounded-full bg-indigo-400 animate-bounce [animation-delay:0ms]" />
-                          <span className="size-1.5 rounded-full bg-indigo-400 animate-bounce [animation-delay:150ms]" />
-                          <span className="size-1.5 rounded-full bg-indigo-400 animate-bounce [animation-delay:300ms]" />
+                          <span className="size-1.5 rounded-full bg-primary animate-bounce [animation-delay:0ms]" />
+                          <span className="size-1.5 rounded-full bg-primary animate-bounce [animation-delay:150ms]" />
+                          <span className="size-1.5 rounded-full bg-primary animate-bounce [animation-delay:300ms]" />
                         </div>
                       </div>
                     </div>
@@ -504,29 +600,30 @@ export default function GriotPage() {
           </div>
 
           {/* Input area */}
-          <div className="shrink-0 px-4 pb-4 pt-2">
+          <div className="shrink-0 px-4 pb-4 pt-2 border-t bg-background">
             <div className="max-w-2xl mx-auto">
-              <div className="flex items-end gap-2 p-2.5 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 shadow-lg shadow-indigo-500/5">
+              <Card className="flex items-end gap-2 p-2.5">
                 <Textarea
                   ref={textareaRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ask the Griot about your family's knowledge..."
-                  className="min-h-[40px] max-h-[120px] resize-none border-0 shadow-none focus-visible:ring-0 bg-transparent text-white placeholder:text-slate-500 p-2 text-sm"
+                  className="min-h-[40px] max-h-[120px] resize-none border-0 shadow-none focus-visible:ring-0 bg-transparent p-2 text-sm"
                   rows={1}
                 />
                 <Button
                   size="icon"
                   onClick={handleSend}
                   disabled={!input.trim() || isLoading || isStreaming}
-                  className="shrink-0 size-8 rounded-lg bg-indigo-500 hover:bg-indigo-400 text-white disabled:opacity-30 disabled:bg-white/10"
+                  className="shrink-0 size-8 rounded-lg"
                 >
                   <SendHorizontalIcon className="size-4" />
                 </Button>
-              </div>
-              <p className="text-[10px] text-slate-600 text-center mt-2">
-                The Griot draws from your family&apos;s documented knowledge to answer questions.
+              </Card>
+              <p className="text-[10px] text-muted-foreground text-center mt-2">
+                The Griot draws from your family&apos;s documented knowledge to
+                answer questions.
               </p>
             </div>
           </div>

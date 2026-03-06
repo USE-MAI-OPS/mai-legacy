@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
-import type { LifeStory } from "@/types/database";
+import type { LifeStory, MemberSpecialty } from "@/types/database";
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
@@ -95,7 +95,16 @@ export async function signInWithGoogle() {
 export async function createFamily(
   familyName: string,
   displayName: string,
-  lifeStory?: LifeStory
+  lifeStory?: LifeStory,
+  profileFields?: {
+    nickname?: string;
+    phone?: string;
+    email?: string;
+    occupation?: string;
+    country?: string;
+    state?: string;
+    specialty?: MemberSpecialty;
+  }
 ) {
   // Use the normal client to verify the user is authenticated
   const supabase = await createClient();
@@ -143,6 +152,7 @@ export async function createFamily(
         military: null,
         milestones: [],
       },
+      ...profileFields,
     });
 
   if (memberError) {

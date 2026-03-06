@@ -13,7 +13,18 @@ import {
 import { typeConfig } from "@/components/entry-card";
 import { createClient } from "@/lib/supabase/server";
 import { DeleteEntryButton } from "@/components/delete-entry-button";
-import type { EntryType } from "@/types/database";
+import { RecipeView } from "@/components/entry-views/recipe-view";
+import { ConnectionView } from "@/components/entry-views/connection-view";
+import { SkillView } from "@/components/entry-views/skill-view";
+import { StoryView } from "@/components/entry-views/story-view";
+import { LessonView } from "@/components/entry-views/lesson-view";
+import type { EntryType, EntryStructuredData } from "@/types/database";
+
+// ---------------------------------------------------------------------------
+// UUID validation
+// ---------------------------------------------------------------------------
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ---------------------------------------------------------------------------
 // Mock data -- used when Supabase is not configured
@@ -28,6 +39,7 @@ const MOCK_ENTRIES: Record<
     tags: string[];
     authorName: string;
     date: string;
+    structuredData: EntryStructuredData;
   }
 > = {
   "1": {
@@ -44,6 +56,7 @@ She never wrote the recipe down. It was always "a little of this, a little of th
     tags: ["Italian", "Sunday tradition", "family recipe"],
     authorName: "Maria Powell",
     date: "2025-12-15T10:30:00Z",
+    structuredData: null,
   },
   "2": {
     id: "2",
@@ -59,6 +72,7 @@ He passed that mindset down to all of us. To this day, none of his kids throw an
     tags: ["humor", "dad", "resourcefulness"],
     authorName: "James Powell",
     date: "2025-11-28T14:00:00Z",
+    structuredData: null,
   },
   "3": {
     id: "3",
@@ -78,6 +92,7 @@ Marcus's squirrel trick: Plant marigolds around the perimeter. Squirrels hate th
     tags: ["gardening", "woodworking", "outdoor"],
     authorName: "Marcus Powell",
     date: "2025-11-20T09:15:00Z",
+    structuredData: null,
   },
   "4": {
     id: "4",
@@ -95,6 +110,7 @@ He used to practice negotiations with us at the dinner table, turning everyday c
     tags: ["career", "negotiation", "grandpa wisdom"],
     authorName: "William Powell Sr.",
     date: "2025-10-05T16:45:00Z",
+    structuredData: null,
   },
   "5": {
     id: "5",
@@ -110,6 +126,7 @@ We've held the reunion every year since. What started as a DNA curiosity became 
     tags: ["reunion", "DNA discovery", "extended family"],
     authorName: "Sarah Mitchell",
     date: "2025-09-12T11:00:00Z",
+    structuredData: null,
   },
   "6": {
     id: "6",
@@ -121,6 +138,7 @@ This document serves as the central reference point for the family. Keep it upda
     tags: ["emergency", "contacts", "reference"],
     authorName: "Maria Powell",
     date: "2025-08-30T08:00:00Z",
+    structuredData: null,
   },
   "7": {
     id: "7",
@@ -134,6 +152,7 @@ Instructions: Preheat oven to 425F with the cast-iron skillet inside. Mix dry in
     tags: ["Thanksgiving", "baking", "Southern cooking"],
     authorName: "Dorothy Powell",
     date: "2025-08-15T13:20:00Z",
+    structuredData: null,
   },
   "8": {
     id: "8",
@@ -151,6 +170,7 @@ The family has been in New York ever since.`,
     tags: ["immigration", "history", "origin story"],
     authorName: "James Powell",
     date: "2025-07-04T10:00:00Z",
+    structuredData: null,
   },
 };
 
@@ -158,10 +178,14 @@ The family has been in New York ever since.`,
 // Data fetching
 // ---------------------------------------------------------------------------
 async function getEntry(id: string) {
+  // If the id is not a valid UUID, skip the DB query and use mock data
+  if (!UUID_REGEX.test(id)) {
+    return MOCK_ENTRIES[id] ?? null;
+  }
+
   try {
     const supabase = await createClient();
 
-    // Get the current user
     const {
       data: { user },
       error: authError,
@@ -171,12 +195,11 @@ async function getEntry(id: string) {
       return MOCK_ENTRIES[id] ?? null;
     }
 
-    // Fetch the entry with author join
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: entry, error: entryError } = await (supabase as any)
+    const sb = supabase as any;
+    const { data: entry, error: entryError } = await sb
       .from("entries")
       .select(
-        "id, title, content, type, tags, created_at, updated_at, family_members!entries_author_id_fkey(display_name)"
+        "id, title, content, type, tags, structured_data, created_at, updated_at, family_members!entries_author_id_fkey(display_name)"
       )
       .eq("id", id)
       .single();
@@ -192,13 +215,14 @@ async function getEntry(id: string) {
         "Unknown";
 
     return {
-      id: entry.id,
-      title: entry.title,
-      content: entry.content,
+      id: entry.id as string,
+      title: entry.title as string,
+      content: entry.content as string,
       type: entry.type as EntryType,
-      tags: entry.tags ?? [],
+      tags: (entry.tags ?? []) as string[],
       authorName,
-      date: entry.created_at,
+      date: entry.created_at as string,
+      structuredData: (entry.structured_data ?? null) as EntryStructuredData,
     };
   } catch (err) {
     console.error("Failed to fetch entry:", err);
@@ -288,14 +312,57 @@ export default async function EntryDetailPage({
         <Separator />
 
         <CardContent className="pt-6">
-          {/* Content body -- preserve whitespace/newlines */}
-          <div className="prose prose-sm sm:prose dark:prose-invert max-w-none">
-            {entry.content.split("\n\n").map((paragraph: string, index: number) => (
-              <p key={index} className="leading-relaxed">
-                {paragraph}
-              </p>
-            ))}
-          </div>
+          {/* Type-specific content rendering */}
+          {entry.type === "recipe" ? (
+            <RecipeView
+              entry={{
+                title: entry.title,
+                content: entry.content,
+                structured_data: entry.structuredData,
+              }}
+            />
+          ) : entry.type === "connection" ? (
+            <ConnectionView
+              entry={{
+                title: entry.title,
+                content: entry.content,
+                structured_data: entry.structuredData,
+              }}
+            />
+          ) : entry.type === "skill" ? (
+            <SkillView
+              entry={{
+                title: entry.title,
+                content: entry.content,
+                structured_data: entry.structuredData,
+              }}
+            />
+          ) : entry.type === "story" ? (
+            <StoryView
+              entry={{
+                title: entry.title,
+                content: entry.content,
+                structured_data: entry.structuredData,
+              }}
+            />
+          ) : entry.type === "lesson" ? (
+            <LessonView
+              entry={{
+                title: entry.title,
+                content: entry.content,
+                structured_data: entry.structuredData,
+              }}
+            />
+          ) : (
+            /* Default/general: original paragraph rendering */
+            <div className="prose prose-sm sm:prose dark:prose-invert max-w-none">
+              {entry.content.split("\n\n").map((paragraph: string, index: number) => (
+                <p key={index} className="leading-relaxed">
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+          )}
         </CardContent>
 
         {/* Tags */}

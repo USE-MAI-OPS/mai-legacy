@@ -41,7 +41,7 @@ export default function HomePage() {
     <div className="min-h-screen">
       {/* Nav */}
       <header className="flex items-center justify-between px-6 py-4 max-w-6xl mx-auto">
-        <span className="text-xl font-bold">MAI Legacy</span>
+        <span className="font-serif text-2xl font-bold text-primary">MAI Legacy</span>
         <div className="flex items-center gap-3">
           <Button variant="ghost" asChild>
             <Link href="/login">Sign In</Link>
@@ -54,7 +54,7 @@ export default function HomePage() {
 
       {/* Hero */}
       <section className="flex flex-col items-center text-center px-6 py-24 max-w-4xl mx-auto">
-        <h1 className="text-5xl md:text-6xl font-bold tracking-tight leading-tight">
+        <h1 className="font-serif text-5xl md:text-6xl font-bold tracking-tight leading-tight">
           Your family&apos;s wisdom,
           <br />
           <span className="text-muted-foreground">preserved forever.</span>
@@ -102,8 +102,8 @@ export default function HomePage() {
 
       {/* CTA */}
       <section className="px-6 py-16 text-center">
-        <div className="max-w-2xl mx-auto bg-primary text-primary-foreground rounded-2xl p-12">
-          <h2 className="text-3xl font-bold">
+        <div className="max-w-2xl mx-auto bg-primary text-primary-foreground rounded-2xl p-12 shadow-md">
+          <h2 className="font-serif text-3xl font-bold">
             Every family has a story worth keeping.
           </h2>
           <p className="mt-3 text-primary-foreground/80">

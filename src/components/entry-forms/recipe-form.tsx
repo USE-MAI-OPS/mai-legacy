@@ -49,17 +49,16 @@ interface RecipeFormProps {
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const UNITS = [
-  "cups",
-  "tsp",
-  "tbsp",
-  "oz",
-  "lb",
-  "pieces",
-  "whole",
-  "pinch",
-  "dash",
-] as const;
+const SUGGESTED_TAGS = [
+  "Dinner",
+  "Holiday",
+  "Dessert",
+  "Family Favorite",
+  "Breakfast",
+  "Baking",
+  "Quick Meal",
+  "Comfort Food",
+];
 
 const DIFFICULTY_OPTIONS = [
   { value: "easy" as const, label: "Easy", color: "bg-green-500" },
@@ -73,7 +72,7 @@ const DIFFICULTY_OPTIONS = [
 function flattenRecipeToContent(
   title: string,
   story: string,
-  ingredients: Ingredient[],
+  ingredients: string[],
   instructions: string[],
   prepTime: string,
   cookTime: string,
@@ -86,13 +85,8 @@ function flattenRecipeToContent(
   if (story.trim()) parts.push(`\n${story.trim()}`);
 
   const ingredientLines = ingredients
-    .filter((i) => i.item.trim())
-    .map((i) => {
-      const amt = i.amount.trim();
-      const unit = i.unit;
-      const item = i.item.trim();
-      return `- ${amt ? amt + " " : ""}${unit && unit !== "whole" ? unit + " " : ""}${item}`;
-    });
+    .filter((i) => i.trim())
+    .map((i) => `- ${i.trim()}`);
   if (ingredientLines.length > 0) {
     parts.push(`\nIngredients:\n${ingredientLines.join("\n")}`);
   }
@@ -122,9 +116,7 @@ export default function RecipeForm({ onSubmit, saving = false }: RecipeFormProps
   // State
   const [title, setTitle] = useState("");
   const [story, setStory] = useState("");
-  const [ingredients, setIngredients] = useState<Ingredient[]>([
-    { amount: "", unit: "", item: "" },
-  ]);
+  const [ingredients, setIngredients] = useState<string[]>([""]);
   const [instructions, setInstructions] = useState<string[]>([""]);
   const [prepTime, setPrepTime] = useState("");
   const [cookTime, setCookTime] = useState("");
@@ -155,19 +147,22 @@ export default function RecipeForm({ onSubmit, saving = false }: RecipeFormProps
     }
   };
 
+  const toggleSuggestedTag = (tag: string) => {
+    setTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
+
   const removeTag = (tag: string) => setTags((prev) => prev.filter((t) => t !== tag));
 
   // ---------------------------------------------------------------------------
   // Ingredient management
   // ---------------------------------------------------------------------------
-  const updateIngredient = (idx: number, field: keyof Ingredient, value: string) => {
-    setIngredients((prev) =>
-      prev.map((ing, i) => (i === idx ? { ...ing, [field]: value } : ing))
-    );
+  const updateIngredient = (idx: number, value: string) => {
+    setIngredients((prev) => prev.map((ing, i) => (i === idx ? value : ing)));
   };
 
-  const addIngredient = () =>
-    setIngredients((prev) => [...prev, { amount: "", unit: "", item: "" }]);
+  const addIngredient = () => setIngredients((prev) => [...prev, ""]);
 
   const removeIngredient = (idx: number) =>
     setIngredients((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== idx) : prev));
@@ -199,11 +194,11 @@ export default function RecipeForm({ onSubmit, saving = false }: RecipeFormProps
 
     const structuredData: RecipeData = {
       ingredients: ingredients
-        .filter((i) => i.item.trim())
+        .filter((i) => i.trim())
         .map((i) => ({
-          item: i.item.trim(),
-          amount: i.amount.trim(),
-          unit: i.unit,
+          item: i.trim(),
+          amount: "",
+          unit: "",
         })),
       instructions: instructions
         .filter((s) => s.trim())
@@ -242,15 +237,15 @@ export default function RecipeForm({ onSubmit, saving = false }: RecipeFormProps
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <Card>
+    <Card className="rounded-2xl border-primary/10 shadow-lg bg-card/80 backdrop-blur-sm">
       <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="rounded-full bg-orange-100 p-2 text-orange-500">
-            <UtensilsCrossed className="size-5" />
+        <div className="flex items-center gap-4">
+          <div className="rounded-full bg-primary/10 p-4 text-primary">
+            <UtensilsCrossed className="size-6" />
           </div>
           <div>
-            <CardTitle className="text-2xl">New Recipe</CardTitle>
-            <CardDescription>
+            <CardTitle className="font-serif text-3xl text-primary">New Recipe</CardTitle>
+            <CardDescription className="text-base">
               Preserve a cherished family recipe for generations to come.
             </CardDescription>
           </div>
@@ -259,13 +254,14 @@ export default function RecipeForm({ onSubmit, saving = false }: RecipeFormProps
 
       <CardContent className="space-y-8">
         {/* Title */}
-        <div className="space-y-2">
-          <Label htmlFor="recipe-title">
+        <div className="space-y-3">
+          <Label htmlFor="recipe-title" className="text-lg">
             Recipe Name <span className="text-destructive">*</span>
           </Label>
           <Input
             id="recipe-title"
-            placeholder="Grandma's Sunday Mac & Cheese"
+            placeholder="e.g. Grandma's Sunday Mac & Cheese"
+            className="text-lg py-6 rounded-xl border-accent-foreground/20"
             value={title}
             onChange={(e) => {
               setTitle(e.target.value);
@@ -274,55 +270,36 @@ export default function RecipeForm({ onSubmit, saving = false }: RecipeFormProps
             aria-invalid={!!errors.title}
           />
           {errors.title && (
-            <p className="text-sm text-destructive">{errors.title}</p>
+            <p className="text-sm text-destructive font-medium">{errors.title}</p>
           )}
         </div>
 
         {/* Story behind the recipe */}
-        <div className="space-y-2">
-          <Label htmlFor="recipe-story">The Story Behind This Recipe</Label>
+        <div className="space-y-3">
+          <Label htmlFor="recipe-story" className="text-lg">The Story Behind This Recipe</Label>
           <Textarea
             id="recipe-story"
             placeholder="Who taught you this? What memories does it bring? Where was it first cooked?"
-            rows={3}
+            rows={4}
             value={story}
             onChange={(e) => setStory(e.target.value)}
-            className="resize-y"
+            className="resize-y text-base p-4 rounded-xl border-accent-foreground/20"
           />
         </div>
 
         {/* Ingredients */}
-        <div className="space-y-3">
-          <Label>Ingredients</Label>
-          <div className="space-y-2">
+        <div className="space-y-4 bg-muted/30 p-6 rounded-2xl border border-border/50">
+          <Label className="text-lg">Ingredients</Label>
+          <p className="text-sm text-muted-foreground mb-2">Just type the amount and ingredient on one line (e.g. "2 cups of flour")</p>
+          <div className="space-y-3">
             {ingredients.map((ing, idx) => (
-              <div key={idx} className="flex items-center gap-2">
+              <div key={idx} className="flex items-center gap-3">
+                <div className="h-2 w-2 rounded-full bg-primary/40 shrink-0" />
                 <Input
-                  placeholder="Amt"
-                  value={ing.amount}
-                  onChange={(e) => updateIngredient(idx, "amount", e.target.value)}
-                  className="w-20"
-                />
-                <Select
-                  value={ing.unit}
-                  onValueChange={(v) => updateIngredient(idx, "unit", v)}
-                >
-                  <SelectTrigger className="w-24">
-                    <SelectValue placeholder="Unit" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {UNITS.map((u) => (
-                      <SelectItem key={u} value={u}>
-                        {u}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  placeholder="Ingredient (e.g., all-purpose flour)"
-                  value={ing.item}
-                  onChange={(e) => updateIngredient(idx, "item", e.target.value)}
-                  className="flex-1"
+                  placeholder="e.g. 2 cups of sifted flour"
+                  value={ing}
+                  onChange={(e) => updateIngredient(idx, e.target.value)}
+                  className="flex-1 text-base py-5 rounded-xl border-accent-foreground/20"
                 />
                 <Button
                   type="button"
@@ -331,33 +308,34 @@ export default function RecipeForm({ onSubmit, saving = false }: RecipeFormProps
                   onClick={() => removeIngredient(idx)}
                   disabled={ingredients.length <= 1}
                   aria-label="Remove ingredient"
+                  className="hover:bg-destructive/10 hover:text-destructive shrink-0"
                 >
-                  <Trash2 className="size-4 text-muted-foreground" />
+                  <Trash2 className="size-5" />
                 </Button>
               </div>
             ))}
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={addIngredient}>
-            <Plus className="size-4 mr-1" />
-            Add Ingredient
+          <Button type="button" variant="outline" size="lg" className="mt-2 rounded-xl border-primary text-primary hover:bg-primary/5" onClick={addIngredient}>
+            <Plus className="size-5 mr-2" />
+            Add Another Ingredient
           </Button>
         </div>
 
         {/* Instructions */}
-        <div className="space-y-3">
-          <Label>Instructions</Label>
-          <div className="space-y-2">
+        <div className="space-y-4">
+          <Label className="text-lg">Instructions</Label>
+          <div className="space-y-4">
             {instructions.map((step, idx) => (
-              <div key={idx} className="flex items-start gap-2">
-                <span className="mt-2.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+              <div key={idx} className="flex items-start gap-4">
+                <span className="mt-2 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-sm font-bold text-primary">
                   {idx + 1}
                 </span>
                 <Textarea
-                  placeholder={`Step ${idx + 1}: What to do...`}
+                  placeholder={`Step ${idx + 1}: What to do next...`}
                   value={step}
                   onChange={(e) => updateInstruction(idx, e.target.value)}
                   rows={2}
-                  className="flex-1 resize-y"
+                  className="flex-1 resize-y text-base p-4 rounded-xl border-accent-foreground/20"
                 />
                 <Button
                   type="button"
@@ -366,16 +344,16 @@ export default function RecipeForm({ onSubmit, saving = false }: RecipeFormProps
                   onClick={() => removeInstruction(idx)}
                   disabled={instructions.length <= 1}
                   aria-label="Remove step"
-                  className="mt-1"
+                  className="mt-1 hover:bg-destructive/10 hover:text-destructive shrink-0"
                 >
-                  <Trash2 className="size-4 text-muted-foreground" />
+                  <Trash2 className="size-5" />
                 </Button>
               </div>
             ))}
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={addInstruction}>
-            <Plus className="size-4 mr-1" />
-            Add Step
+          <Button type="button" variant="outline" size="lg" className="rounded-xl" onClick={addInstruction}>
+            <Plus className="size-5 mr-2" />
+            Add Next Step
           </Button>
         </div>
 
@@ -445,28 +423,50 @@ export default function RecipeForm({ onSubmit, saving = false }: RecipeFormProps
         </div>
 
         {/* Tags */}
-        <div className="space-y-2">
-          <Label htmlFor="recipe-tags">Tags</Label>
+        <div className="space-y-3 bg-muted/20 p-6 rounded-2xl border border-border/40">
+          <Label htmlFor="recipe-tags" className="text-lg">Tags & Categories</Label>
+          <p className="text-sm text-muted-foreground mb-2">Tap any suggested tags, or type your own to categorize this recipe.</p>
+
+          <div className="flex flex-wrap gap-2 mb-4">
+            {SUGGESTED_TAGS.map((tag) => {
+              const isActive = tags.includes(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleSuggestedTag(tag)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${isActive
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-primary/5"
+                    }`}
+                >
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
+
           <Input
             id="recipe-tags"
-            placeholder="Add tags separated by commas, then press Enter"
+            placeholder="Type other tags (e.g. Grandma's favorites) and press Enter"
+            className="text-base py-5 rounded-xl border-accent-foreground/20"
             value={tagInput}
             onChange={(e) => setTagInput(e.target.value)}
             onKeyDown={handleTagKeyDown}
             onBlur={addTagsFromInput}
           />
           {tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-1">
+            <div className="flex flex-wrap gap-2 pt-2">
               {tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="gap-1 pr-1">
+                <Badge key={tag} variant="secondary" className="gap-1.5 px-3 py-1.5 text-sm bg-secondary/60">
                   {tag}
                   <button
                     type="button"
                     onClick={() => removeTag(tag)}
-                    className="rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
+                    className="rounded-full p-0.5 hover:bg-destructive/20 hover:text-destructive transition-colors"
                     aria-label={`Remove tag ${tag}`}
                   >
-                    <X className="size-3" />
+                    <X className="size-3.5" />
                   </button>
                 </Badge>
               ))}
@@ -483,13 +483,13 @@ export default function RecipeForm({ onSubmit, saving = false }: RecipeFormProps
         />
       </CardContent>
 
-      <CardFooter className="flex justify-end gap-3">
-        <Button variant="outline" asChild>
+      <CardFooter className="flex justify-end gap-4 p-6 bg-muted/10 rounded-b-2xl border-t border-border/50">
+        <Button variant="ghost" size="lg" className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5" asChild>
           <Link href="/entries">Cancel</Link>
         </Button>
-        <Button onClick={handleSubmit} disabled={saving}>
-          {saving && <Loader2 className="size-4 mr-2 animate-spin" />}
-          Save Recipe
+        <Button size="lg" className="rounded-xl px-8 shadow-md" onClick={handleSubmit} disabled={saving}>
+          {saving && <Loader2 className="size-5 mr-2 animate-spin" />}
+          Preserve Recipe
         </Button>
       </CardFooter>
     </Card>

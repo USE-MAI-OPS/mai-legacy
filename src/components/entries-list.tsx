@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Plus, Search, BookOpen } from "lucide-react";
+import { Plus, Search, BookOpen, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -66,12 +66,20 @@ export default function EntriesList({ entries }: EntriesListProps) {
             Stories, skills, recipes, and wisdom passed down through your family.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/entries/new">
-            <Plus className="size-4 mr-2" />
-            Add Entry
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/entries/import-interview">
+              <FileText className="size-4 mr-2" />
+              Import Interview
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/entries/new">
+              <Plus className="size-4 mr-2" />
+              Add Entry
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Filter bar */}

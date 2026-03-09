@@ -48,6 +48,17 @@ const DIFFICULTY_OPTIONS = [
   { value: "advanced" as const, label: "Advanced", color: "bg-red-500" },
 ];
 
+const SUGGESTED_SKILL_TAGS = [
+  "Cooking",
+  "Gardening",
+  "Home Repair",
+  "Crafting",
+  "Woodworking",
+  "Sewing",
+  "Auto Maintenance",
+  "Technology",
+];
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -163,6 +174,12 @@ export default function SkillForm({ onSubmit, saving = false }: SkillFormProps) 
     setMaterials
   );
 
+  const toggleSuggestedTag = (tag: string) => {
+    setTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
+
   // ---------------------------------------------------------------------------
   // Step management
   // ---------------------------------------------------------------------------
@@ -240,11 +257,35 @@ export default function SkillForm({ onSubmit, saving = false }: SkillFormProps) 
     inputValue: string,
     setInputValue: (v: string) => void,
     items: string[],
-    handlers: ReturnType<typeof makeTagHandlers>
+    handlers: ReturnType<typeof makeTagHandlers>,
+    suggestions?: string[],
+    toggleSuggestion?: (v: string) => void
   ) {
     return (
-      <div className="space-y-2">
-        <Label htmlFor={id}>{label}</Label>
+      <div className="space-y-3 bg-muted/20 p-6 rounded-2xl border border-border/40">
+        <Label htmlFor={id} className="text-lg">{label}</Label>
+
+        {suggestions && toggleSuggestion && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {suggestions.map((sug) => {
+              const isActive = items.includes(sug);
+              return (
+                <button
+                  key={sug}
+                  type="button"
+                  onClick={() => toggleSuggestion(sug)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${isActive
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-primary/5"
+                    }`}
+                >
+                  {sug}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <Input
           id={id}
           placeholder={placeholder}
@@ -252,19 +293,20 @@ export default function SkillForm({ onSubmit, saving = false }: SkillFormProps) 
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handlers.onKeyDown}
           onBlur={handlers.addFromInput}
+          className="text-base py-5 rounded-xl border-accent-foreground/20 bg-background"
         />
         {items.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-1">
+          <div className="flex flex-wrap gap-2 pt-2">
             {items.map((item) => (
-              <Badge key={item} variant="secondary" className="gap-1 pr-1">
+              <Badge key={item} variant="secondary" className="gap-1.5 px-3 py-1.5 text-sm bg-secondary/60">
                 {item}
                 <button
                   type="button"
                   onClick={() => handlers.remove(item)}
-                  className="rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
+                  className="rounded-full p-0.5 hover:bg-destructive/20 hover:text-destructive transition-colors"
                   aria-label={`Remove ${item}`}
                 >
-                  <X className="size-3" />
+                  <X className="size-3.5" />
                 </button>
               </Badge>
             ))}
@@ -278,15 +320,15 @@ export default function SkillForm({ onSubmit, saving = false }: SkillFormProps) 
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <Card>
+    <Card className="rounded-2xl border-primary/10 shadow-lg bg-card/80 backdrop-blur-sm">
       <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="rounded-full bg-green-100 p-2 text-green-500">
-            <Wrench className="size-5" />
+        <div className="flex items-center gap-4">
+          <div className="rounded-full bg-green-100 p-4 text-green-600">
+            <Wrench className="size-6" />
           </div>
           <div>
-            <CardTitle className="text-2xl">New Skill</CardTitle>
-            <CardDescription>
+            <CardTitle className="font-serif text-3xl text-primary">New Skill</CardTitle>
+            <CardDescription className="text-base">
               Document a skill so others in your family can learn it too.
             </CardDescription>
           </div>
@@ -295,13 +337,14 @@ export default function SkillForm({ onSubmit, saving = false }: SkillFormProps) 
 
       <CardContent className="space-y-8">
         {/* Title */}
-        <div className="space-y-2">
-          <Label htmlFor="skill-title">
+        <div className="space-y-3 bg-muted/30 p-6 rounded-2xl border border-border/50">
+          <Label htmlFor="skill-title" className="text-lg">
             What skill are you documenting? <span className="text-destructive">*</span>
           </Label>
           <Input
             id="skill-title"
             placeholder="e.g., How to patch drywall, Canning peaches, Braiding hair"
+            className="text-lg py-6 rounded-xl border-accent-foreground/20 bg-background"
             value={title}
             onChange={(e) => {
               setTitle(e.target.value);
@@ -310,26 +353,25 @@ export default function SkillForm({ onSubmit, saving = false }: SkillFormProps) 
             aria-invalid={!!errors.title}
           />
           {errors.title && (
-            <p className="text-sm text-destructive">{errors.title}</p>
+            <p className="text-sm text-destructive font-medium">{errors.title}</p>
           )}
         </div>
 
         {/* Difficulty */}
-        <div className="space-y-2">
-          <Label>Difficulty</Label>
-          <div className="flex gap-2">
+        <div className="space-y-3 bg-muted/20 p-6 rounded-2xl border border-border/40">
+          <Label className="text-lg">Difficulty Level</Label>
+          <div className="flex flex-wrap gap-3">
             {DIFFICULTY_OPTIONS.map((opt) => (
               <Button
                 key={opt.value}
                 type="button"
                 variant={difficulty === opt.value ? "default" : "outline"}
-                size="sm"
+                size="lg"
                 onClick={() => setDifficulty(opt.value)}
-                className={
-                  difficulty === opt.value
-                    ? `${opt.color} text-white hover:opacity-90`
-                    : ""
-                }
+                className={`rounded-xl px-6 ${difficulty === opt.value
+                    ? `${opt.color} text-white border-transparent hover:opacity-90 shadow-sm`
+                    : "bg-background border-border hover:bg-muted"
+                  }`}
               >
                 {opt.label}
               </Button>
@@ -360,94 +402,98 @@ export default function SkillForm({ onSubmit, saving = false }: SkillFormProps) 
         )}
 
         {/* Steps */}
-        <div className="space-y-3">
-          <Label>Steps</Label>
-          <div className="space-y-4">
+        <div className="space-y-4">
+          <Label className="text-lg">Step-by-Step Instructions</Label>
+          <div className="space-y-6">
             {steps.map((step, idx) => (
               <div
                 key={idx}
-                className="rounded-lg border bg-muted/30 p-4 space-y-3"
+                className="rounded-2xl border border-accent-foreground/20 bg-muted/10 p-6 space-y-4 shadow-sm"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">
+                  <span className="text-base font-semibold text-primary/80">
                     Step {idx + 1}
                   </span>
                   <Button
                     type="button"
                     variant="ghost"
-                    size="icon-xs"
+                    size="icon"
                     onClick={() => removeStep(idx)}
                     disabled={steps.length <= 1}
+                    className="hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
                     aria-label="Remove step"
                   >
-                    <Trash2 className="size-3.5 text-muted-foreground" />
+                    <Trash2 className="size-4" />
                   </Button>
                 </div>
                 <Input
                   placeholder="Step title (e.g., Prepare the surface)"
                   value={step.title}
                   onChange={(e) => updateStep(idx, "title", e.target.value)}
+                  className="text-base py-5 rounded-xl border-accent-foreground/20 bg-background"
                 />
                 <Textarea
                   placeholder="Describe what to do in detail..."
                   value={step.description}
                   onChange={(e) => updateStep(idx, "description", e.target.value)}
-                  rows={2}
-                  className="resize-y"
+                  rows={3}
+                  className="resize-y text-base p-4 rounded-xl border-accent-foreground/20 bg-background leading-relaxed"
                 />
-                <div className="flex items-center gap-2">
-                  <Lightbulb className="size-4 text-yellow-500 shrink-0" />
+                <div className="flex items-center gap-3 bg-yellow-500/10 p-4 rounded-xl border border-yellow-500/20">
+                  <Lightbulb className="size-5 text-yellow-600 shrink-0" />
                   <Input
                     placeholder="Optional tip or pro trick for this step"
                     value={step.tips}
                     onChange={(e) => updateStep(idx, "tips", e.target.value)}
-                    className="flex-1"
+                    className="flex-1 bg-transparent border-none shadow-none focus-visible:ring-0 px-0 placeholder:text-yellow-700/50"
                   />
                 </div>
               </div>
             ))}
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={addStep}>
-            <Plus className="size-4 mr-1" />
-            Add Step
+          <Button type="button" variant="outline" size="lg" onClick={addStep} className="w-full rounded-xl border-dashed border-2 py-6 text-muted-foreground hover:text-primary hover:border-primary/50 bg-transparent">
+            <Plus className="size-5 mr-2" />
+            Add Another Step
           </Button>
         </div>
 
         {/* Practice Exercises */}
-        <div className="space-y-2">
-          <Label htmlFor="skill-exercises">Practice Exercises</Label>
+        <div className="space-y-3">
+          <Label htmlFor="skill-exercises" className="text-lg">Practice Exercises</Label>
           <Textarea
             id="skill-exercises"
             placeholder="Suggest exercises to practice this skill (one per line)"
-            rows={3}
+            rows={4}
             value={exercises}
             onChange={(e) => setExercises(e.target.value)}
-            className="resize-y"
+            className="resize-y text-base p-5 rounded-2xl border-accent-foreground/20 leading-relaxed"
           />
         </div>
 
         {/* Story / Context */}
-        <div className="space-y-2">
-          <Label htmlFor="skill-story">Story / Context</Label>
+        <div className="space-y-3">
+          <Label htmlFor="skill-story" className="text-lg">Story / Context</Label>
           <Textarea
             id="skill-story"
             placeholder="How did you learn this skill? Who taught you? What makes it important to your family?"
-            rows={3}
+            rows={4}
             value={story}
             onChange={(e) => setStory(e.target.value)}
-            className="resize-y"
+            className="resize-y text-base p-5 rounded-2xl border-accent-foreground/20 leading-relaxed"
           />
         </div>
 
         {/* Tags */}
         {renderTagInput(
           "skill-tags",
-          "Tags",
-          "Add tags separated by commas, then press Enter",
+          "Tags & Themes",
+          "Type extra tags and press Enter",
           tagInput,
           setTagInput,
           tags,
-          tagHandlers
+          tagHandlers,
+          SUGGESTED_SKILL_TAGS,
+          toggleSuggestedTag
         )}
 
         {/* Photos */}
@@ -459,12 +505,12 @@ export default function SkillForm({ onSubmit, saving = false }: SkillFormProps) 
         />
       </CardContent>
 
-      <CardFooter className="flex justify-end gap-3">
-        <Button variant="outline" asChild>
+      <CardFooter className="flex justify-end gap-4 p-6 bg-muted/10 rounded-b-2xl border-t border-border/50">
+        <Button variant="ghost" size="lg" className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5" asChild>
           <Link href="/entries">Cancel</Link>
         </Button>
-        <Button onClick={handleSubmit} disabled={saving}>
-          {saving && <Loader2 className="size-4 mr-2 animate-spin" />}
+        <Button size="lg" className="rounded-xl px-8 shadow-md" onClick={handleSubmit} disabled={saving}>
+          {saving && <Loader2 className="size-5 mr-2 animate-spin" />}
           Save Skill
         </Button>
       </CardFooter>

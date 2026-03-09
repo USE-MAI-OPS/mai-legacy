@@ -12,6 +12,7 @@ import {
   AlertCircle,
   BookOpen,
   Star,
+  Mic,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -372,24 +373,37 @@ export default async function FamilyPage() {
                     </div>
                   )}
 
-                  {/* View full profile link */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full mt-3 text-xs gap-1"
-                    asChild
-                  >
-                    <Link
-                      href={
-                        data?.currentUserId === member.user_id
-                          ? "/profile"
-                          : `/family/member/${member.id}`
-                      }
+                  {/* Action buttons */}
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="flex-1 text-xs gap-1"
+                      asChild
                     >
-                      View Full Story
-                      <ArrowRight className="size-3" />
-                    </Link>
-                  </Button>
+                      <Link
+                        href={
+                          data?.currentUserId === member.user_id
+                            ? "/profile"
+                            : `/family/member/${member.id}`
+                        }
+                      >
+                        View Full Story
+                        <ArrowRight className="size-3" />
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs gap-1"
+                      asChild
+                    >
+                      <Link href={`/entries/import-interview?member=${member.id}`}>
+                        <Mic className="size-3" />
+                        Interview
+                      </Link>
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             );

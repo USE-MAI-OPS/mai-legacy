@@ -56,6 +56,17 @@ const RELATIONSHIPS = [
   "Other",
 ] as const;
 
+const SUGGESTED_CONNECTION_TAGS = [
+  "Family",
+  "Friend",
+  "Mentor",
+  "Colleague",
+  "Childhood",
+  "Neighbor",
+  "Church",
+  "School",
+];
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -121,6 +132,12 @@ export default function ConnectionForm({
   const removeTag = (tag: string) =>
     setTags((prev) => prev.filter((t) => t !== tag));
 
+  const toggleSuggestedTag = (tag: string) => {
+    setTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
+  };
+
   // ---------------------------------------------------------------------------
   // Validation + submit
   // ---------------------------------------------------------------------------
@@ -171,30 +188,31 @@ export default function ConnectionForm({
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <Card>
+    <Card className="rounded-2xl border-primary/10 shadow-lg bg-card/80 backdrop-blur-sm">
       <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="rounded-full bg-pink-100 p-2 text-pink-500">
-            <Users className="size-5" />
+        <div className="flex items-center gap-4">
+          <div className="rounded-full bg-pink-100 p-4 text-pink-600">
+            <Users className="size-6" />
           </div>
           <div>
-            <CardTitle className="text-2xl">New Connection</CardTitle>
-            <CardDescription>
+            <CardTitle className="font-serif text-3xl text-primary">New Connection</CardTitle>
+            <CardDescription className="text-base">
               Keep track of the people who matter to your family.
             </CardDescription>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-8">
         {/* Full Name */}
-        <div className="space-y-2">
-          <Label htmlFor="conn-name">
+        <div className="space-y-3 bg-muted/30 p-6 rounded-2xl border border-border/50">
+          <Label htmlFor="conn-name" className="text-lg">
             Full Name <span className="text-destructive">*</span>
           </Label>
           <Input
             id="conn-name"
             placeholder="e.g., Aunt Dorothy Mae Johnson"
+            className="text-lg py-6 rounded-xl border-accent-foreground/20 bg-background"
             value={fullName}
             onChange={(e) => {
               setFullName(e.target.value);
@@ -203,20 +221,20 @@ export default function ConnectionForm({
             aria-invalid={!!errors.fullName}
           />
           {errors.fullName && (
-            <p className="text-sm text-destructive">{errors.fullName}</p>
+            <p className="text-sm text-destructive font-medium">{errors.fullName}</p>
           )}
         </div>
 
         {/* Relationship */}
-        <div className="space-y-2">
-          <Label htmlFor="conn-relationship">Relationship</Label>
+        <div className="space-y-3 bg-muted/20 p-6 rounded-2xl border border-border/40">
+          <Label htmlFor="conn-relationship" className="text-lg">Relationship</Label>
           <Select value={relationship} onValueChange={setRelationship}>
-            <SelectTrigger id="conn-relationship" className="w-full">
+            <SelectTrigger id="conn-relationship" className="w-full text-base py-6 rounded-xl border-accent-foreground/20 bg-background">
               <SelectValue placeholder="Select relationship" />
             </SelectTrigger>
             <SelectContent>
               {RELATIONSHIPS.map((rel) => (
-                <SelectItem key={rel} value={rel}>
+                <SelectItem key={rel} value={rel} className="text-base py-3">
                   {rel}
                 </SelectItem>
               ))}
@@ -224,88 +242,118 @@ export default function ConnectionForm({
           </Select>
         </div>
 
-        {/* Phone & Email */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="conn-phone">Phone</Label>
-            <Input
-              id="conn-phone"
-              type="tel"
-              placeholder="(555) 123-4567"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-            />
+        <div className="grid md:grid-cols-2 gap-6 bg-muted/10 p-6 rounded-2xl border border-border/40">
+          {/* Phone & Email */}
+          <div className="space-y-4">
+            <div className="space-y-3">
+              <Label htmlFor="conn-phone" className="text-lg">Phone</Label>
+              <Input
+                id="conn-phone"
+                type="tel"
+                placeholder="(555) 123-4567"
+                className="text-base py-5 rounded-xl border-accent-foreground/20 bg-background"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
+            <div className="space-y-3">
+              <Label htmlFor="conn-email" className="text-lg">Email</Label>
+              <Input
+                id="conn-email"
+                type="email"
+                placeholder="dorothy@email.com"
+                className="text-base py-5 rounded-xl border-accent-foreground/20 bg-background"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="conn-email">Email</Label>
-            <Input
-              id="conn-email"
-              type="email"
-              placeholder="dorothy@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+
+          <div className="space-y-4">
+            {/* Address */}
+            <div className="space-y-3">
+              <Label htmlFor="conn-address" className="text-lg">Address</Label>
+              <Input
+                id="conn-address"
+                placeholder="123 Oak Street, Atlanta, GA"
+                className="text-base py-5 rounded-xl border-accent-foreground/20 bg-background"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+            </div>
+
+            {/* Birthday */}
+            <div className="space-y-3">
+              <Label htmlFor="conn-birthday" className="text-lg">Birthday</Label>
+              <Input
+                id="conn-birthday"
+                type="date"
+                className="text-base py-5 rounded-xl border-accent-foreground/20 bg-background"
+                value={birthday}
+                onChange={(e) => setBirthday(e.target.value)}
+              />
+            </div>
           </div>
-        </div>
-
-        {/* Address */}
-        <div className="space-y-2">
-          <Label htmlFor="conn-address">Address</Label>
-          <Input
-            id="conn-address"
-            placeholder="123 Oak Street, Atlanta, GA"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-          />
-        </div>
-
-        {/* Birthday */}
-        <div className="space-y-2">
-          <Label htmlFor="conn-birthday">Birthday</Label>
-          <Input
-            id="conn-birthday"
-            type="date"
-            value={birthday}
-            onChange={(e) => setBirthday(e.target.value)}
-          />
         </div>
 
         {/* Notes */}
-        <div className="space-y-2">
-          <Label htmlFor="conn-notes">Notes / Story</Label>
+        <div className="space-y-3">
+          <Label htmlFor="conn-notes" className="text-lg">Notes / Story</Label>
           <Textarea
             id="conn-notes"
             placeholder="How do you know this person? What makes them special to your family?"
-            rows={4}
+            rows={5}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="resize-y"
+            className="resize-y text-base p-6 rounded-2xl border-accent-foreground/30 leading-relaxed"
           />
         </div>
 
         {/* Tags */}
-        <div className="space-y-2">
-          <Label htmlFor="conn-tags">Tags</Label>
+        <div className="space-y-3 bg-muted/20 p-6 rounded-2xl border border-border/40">
+          <Label htmlFor="conn-tags" className="text-lg">Tags & Groups</Label>
+          <p className="text-sm text-muted-foreground mb-4">Tap tags below, or type your own.</p>
+
+          <div className="flex flex-wrap gap-2 mb-4">
+            {SUGGESTED_CONNECTION_TAGS.map((tag) => {
+              const isActive = tags.includes(tag);
+              return (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleSuggestedTag(tag)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${isActive
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-background text-foreground border-border hover:border-primary/50 hover:bg-primary/5"
+                    }`}
+                >
+                  {tag}
+                </button>
+              );
+            })}
+          </div>
+
           <Input
             id="conn-tags"
-            placeholder="Add tags separated by commas, then press Enter"
+            placeholder="Type extra tags and press Enter"
+            className="text-base py-5 rounded-xl border-accent-foreground/20 bg-background"
             value={tagInput}
             onChange={(e) => setTagInput(e.target.value)}
             onKeyDown={handleTagKeyDown}
             onBlur={addTagsFromInput}
           />
           {tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 pt-1">
+            <div className="flex flex-wrap gap-2 pt-2">
               {tags.map((tag) => (
-                <Badge key={tag} variant="secondary" className="gap-1 pr-1">
+                <Badge key={tag} variant="secondary" className="gap-1.5 px-3 py-1.5 text-sm bg-secondary/60">
                   {tag}
                   <button
                     type="button"
                     onClick={() => removeTag(tag)}
-                    className="rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors"
+                    className="rounded-full p-0.5 hover:bg-destructive/20 hover:text-destructive transition-colors"
                     aria-label={`Remove tag ${tag}`}
                   >
-                    <X className="size-3" />
+                    <X className="size-3.5" />
                   </button>
                 </Badge>
               ))}
@@ -314,12 +362,12 @@ export default function ConnectionForm({
         </div>
       </CardContent>
 
-      <CardFooter className="flex justify-end gap-3">
-        <Button variant="outline" asChild>
+      <CardFooter className="flex justify-end gap-4 p-6 bg-muted/10 rounded-b-2xl border-t border-border/50">
+        <Button variant="ghost" size="lg" className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5" asChild>
           <Link href="/entries">Cancel</Link>
         </Button>
-        <Button onClick={handleSubmit} disabled={saving}>
-          {saving && <Loader2 className="size-4 mr-2 animate-spin" />}
+        <Button size="lg" className="rounded-xl px-8 shadow-md" onClick={handleSubmit} disabled={saving}>
+          {saving && <Loader2 className="size-5 mr-2 animate-spin" />}
           Save Connection
         </Button>
       </CardFooter>

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EntryCard } from "@/components/entry-card";
-import type { EntryType } from "@/types/database";
+import type { EntryType, EntryStructuredData } from "@/types/database";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -27,6 +27,7 @@ export interface EntryListItem {
   tags: string[];
   authorName: string;
   date: string;
+  structured_data?: EntryStructuredData;
 }
 
 interface EntriesListProps {
@@ -146,6 +147,7 @@ export default function EntriesList({ entries }: EntriesListProps) {
               tags={entry.tags}
               authorName={entry.authorName}
               date={entry.date}
+              structured_data={entry.structured_data}
             />
           ))}
         </div>

@@ -114,13 +114,32 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
+/** Get the most recent career item — "Present" jobs first, then by start year descending. */
+function getMostRecentCareer(career: { title: string; company: string; years: string }[]) {
+  if (career.length === 0) return null;
+  if (career.length === 1) return career[0];
+
+  return [...career].sort((a, b) => {
+    const aPresent = /present/i.test(a.years);
+    const bPresent = /present/i.test(b.years);
+    if (aPresent && !bPresent) return -1;
+    if (!aPresent && bPresent) return 1;
+
+    // Extract start year for comparison
+    const aYear = parseInt(a.years.match(/\d{4}/)?.[0] ?? "0", 10);
+    const bYear = parseInt(b.years.match(/\d{4}/)?.[0] ?? "0", 10);
+    return bYear - aYear;
+  })[0];
+}
+
 function getStoryHighlight(story: LifeStory): string {
   const parts: string[] = [];
   if (story.places.length > 0) {
     parts.push(`From ${story.places[0].city}, ${story.places[0].state}`);
   }
-  if (story.career.length > 0) {
-    parts.push(story.career[0].title);
+  const recentJob = getMostRecentCareer(story.career);
+  if (recentJob) {
+    parts.push(recentJob.title);
   }
   if (story.skills.length > 0) {
     parts.push(`${story.skills.length} skill${story.skills.length !== 1 ? "s" : ""}`);
@@ -325,12 +344,15 @@ export default async function FamilyPage() {
                           </span>
                         </div>
                       )}
-                      {story.career.length > 0 && (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Briefcase className="size-3" />
-                          <span>{story.career[0].title} at {story.career[0].company}</span>
-                        </div>
-                      )}
+                      {story.career.length > 0 && (() => {
+                        const job = getMostRecentCareer(story.career);
+                        return job ? (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Briefcase className="size-3" />
+                            <span>{job.title} at {job.company}</span>
+                          </div>
+                        ) : null;
+                      })()}
                       {story.education.length > 0 && (
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <GraduationCap className="size-3" />

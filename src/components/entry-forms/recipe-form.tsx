@@ -44,6 +44,7 @@ interface RecipeFormProps {
     structured_data: { type: "recipe"; data: RecipeData };
   }) => Promise<void>;
   saving?: boolean;
+  familyId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -112,7 +113,7 @@ function flattenRecipeToContent(
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export default function RecipeForm({ onSubmit, saving = false }: RecipeFormProps) {
+export default function RecipeForm({ onSubmit, saving = false, familyId }: RecipeFormProps) {
   // State
   const [title, setTitle] = useState("");
   const [story, setStory] = useState("");
@@ -478,6 +479,7 @@ export default function RecipeForm({ onSubmit, saving = false }: RecipeFormProps
         <ImageUpload
           images={images}
           onImagesChange={setImages}
+          familyId={familyId}
           label="Recipe Photos"
           maxImages={6}
         />

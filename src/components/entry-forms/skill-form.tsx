@@ -37,6 +37,7 @@ interface SkillFormProps {
     structured_data: { type: "skill"; data: SkillData };
   }) => Promise<void>;
   saving?: boolean;
+  familyId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -109,7 +110,7 @@ function flattenSkillToContent(
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export default function SkillForm({ onSubmit, saving = false }: SkillFormProps) {
+export default function SkillForm({ onSubmit, saving = false, familyId }: SkillFormProps) {
   // State
   const [title, setTitle] = useState("");
   const [difficulty, setDifficulty] = useState<"beginner" | "intermediate" | "advanced">(
@@ -500,6 +501,7 @@ export default function SkillForm({ onSubmit, saving = false }: SkillFormProps) 
         <ImageUpload
           images={images}
           onImagesChange={setImages}
+          familyId={familyId}
           label="Skill Photos"
           maxImages={6}
         />

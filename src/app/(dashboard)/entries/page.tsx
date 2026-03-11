@@ -98,13 +98,13 @@ async function getEntries(): Promise<EntryListItem[]> {
     if (!ctx) return MOCK_ENTRIES;
     const { familyId, supabase } = ctx;
 
-    // Fetch all entries for the family, joined with the author's display name
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: entries, error: entriesError } = await (supabase as any)
+    const sb = supabase as any;
+
+    // Fetch all entries for the family (including structured_data for summaries)
+    const { data: entries, error: entriesError } = await sb
       .from("entries")
-      .select(
-        "id, title, content, type, tags, created_at, family_members!entries_author_id_fkey(display_name)"
-      )
+      .select("id, title, content, type, tags, structured_data, created_at, author_id")
       .eq("family_id", familyId)
       .order("created_at", { ascending: false });
 
@@ -112,36 +112,30 @@ async function getEntries(): Promise<EntryListItem[]> {
       return MOCK_ENTRIES;
     }
 
-    return entries.map(
-      (entry: {
-        id: string;
-        title: string;
-        content: string;
-        type: EntryType;
-        tags: string[] | null;
-        created_at: string;
-        family_members:
-          | { display_name: string }
-          | { display_name: string }[]
-          | null;
-      }) => {
-        const authorJoin = entry.family_members;
-        const authorName = Array.isArray(authorJoin)
-          ? authorJoin[0]?.display_name ?? "Unknown"
-          : (authorJoin as { display_name: string } | null)?.display_name ??
-            "Unknown";
-
-        return {
-          id: entry.id,
-          title: entry.title,
-          content: entry.content,
-          type: entry.type,
-          tags: entry.tags ?? [],
-          authorName,
-          date: entry.created_at,
-        };
+    // Batch-resolve author display names from family_members
+    const authorIds = [...new Set(entries.map((e: any) => e.author_id).filter(Boolean))];
+    const authorMap: Record<string, string> = {};
+    if (authorIds.length > 0) {
+      const { data: members } = await sb
+        .from("family_members")
+        .select("user_id, display_name")
+        .eq("family_id", familyId)
+        .in("user_id", authorIds);
+      for (const m of members ?? []) {
+        if (m.user_id && m.display_name) authorMap[m.user_id] = m.display_name;
       }
-    );
+    }
+
+    return entries.map((entry: any) => ({
+      id: entry.id,
+      title: entry.title,
+      content: entry.content,
+      type: entry.type,
+      tags: entry.tags ?? [],
+      authorName: authorMap[entry.author_id] ?? "Unknown",
+      date: entry.created_at,
+      structured_data: entry.structured_data ?? undefined,
+    }));
   } catch (err) {
     console.error("Failed to fetch entries:", err);
     return MOCK_ENTRIES;

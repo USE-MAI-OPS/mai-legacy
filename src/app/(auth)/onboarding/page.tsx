@@ -218,11 +218,12 @@ function InlineFormRow({
         ))}
       </div>
       <div className="flex gap-2">
-        <Button size="sm" onClick={handleSubmit} className="h-8 text-xs gap-1">
+        <Button type="button" size="sm" onClick={handleSubmit} className="h-8 text-xs gap-1">
           <Plus className="size-3" />
           Add
         </Button>
         <Button
+          type="button"
           size="sm"
           variant="ghost"
           onClick={onCancel}
@@ -608,6 +609,7 @@ export default function OnboardingPage() {
                   />
                 ) : (
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setShowPlaceForm(true)}
@@ -730,6 +732,7 @@ export default function OnboardingPage() {
                   />
                 ) : (
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setShowCareerForm(true)}
@@ -788,12 +791,12 @@ export default function OnboardingPage() {
                 {showEduForm ? (
                   <InlineFormRow
                     fields={[
-                      { label: "School", placeholder: "Georgia Tech" },
+                      { label: "School", placeholder: "e.g., Lincoln High School, Georgia Tech" },
                       {
-                        label: "Degree",
-                        placeholder: "B.S. Computer Science",
+                        label: "Degree / Level",
+                        placeholder: "e.g., High School Diploma, B.S. Computer Science",
                       },
-                      { label: "Year", placeholder: "2016" },
+                      { label: "Year", placeholder: "e.g., 2016" },
                     ]}
                     onSubmit={([school, degree, year]) => {
                       setLifeStory((s) => ({
@@ -806,6 +809,7 @@ export default function OnboardingPage() {
                   />
                 ) : (
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setShowEduForm(true)}
@@ -935,6 +939,7 @@ export default function OnboardingPage() {
                   />
                 ) : (
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setShowMilestoneForm(true)}
@@ -1000,6 +1005,7 @@ export default function OnboardingPage() {
                   />
                 ) : (
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setShowMilitaryForm(true)}
@@ -1154,6 +1160,7 @@ export default function OnboardingPage() {
           <div className="flex gap-2 pt-2">
             {step > 0 && (
               <Button
+                type="button"
                 variant="ghost"
                 onClick={goBack}
                 className="gap-1"
@@ -1167,6 +1174,7 @@ export default function OnboardingPage() {
 
             {step >= 2 && step < TOTAL_STEPS - 1 && (
               <Button
+                type="button"
                 variant="ghost"
                 onClick={goNext}
                 className="text-muted-foreground"
@@ -1177,6 +1185,7 @@ export default function OnboardingPage() {
 
             {step < TOTAL_STEPS - 1 ? (
               <Button
+                type="button"
                 onClick={goNext}
                 disabled={!canGoNext()}
                 className="gap-1"
@@ -1186,6 +1195,7 @@ export default function OnboardingPage() {
               </Button>
             ) : (
               <Button
+                type="button"
                 onClick={handleCreate}
                 disabled={loading}
                 className="gap-1"

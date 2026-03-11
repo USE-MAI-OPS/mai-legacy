@@ -31,6 +31,7 @@ interface LessonFormProps {
     structured_data: { type: "lesson"; data: LessonData };
   }) => Promise<void>;
   saving?: boolean;
+  familyId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -79,7 +80,7 @@ function flattenLessonToContent(
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export default function LessonForm({ onSubmit, saving = false }: LessonFormProps) {
+export default function LessonForm({ onSubmit, saving = false, familyId }: LessonFormProps) {
   // State
   const [title, setTitle] = useState("");
   const [taughtBy, setTaughtBy] = useState("");
@@ -369,6 +370,7 @@ export default function LessonForm({ onSubmit, saving = false }: LessonFormProps
         <ImageUpload
           images={images}
           onImagesChange={setImages}
+          familyId={familyId}
           label="Photos"
           maxImages={6}
         />

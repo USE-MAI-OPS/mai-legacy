@@ -199,7 +199,7 @@ async function getEntry(id: string) {
     const { data: entry, error: entryError } = await sb
       .from("entries")
       .select(
-        "id, title, content, type, tags, structured_data, created_at, updated_at, family_members!entries_author_id_fkey(display_name)"
+        "id, title, content, type, tags, structured_data, created_at, updated_at, author_id, family_id"
       )
       .eq("id", id)
       .single();
@@ -208,11 +208,17 @@ async function getEntry(id: string) {
       return MOCK_ENTRIES[id] ?? null;
     }
 
-    const authorJoin = entry.family_members;
-    const authorName = Array.isArray(authorJoin)
-      ? authorJoin[0]?.display_name ?? "Unknown"
-      : (authorJoin as { display_name: string } | null)?.display_name ??
-        "Unknown";
+    // Resolve author display name via a separate query
+    let authorName = "Unknown";
+    if (entry.author_id) {
+      const { data: member } = await sb
+        .from("family_members")
+        .select("display_name")
+        .eq("user_id", entry.author_id)
+        .eq("family_id", entry.family_id)
+        .maybeSingle();
+      if (member?.display_name) authorName = member.display_name;
+    }
 
     return {
       id: entry.id as string,

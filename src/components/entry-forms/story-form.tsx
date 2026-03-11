@@ -31,6 +31,7 @@ interface StoryFormProps {
     structured_data: { type: "story"; data: StoryData };
   }) => Promise<void>;
   saving?: boolean;
+  familyId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -70,7 +71,7 @@ function flattenStoryToContent(
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export default function StoryForm({ onSubmit, saving = false }: StoryFormProps) {
+export default function StoryForm({ onSubmit, saving = false, familyId }: StoryFormProps) {
   // State
   const [title, setTitle] = useState("");
   const [when, setWhen] = useState("");
@@ -350,6 +351,7 @@ export default function StoryForm({ onSubmit, saving = false }: StoryFormProps) 
         <ImageUpload
           images={images}
           onImagesChange={setImages}
+          familyId={familyId}
           label="Story Photos"
           maxImages={6}
         />

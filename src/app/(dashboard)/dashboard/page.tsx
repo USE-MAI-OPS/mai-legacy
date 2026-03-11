@@ -191,7 +191,7 @@ async function getDashboardData() {
       sb.from("family_members").select("id", { count: "exact", head: true }).eq("family_id", familyId),
       sb
         .from("entries")
-        .select("id, title, type, created_at, author_id, family_members!entries_author_id_fkey(display_name)")
+        .select("id, title, type, created_at, author_id")
         .eq("family_id", familyId)
         .order("created_at", { ascending: false })
         .limit(4),
@@ -208,15 +208,29 @@ async function getDashboardData() {
         .order("created_at", { ascending: true }),
       sb
         .from("entries")
-        .select("type, author_id, family_members!entries_author_id_fkey(display_name)")
+        .select("type, author_id")
         .eq("family_id", familyId),
     ]);
+
+    // Build author name map from family members (already fetched above)
+    const authorNameMap: Record<string, string> = {};
+    for (const m of familyMembersResult.data ?? []) {
+      // family_members query has display_name and we need user_id for mapping
+      // We already have user_id from the family_members query if we add it
+    }
+    // Fetch a lookup of user_id → display_name for this family
+    const { data: memberLookup } = await sb
+      .from("family_members")
+      .select("user_id, display_name")
+      .eq("family_id", familyId);
+    for (const m of memberLookup ?? []) {
+      if (m.user_id && m.display_name) authorNameMap[m.user_id] = m.display_name;
+    }
 
     // Aggregate entry type counts for Legacy Board
     const allEntries: Array<{
       type: string;
       author_id: string;
-      family_members: { display_name: string } | { display_name: string }[] | null;
     }> = entryTypesResult.data ?? [];
 
     const typeCounts: Record<string, number> = {};
@@ -226,10 +240,7 @@ async function getDashboardData() {
       typeCounts[entry.type] = (typeCounts[entry.type] ?? 0) + 1;
 
       // Count contributions per author
-      const authorJoin = entry.family_members;
-      const authorName = Array.isArray(authorJoin)
-        ? authorJoin[0]?.display_name ?? "Unknown"
-        : (authorJoin as { display_name: string } | null)?.display_name ?? "Unknown";
+      const authorName = authorNameMap[entry.author_id] ?? "Unknown";
       if (!authorCounts[entry.author_id]) {
         authorCounts[entry.author_id] = { name: authorName, count: 0 };
       }
@@ -257,6 +268,7 @@ async function getDashboardData() {
       recentEntries: recentEntriesResult.data ?? [],
       familyMembers: familyMembersResult.data ?? [],
       traditions: traditionsResult.data ?? [],
+      authorNameMap,
       entryTypeCounts: {
         recipe: typeCounts["recipe"] ?? 0,
         story: typeCounts["story"] ?? 0,
@@ -295,21 +307,14 @@ export default async function DashboardPage() {
           title: string;
           type: string;
           created_at: string;
-          family_members: { display_name: string } | { display_name: string }[] | null;
-        }) => {
-          // Supabase join can return an object or array depending on the FK shape
-          const authorJoin = entry.family_members;
-          const authorName = Array.isArray(authorJoin)
-            ? authorJoin[0]?.display_name ?? "Unknown"
-            : (authorJoin as { display_name: string } | null)?.display_name ?? "Unknown";
-          return {
-            id: entry.id,
-            title: entry.title,
-            type: entry.type,
-            author: authorName,
-            date: timeAgo(entry.created_at),
-          };
-        }
+          author_id: string;
+        }) => ({
+          id: entry.id,
+          title: entry.title,
+          type: entry.type,
+          author: data.authorNameMap[entry.author_id] ?? "Unknown",
+          date: timeAgo(entry.created_at),
+        })
       )
     : MOCK_RECENT_ENTRIES;
 

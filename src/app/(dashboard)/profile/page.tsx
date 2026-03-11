@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getFamilyContext } from "@/lib/get-family-context";
 import {
   ProfileClient,
   type ProfileUser,
@@ -58,19 +58,21 @@ export default async function ProfilePage() {
   let recentEntries: RecentEntry[] = MOCK_RECENT_ENTRIES;
   let lifeStory: LifeStory | undefined;
   let memberId: string | undefined;
+  let currentUserId: string | undefined;
 
   try {
-    const supabase = await createClient();
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
+    const ctx = await getFamilyContext();
 
-    if (authUser) {
+    if (ctx) {
+      const { userId, familyId, supabase } = ctx;
+      // Get auth email
+      const { data: { user: authUser } } = await supabase.auth.getUser();
       // Get the user's family member record (including life_story)
       const { data: membership } = await supabase
         .from("family_members")
         .select("id, family_id, display_name, role, avatar_url, joined_at, life_story")
-        .eq("user_id", authUser.id)
+        .eq("user_id", userId)
+        .eq("family_id", familyId)
         .single();
 
       if (membership) {
@@ -78,22 +80,22 @@ export default async function ProfilePage() {
         const { count: entriesCount } = await supabase
           .from("entries")
           .select("id", { count: "exact", head: true })
-          .eq("family_id", membership.family_id)
-          .eq("author_id", authUser.id);
+          .eq("family_id", familyId)
+          .eq("author_id", userId);
 
         // Count tutorials (tutorials belong to the family, no author_id on table,
         // but we count tutorials in the user's family)
         const { count: tutorialsCount } = await supabase
           .from("skill_tutorials")
           .select("id", { count: "exact", head: true })
-          .eq("family_id", membership.family_id);
+          .eq("family_id", familyId);
 
         // Get recent entries by this user (last 5)
         const { data: recentData } = await supabase
           .from("entries")
           .select("id, title, type, created_at")
-          .eq("family_id", membership.family_id)
-          .eq("author_id", authUser.id)
+          .eq("family_id", familyId)
+          .eq("author_id", userId)
           .order("created_at", { ascending: false })
           .limit(5);
 
@@ -101,8 +103,8 @@ export default async function ProfilePage() {
         const { data: typesData } = await supabase
           .from("entries")
           .select("type")
-          .eq("family_id", membership.family_id)
-          .eq("author_id", authUser.id);
+          .eq("family_id", familyId)
+          .eq("author_id", userId);
 
         const distinctTypes = typesData
           ? [...new Set(typesData.map((t) => t.type))]
@@ -110,7 +112,7 @@ export default async function ProfilePage() {
 
         user = {
           display_name: membership.display_name,
-          email: authUser.email || "",
+          email: authUser?.email || "",
           role: membership.role,
           avatar_url: membership.avatar_url,
           joined_at: membership.joined_at,
@@ -135,6 +137,7 @@ export default async function ProfilePage() {
         // Extract life_story (normalize to ensure all fields exist) and member ID
         lifeStory = normalizeLifeStory(membership.life_story);
         memberId = membership.id;
+        currentUserId = userId;
       }
     }
   } catch (e) {
@@ -147,6 +150,7 @@ export default async function ProfilePage() {
       recentEntries={recentEntries}
       lifeStory={lifeStory}
       memberId={memberId}
+      userId={currentUserId}
     />
   );
 }

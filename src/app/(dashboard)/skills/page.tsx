@@ -1,23 +1,13 @@
-import { createClient } from "@/lib/supabase/server";
+import { getFamilyContext } from "@/lib/get-family-context";
 import SkillsClient from "./skills-client";
 
 async function getSkillEntries() {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) return [];
+    const ctx = await getFamilyContext();
+    if (!ctx) return [];
+    const { familyId, supabase } = ctx;
 
     const sb = supabase as any;
-    const { data: membership } = await sb
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!membership) return [];
 
     // Fetch all skill-type entries with author info
     const { data, error } = await sb
@@ -25,7 +15,7 @@ async function getSkillEntries() {
       .select(
         "id, title, content, type, tags, structured_data, created_at, family_members!entries_author_id_fkey(display_name)"
       )
-      .eq("family_id", membership.family_id)
+      .eq("family_id", familyId)
       .eq("type", "skill")
       .order("created_at", { ascending: false });
 

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getFamilyContext } from "@/lib/get-family-context";
 import { TutorialsListClient, type Tutorial } from "./tutorials-list-client";
 
 const MOCK_TUTORIALS: Tutorial[] = [
@@ -48,25 +48,16 @@ export default async function TutorialsPage() {
   let tutorials: Tutorial[] = MOCK_TUTORIALS;
 
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const ctx = await getFamilyContext();
 
-    if (user) {
-      // Get user's family
-      const { data: membership } = await supabase
-        .from("family_members")
-        .select("family_id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (membership) {
+    if (ctx) {
+      const { familyId, supabase } = ctx;
+      {
         // Fetch tutorials joined with entries for title
         const { data: tutorialsData } = await supabase
           .from("skill_tutorials")
           .select("id, entry_id, steps, difficulty_level, estimated_time, created_at, entries(title)")
-          .eq("family_id", membership.family_id)
+          .eq("family_id", familyId)
           .order("created_at", { ascending: false });
 
         if (tutorialsData && tutorialsData.length > 0) {

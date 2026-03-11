@@ -1,28 +1,14 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { getFamilyContext } from "@/lib/get-family-context";
 import type { GoalStatus } from "@/types/database";
 
-// Helper to get authenticated user's family context
+// Wrapper that returns the shape the rest of this file expects
 async function getUserFamily() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-  if (authError || !user) return null;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-  const { data: membership } = await sb
-    .from("family_members")
-    .select("family_id")
-    .eq("user_id", user.id)
-    .single();
-
-  if (!membership) return null;
-  return { userId: user.id, familyId: membership.family_id, sb };
+  const ctx = await getFamilyContext();
+  if (!ctx) return null;
+  return { userId: ctx.userId, familyId: ctx.familyId, sb: ctx.supabase as any };
 }
 
 export interface FamilyGoal {

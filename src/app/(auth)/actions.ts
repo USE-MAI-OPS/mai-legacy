@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import type { LifeStory, MemberSpecialty } from "@/types/database";
+import { setActiveFamilyCookie } from "@/lib/active-family-server";
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
@@ -135,15 +136,63 @@ export async function createFamily(
     return { error: familyError.message };
   }
 
-  // Add the current user as admin member with life story data
-  const { error: memberError } = await admin
-    .from("family_members")
-    .insert({
-      family_id: family.id,
-      user_id: user.id,
-      role: "admin",
-      display_name: displayName.trim(),
-      life_story: lifeStory ?? {
+  // Check if user already has a membership (creating 2nd+ family)
+  // If so, inherit profile data from the existing row
+  let memberData: Record<string, unknown> = {
+    family_id: family.id,
+    user_id: user.id,
+    role: "admin",
+    display_name: displayName.trim(),
+  };
+
+  if (lifeStory || profileFields) {
+    // Explicit data provided (first family during onboarding)
+    memberData.life_story = lifeStory ?? {
+      career: [],
+      places: [],
+      education: [],
+      skills: [],
+      hobbies: [],
+      military: null,
+      milestones: [],
+    };
+    if (profileFields) {
+      Object.assign(memberData, profileFields);
+    }
+  } else {
+    // No explicit data — try to inherit from an existing membership
+    const { data: existingMember } = await admin
+      .from("family_members")
+      .select(
+        "display_name, life_story, nickname, phone, email, occupation, country, state, specialty"
+      )
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingMember) {
+      memberData = {
+        ...memberData,
+        display_name: existingMember.display_name || displayName.trim(),
+        life_story: existingMember.life_story ?? {
+          career: [],
+          places: [],
+          education: [],
+          skills: [],
+          hobbies: [],
+          military: null,
+          milestones: [],
+        },
+        nickname: existingMember.nickname,
+        phone: existingMember.phone,
+        email: existingMember.email,
+        occupation: existingMember.occupation,
+        country: existingMember.country,
+        state: existingMember.state,
+        specialty: existingMember.specialty,
+      };
+    } else {
+      memberData.life_story = {
         career: [],
         places: [],
         education: [],
@@ -151,12 +200,24 @@ export async function createFamily(
         hobbies: [],
         military: null,
         milestones: [],
-      },
-      ...profileFields,
-    });
+      };
+    }
+  }
+
+  // Add the current user as admin member
+  const { error: memberError } = await (admin as any)
+    .from("family_members")
+    .insert(memberData);
 
   if (memberError) {
     return { error: memberError.message };
+  }
+
+  // Set this as the active family cookie (first created becomes active)
+  try {
+    await setActiveFamilyCookie(family.id);
+  } catch {
+    // Non-critical — cookie will be set on next page load
   }
 
   return { success: true };

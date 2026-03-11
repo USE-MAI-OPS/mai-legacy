@@ -14,6 +14,9 @@ import {
   X,
   Wrench,
   Target,
+  ChevronDown,
+  Check,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -25,9 +28,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/app/(auth)/actions";
+import { createClient } from "@/lib/supabase/client";
+import {
+  getActiveFamilyIdClient,
+  setActiveFamilyIdClient,
+} from "@/lib/active-family";
+
+interface FamilyInfo {
+  id: string;
+  name: string;
+}
+
+interface UserInfo {
+  displayName: string;
+  initials: string;
+  role: string;
+}
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -43,6 +62,76 @@ const navItems = [
 export function DashboardNav() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [families, setFamilies] = useState<FamilyInfo[]>([]);
+  const [activeFamilyId, setActiveFamilyId] = useState<string | null>(null);
+  const [userInfo, setUserInfo] = useState<UserInfo>({
+    displayName: "",
+    initials: "",
+    role: "member",
+  });
+
+  useEffect(() => {
+    async function loadFamiliesAndUser() {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch all families the user belongs to
+      const { data: memberships } = await (supabase as any)
+        .from("family_members")
+        .select("family_id, display_name, role, families(name)")
+        .eq("user_id", user.id);
+
+      if (!memberships || memberships.length === 0) return;
+
+      const familyList: FamilyInfo[] = memberships.map((m: any) => ({
+        id: m.family_id,
+        name: (m.families as any)?.name ?? "Unknown Family",
+      }));
+      setFamilies(familyList);
+
+      // Determine active family
+      const cookieId = getActiveFamilyIdClient();
+      const validCookie = familyList.find((f) => f.id === cookieId);
+      const activeId = validCookie ? cookieId! : familyList[0].id;
+
+      if (!validCookie) {
+        setActiveFamilyIdClient(activeId);
+      }
+      setActiveFamilyId(activeId);
+
+      // Set user info from the active family's membership
+      const activeMembership = memberships.find(
+        (m: any) => m.family_id === activeId
+      );
+      if (activeMembership) {
+        const name = activeMembership.display_name || "User";
+        setUserInfo({
+          displayName: name,
+          initials: name
+            .split(" ")
+            .map((n: string) => n[0])
+            .join("")
+            .toUpperCase()
+            .slice(0, 2),
+          role: activeMembership.role || "member",
+        });
+      }
+    }
+
+    loadFamiliesAndUser();
+  }, []);
+
+  function switchFamily(familyId: string) {
+    setActiveFamilyIdClient(familyId);
+    setActiveFamilyId(familyId);
+    window.location.reload();
+  }
+
+  const activeFamilyName =
+    families.find((f) => f.id === activeFamilyId)?.name ?? "My Family";
 
   return (
     <>
@@ -83,23 +172,72 @@ export function DashboardNav() {
             })}
           </nav>
 
-          {/* Family info + user menu */}
+          {/* Family switcher + user menu */}
           <div className="px-3 py-4 border-t">
-            <div className="flex items-center gap-2 px-3 py-1 mb-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground font-medium">
-                The Powell Family
-              </span>
-            </div>
+            {/* Family switcher */}
+            {families.length > 1 ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 w-full px-3 py-1.5 mb-2 rounded-md hover:bg-accent transition-colors text-left">
+                    <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-xs text-muted-foreground font-medium truncate flex-1">
+                      {activeFamilyName}
+                    </span>
+                    <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  {families.map((fam) => (
+                    <DropdownMenuItem
+                      key={fam.id}
+                      onClick={() => switchFamily(fam.id)}
+                      className="flex items-center gap-2"
+                    >
+                      {fam.id === activeFamilyId ? (
+                        <Check className="h-4 w-4 text-primary" />
+                      ) : (
+                        <span className="w-4" />
+                      )}
+                      <span className="truncate">{fam.name}</span>
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/families/new"
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Family
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-1 mb-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground font-medium truncate">
+                  {activeFamilyName}
+                </span>
+              </div>
+            )}
+
+            {/* User menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-3 w-full px-3 py-2 rounded-md hover:bg-accent transition-colors">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-xs">KP</AvatarFallback>
+                    <AvatarFallback className="text-xs">
+                      {userInfo.initials || "??"}
+                    </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col items-start text-left">
-                    <span className="text-sm font-medium">Kobe Powell</span>
-                    <span className="text-xs text-muted-foreground">Admin</span>
+                    <span className="text-sm font-medium">
+                      {userInfo.displayName || "Loading..."}
+                    </span>
+                    <span className="text-xs text-muted-foreground capitalize">
+                      {userInfo.role}
+                    </span>
                   </div>
                 </button>
               </DropdownMenuTrigger>
@@ -119,7 +257,10 @@ export function DashboardNav() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild className="text-destructive p-0">
                   <form action={signOut} className="w-full">
-                    <button type="submit" className="flex items-center w-full px-2 py-1.5 text-sm">
+                    <button
+                      type="submit"
+                      className="flex items-center w-full px-2 py-1.5 text-sm"
+                    >
                       <LogOut className="mr-2 h-4 w-4" />
                       Sign Out
                     </button>
@@ -141,7 +282,11 @@ export function DashboardNav() {
           size="icon"
           onClick={() => setMobileOpen(!mobileOpen)}
         >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          {mobileOpen ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Menu className="h-5 w-5" />
+          )}
         </Button>
       </div>
 
@@ -149,6 +294,46 @@ export function DashboardNav() {
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 top-14 z-30 bg-background/80 backdrop-blur-sm">
           <nav className="bg-card border-b p-4 space-y-1">
+            {/* Mobile family switcher */}
+            {families.length > 1 && (
+              <>
+                <div className="px-3 py-1 text-xs text-muted-foreground font-medium">
+                  Switch Family
+                </div>
+                {families.map((fam) => (
+                  <button
+                    key={fam.id}
+                    onClick={() => {
+                      switchFamily(fam.id);
+                      setMobileOpen(false);
+                    }}
+                    className={cn(
+                      "flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                      fam.id === activeFamilyId
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                  >
+                    {fam.id === activeFamilyId ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Users className="h-4 w-4" />
+                    )}
+                    {fam.name}
+                  </button>
+                ))}
+                <Link
+                  href="/families/new"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Family
+                </Link>
+                <Separator className="my-2" />
+              </>
+            )}
+
             {navItems.map((item) => {
               const isActive =
                 pathname === item.href ||
@@ -173,7 +358,10 @@ export function DashboardNav() {
             })}
             <Separator className="my-2" />
             <form action={signOut}>
-              <button type="submit" className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-medium text-destructive hover:bg-accent transition-colors">
+              <button
+                type="submit"
+                className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-medium text-destructive hover:bg-accent transition-colors"
+              >
                 <LogOut className="h-4 w-4" />
                 Sign Out
               </button>

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { createClient } from "@/lib/supabase/server";
+import { getFamilyContext } from "@/lib/get-family-context";
 import { TraditionsSection } from "@/components/traditions-section";
 import { LegacyBoard } from "@/components/legacy-board";
 
@@ -157,36 +157,22 @@ function timeAgo(dateString: string): string {
 // ---------------------------------------------------------------------------
 async function getDashboardData() {
   try {
-    const supabase = await createClient();
+    const ctx = await getFamilyContext();
+    if (!ctx) return null;
+    const { userId, familyId, supabase } = ctx;
 
-    // Get the current user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return null;
-    }
-
-    // Get the user's family membership
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: membership, error: memberError } = await (supabase as any)
-      .from("family_members")
-      .select("family_id, display_name, role")
-      .eq("user_id", user.id)
-      .single();
-
-    if (memberError || !membership) {
-      return null;
-    }
-
-    const familyId = membership.family_id;
-    const displayName = membership.display_name;
-
-    // Fetch all stats in parallel
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
+
+    // Get display name for this family
+    const { data: memberInfo } = await sb
+      .from("family_members")
+      .select("display_name, role")
+      .eq("user_id", userId)
+      .eq("family_id", familyId)
+      .single();
+
+    const displayName = memberInfo?.display_name ?? "User";
 
     const [
       entriesCount,
@@ -259,7 +245,7 @@ async function getDashboardData() {
     }
 
     return {
-      userId: user.id,
+      userId,
       displayName,
       familyName: familyResult.data?.name ?? "Your Family",
       stats: {

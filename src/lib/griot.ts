@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { getActiveFamilyIdClient } from "@/lib/active-family";
 import type { ConversationMessage } from "@/types/database";
 
 // ---------------------------------------------------------------------------
@@ -218,6 +219,11 @@ export async function deleteConversation(
  */
 export async function getCurrentFamilyId(): Promise<string | null> {
   try {
+    // Try cookie first
+    const cookieId = getActiveFamilyIdClient();
+    if (cookieId) return cookieId;
+
+    // Fallback: query Supabase
     const supabase = createClient();
 
     const {
@@ -231,7 +237,8 @@ export async function getCurrentFamilyId(): Promise<string | null> {
       .from("family_members")
       .select("family_id")
       .eq("user_id", user.id)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     return membership?.family_id ?? null;
   } catch {

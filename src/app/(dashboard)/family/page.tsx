@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { createClient } from "@/lib/supabase/server";
+import { getFamilyContext } from "@/lib/get-family-context";
 import { normalizeLifeStory } from "@/types/database";
 import type { LifeStory } from "@/types/database";
 
@@ -143,24 +143,12 @@ interface FamilyMemberData {
 
 async function getFamilyData() {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) return null;
+    const ctx = await getFamilyContext();
+    if (!ctx) return null;
+    const { userId, familyId, supabase } = ctx;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
-
-    const { data: membership } = await sb
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!membership) return null;
-    const familyId = membership.family_id;
 
     const [familyResult, membersResult] = await Promise.all([
       sb.from("families").select("name").eq("id", familyId).single(),
@@ -174,7 +162,7 @@ async function getFamilyData() {
     return {
       familyName: familyResult.data?.name ?? "Your Family",
       members: (membersResult.data as FamilyMemberData[]) ?? [],
-      currentUserId: user.id,
+      currentUserId: userId,
     };
   } catch (err) {
     console.error("Family data fetch failed:", err);

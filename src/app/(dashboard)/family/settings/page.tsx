@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getFamilyContext } from "@/lib/get-family-context";
 import { FamilySettingsClient } from "./family-settings-client";
 
 // Mock data fallback
@@ -102,22 +102,13 @@ export default async function FamilySettingsPage() {
   let pendingInvites = MOCK_PENDING_INVITES;
 
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const ctx = await getFamilyContext();
 
-    if (user) {
-      // Get the user's family membership
-      const { data: membership } = await supabase
-        .from("family_members")
-        .select("family_id")
-        .eq("user_id", user.id)
-        .single();
+    if (ctx) {
+      const { supabase } = ctx;
+      familyId = ctx.familyId;
 
-      if (membership) {
-        familyId = membership.family_id;
-
+      {
         // Fetch family name
         const { data: family } = await supabase
           .from("families")

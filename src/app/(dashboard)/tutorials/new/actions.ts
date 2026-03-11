@@ -1,7 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { getFamilyContext } from "@/lib/get-family-context";
 import type { TutorialStep } from "@/types/database";
 
 export async function createTutorial(formData: {
@@ -11,25 +11,9 @@ export async function createTutorial(formData: {
   steps: { title: string; description: string; tips: string }[];
 }) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return { success: false, error: "Not authenticated" };
-    }
-
-    // Get user's family
-    const { data: membership } = await supabase
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!membership) {
-      return { success: false, error: "No family found" };
-    }
+    const ctx = await getFamilyContext();
+    if (!ctx) return { success: false, error: "Not authenticated" };
+    const { familyId, supabase } = ctx;
 
     // Build steps array
     const steps: TutorialStep[] = formData.steps.map((s, i) => ({
@@ -43,7 +27,7 @@ export async function createTutorial(formData: {
       .from("skill_tutorials")
       .insert({
         entry_id: formData.entryId,
-        family_id: membership.family_id,
+        family_id: familyId,
         steps,
         difficulty_level: formData.difficulty || "beginner",
         estimated_time: formData.estimatedTime || "",

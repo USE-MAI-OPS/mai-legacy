@@ -1,7 +1,7 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { getFamilyContext } from "@/lib/get-family-context";
 import type { EntryType, EntryStructuredData } from "@/types/database";
 
 interface CreateEntryInput {
@@ -14,26 +14,15 @@ interface CreateEntryInput {
 
 export async function createEntry(input: CreateEntryInput) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return { error: "You must be signed in to create an entry." };
-    }
+    const ctx = await getFamilyContext();
+    if (!ctx) return { error: "You must be signed in to create an entry." };
+    const { userId, familyId, supabase } = ctx;
 
     const sb = supabase as any;
-    const { data: membership, error: memberError } = await sb
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (memberError || !membership) {
-      return { error: "You must belong to a family to create an entry." };
-    }
 
     const insertData: Record<string, unknown> = {
-      family_id: membership.family_id,
-      author_id: user.id,
+      family_id: familyId,
+      author_id: userId,
       title: input.title,
       content: input.content,
       type: input.type,

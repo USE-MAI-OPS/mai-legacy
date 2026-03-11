@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getFamilyContext } from "@/lib/get-family-context";
 import EntriesList from "@/components/entries-list";
 import type { EntryListItem } from "@/components/entries-list";
 import type { EntryType } from "@/types/database";
@@ -94,29 +94,9 @@ const MOCK_ENTRIES: EntryListItem[] = [
 // ---------------------------------------------------------------------------
 async function getEntries(): Promise<EntryListItem[]> {
   try {
-    const supabase = await createClient();
-
-    // Get the current user
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return MOCK_ENTRIES;
-    }
-
-    // Get the user's family membership
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: membership, error: memberError } = await (supabase as any)
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (memberError || !membership) {
-      return MOCK_ENTRIES;
-    }
+    const ctx = await getFamilyContext();
+    if (!ctx) return MOCK_ENTRIES;
+    const { familyId, supabase } = ctx;
 
     // Fetch all entries for the family, joined with the author's display name
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -125,7 +105,7 @@ async function getEntries(): Promise<EntryListItem[]> {
       .select(
         "id, title, content, type, tags, created_at, family_members!entries_author_id_fkey(display_name)"
       )
-      .eq("family_id", membership.family_id)
+      .eq("family_id", familyId)
       .order("created_at", { ascending: false });
 
     if (entriesError || !entries) {

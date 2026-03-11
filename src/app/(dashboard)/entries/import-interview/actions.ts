@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { getFamilyContext } from "@/lib/get-family-context";
 import { revalidatePath } from "next/cache";
 import type {
   ReviewableEntry,
@@ -17,35 +17,18 @@ export async function saveTranscriptRecord(
   transcript: string,
   subjectMemberId: string
 ) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError || !user) {
-    return { error: "You must be signed in." };
-  }
+  const ctx = await getFamilyContext();
+  if (!ctx) return { error: "You must be signed in." };
+  const { userId, familyId, supabase } = ctx;
 
   const sb = supabase as any;
-
-  // Get family
-  const { data: membership } = await sb
-    .from("family_members")
-    .select("family_id")
-    .eq("user_id", user.id)
-    .single();
-
-  if (!membership) {
-    return { error: "You must belong to a family." };
-  }
 
   // Save transcript
   const { data: record, error } = await sb
     .from("interview_transcripts")
     .insert({
-      family_id: membership.family_id,
-      uploaded_by: user.id,
+      family_id: familyId,
+      uploaded_by: userId,
       subject_member_id: subjectMemberId,
       raw_transcript: transcript,
       extraction_status: "pending",
@@ -94,30 +77,11 @@ export async function saveExtractedEntries(
   transcriptId?: string
 ) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return { error: "You must be signed in." };
-    }
+    const ctx = await getFamilyContext();
+    if (!ctx) return { error: "You must be signed in." };
+    const { userId, familyId, supabase } = ctx;
 
     const sb = supabase as any;
-
-    // Get family membership
-    const { data: membership } = await sb
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!membership) {
-      return { error: "You must belong to a family." };
-    }
-
-    const familyId = membership.family_id;
     const createdEntryIds: string[] = [];
 
     // 1. Create entries
@@ -129,7 +93,7 @@ export async function saveExtractedEntries(
 
       const insertData: Record<string, unknown> = {
         family_id: familyId,
-        author_id: user.id,
+        author_id: userId,
         title: entry.title,
         content: entry.content,
         type: entry.type,
@@ -289,11 +253,26 @@ export async function saveExtractedEntries(
         };
       }
 
-      // Save updated profile
-      await sb
+      // Save updated profile — sync across all families for this user
+      const { data: subjectMember } = await sb
         .from("family_members")
-        .update({ life_story: updatedStory })
-        .eq("id", subjectMemberId);
+        .select("user_id")
+        .eq("id", subjectMemberId)
+        .single();
+
+      if (subjectMember?.user_id) {
+        // Update ALL family_members rows for this user
+        await sb
+          .from("family_members")
+          .update({ life_story: updatedStory })
+          .eq("user_id", subjectMember.user_id);
+      } else {
+        // Fallback: just update the specific member
+        await sb
+          .from("family_members")
+          .update({ life_story: updatedStory })
+          .eq("id", subjectMemberId);
+      }
     }
 
     // 3. Update transcript record status

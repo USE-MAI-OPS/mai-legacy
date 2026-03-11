@@ -241,7 +241,7 @@ function InlineFormRow({
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [familyName, setFamilyName] = useState("");
+  const [familyNames, setFamilyNames] = useState<string[]>([""]);
   const [displayName, setDisplayName] = useState("");
   const [nickname, setNickname] = useState("");
   const [phone, setPhone] = useState("");
@@ -261,13 +261,17 @@ export default function OnboardingPage() {
   const [showMilestoneForm, setShowMilestoneForm] = useState(false);
   const [showMilitaryForm, setShowMilitaryForm] = useState(false);
 
+  const validFamilyNames = familyNames
+    .map((n) => n.trim())
+    .filter((n) => n.length > 0);
+
   const handleCreate = async () => {
-    if (!familyName.trim() || !displayName.trim()) return;
+    if (validFamilyNames.length === 0 || !displayName.trim()) return;
     setLoading(true);
     setError(null);
 
     try {
-      const result = await createFamily(familyName, displayName, lifeStory, {
+      const profileFields = {
         nickname: nickname.trim() || undefined,
         phone: phone.trim() || undefined,
         email: email.trim() || undefined,
@@ -275,14 +279,27 @@ export default function OnboardingPage() {
         country: country.trim() || undefined,
         state: stateName.trim() || undefined,
         specialty: specialty || undefined,
-      });
-      if (result?.error) {
-        setError(result.error);
-        setLoading(false);
-      } else {
-        // Success — navigate to dashboard
-        router.push("/dashboard");
+      };
+
+      // Create each family — first one gets full profile data,
+      // subsequent ones inherit from the first membership row
+      for (let i = 0; i < validFamilyNames.length; i++) {
+        const isFirst = i === 0;
+        const result = await createFamily(
+          validFamilyNames[i],
+          displayName,
+          isFirst ? lifeStory : undefined,
+          isFirst ? profileFields : undefined
+        );
+        if (result?.error) {
+          setError(result.error);
+          setLoading(false);
+          return;
+        }
       }
+
+      // Success — navigate to dashboard
+      router.push("/dashboard");
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -290,7 +307,7 @@ export default function OnboardingPage() {
   };
 
   const canGoNext = () => {
-    if (step === 0) return familyName.trim().length > 0;
+    if (step === 0) return validFamilyNames.length > 0;
     if (step === 1) return displayName.trim().length > 0;
     return true; // All other steps are optional
   };
@@ -369,18 +386,59 @@ export default function OnboardingPage() {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* ---- STEP 0: Family Name ---- */}
+          {/* ---- STEP 0: Family Names ---- */}
           {step === 0 && (
-            <div className="space-y-2">
-              <Label htmlFor="family-name">Family Name</Label>
-              <Input
-                id="family-name"
-                placeholder="e.g., The Powell Family"
-                value={familyName}
-                onChange={(e) => setFamilyName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && canGoNext() && goNext()}
-                autoFocus
-              />
+            <div className="space-y-3">
+              {familyNames.map((name, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <div className="flex-1 space-y-1">
+                    {i === 0 && <Label>Family Name</Label>}
+                    <Input
+                      placeholder={
+                        i === 0
+                          ? "e.g., The Powell Family"
+                          : "e.g., Mom's Side, Dad's Side"
+                      }
+                      value={name}
+                      onChange={(e) => {
+                        const updated = [...familyNames];
+                        updated[i] = e.target.value;
+                        setFamilyNames(updated);
+                      }}
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && canGoNext() && goNext()
+                      }
+                      autoFocus={i === 0}
+                    />
+                  </div>
+                  {familyNames.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFamilyNames(familyNames.filter((_, idx) => idx !== i))
+                      }
+                      className="mt-auto mb-1 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setFamilyNames([...familyNames, ""])}
+                className="gap-1.5 w-full"
+              >
+                <Plus className="size-4" />
+                Add Another Family
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                You can create separate families for different branches (e.g.,
+                Mom&apos;s Side, Dad&apos;s Side). Each family has its own
+                entries and members.
+              </p>
             </div>
           )}
 
@@ -452,14 +510,16 @@ export default function OnboardingPage() {
                 />
               </div>
 
-              <div className="rounded-md border p-3 bg-muted/50">
-                <p className="text-sm">
-                  <span className="font-medium">{familyName}</span>
-                  <span className="text-muted-foreground">
-                    {" "}
-                    &middot; You&apos;ll be the admin
-                  </span>
-                </p>
+              <div className="rounded-md border p-3 bg-muted/50 space-y-1">
+                {validFamilyNames.map((name, i) => (
+                  <p key={i} className="text-sm">
+                    <span className="font-medium">{name}</span>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      &middot; {i === 0 ? "You'll be the admin" : "Member"}
+                    </span>
+                  </p>
+                ))}
               </div>
             </div>
           )}
@@ -973,7 +1033,7 @@ export default function OnboardingPage() {
                       )}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Admin of {familyName}
+                      Admin of {validFamilyNames.join(", ")}
                     </p>
                   </div>
                 </div>

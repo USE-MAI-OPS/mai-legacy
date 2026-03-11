@@ -79,22 +79,25 @@ export function ProfileClient({
   recentEntries,
   lifeStory,
   memberId,
+  userId,
 }: {
   user: ProfileUser;
   recentEntries: RecentEntry[];
   lifeStory?: LifeStory;
   memberId?: string;
+  userId?: string;
 }) {
   const handleSaveLifeStory = async (story: LifeStory) => {
-    if (!memberId) return;
+    if (!userId && !memberId) return;
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
-    const { error } = await supabase
+    // Update ALL family_members rows for this user so profile syncs across families
+    const { error } = await (supabase as any)
       .from("family_members")
       .update({ life_story: story as unknown as Record<string, unknown> })
-      .eq("id", memberId);
+      .eq("user_id", userId || memberId);
     if (error) throw error;
   };
 

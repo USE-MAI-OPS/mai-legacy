@@ -6,7 +6,6 @@ import { Plus, TreePine, Mail, UserPlus } from "lucide-react";
 import { FamilyTreeNode, type TreeNodeData } from "./family-tree-node";
 import { AddTreeMemberDialog } from "./add-tree-member-dialog";
 import { InviteMemberDialog } from "./invite-member-dialog";
-import { TreeViewport } from "./tree-viewport";
 import { addTreeMember, deleteTreeMember } from "../actions";
 import { toast } from "sonner";
 
@@ -142,27 +141,31 @@ function TreeBranch({
           {/* Vertical line down to children branch */}
           <div className="w-px h-6 bg-border" />
 
-          {/* Wrapper: horizontal bar + children share same width */}
-          <div className="flex flex-col items-center">
-            {/* Horizontal bar — self-stretch matches children row width */}
-            {node.children.length > 1 && (
-              <div className="h-px bg-border self-stretch" />
-            )}
-
-            {/* Child nodes */}
-            <div className="flex gap-8 items-start">
-              {node.children.map((child) => (
-                <TreeBranch
-                  key={child.data.id}
-                  node={child}
-                  currentUserId={currentUserId}
-                  currentUserMemberId={currentUserMemberId}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  onInvite={onInvite}
-                />
-              ))}
+          {/* Horizontal bar spanning all children */}
+          {node.children.length > 1 && (
+            <div className="flex items-start">
+              <div
+                className="h-px bg-border"
+                style={{
+                  width: `${Math.max(node.children.length * 140, 140)}px`,
+                }}
+              />
             </div>
+          )}
+
+          {/* Child nodes */}
+          <div className="flex gap-6 items-start">
+            {node.children.map((child) => (
+              <TreeBranch
+                key={child.data.id}
+                node={child}
+                currentUserId={currentUserId}
+                currentUserMemberId={currentUserMemberId}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onInvite={onInvite}
+              />
+            ))}
           </div>
         </>
       )}
@@ -357,9 +360,9 @@ export function FamilyTree({
         </div>
       )}
 
-      {/* Zoomable / pannable tree viewport */}
-      <TreeViewport>
-        <div className="flex gap-10 justify-center min-w-max py-8 px-12">
+      {/* Scrollable tree area */}
+      <div className="overflow-x-auto pb-4">
+        <div className="flex gap-10 justify-center min-w-max py-4 px-8">
           {tree.map((rootNode) => (
             <TreeBranch
               key={rootNode.data.id}
@@ -373,7 +376,7 @@ export function FamilyTree({
             />
           ))}
         </div>
-      </TreeViewport>
+      </div>
 
       {/* Dialogs */}
       <AddTreeMemberDialog

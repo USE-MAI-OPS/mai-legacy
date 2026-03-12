@@ -156,13 +156,3 @@
 .griot-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
-
-/* Family tree viewport */
-.tree-viewport-content {
-  will-change: transform;
-  transform-origin: 0 0;
-}
-
-.tree-viewport-content.tree-animating {
-  transition: transform 0.3s ease-out;
-}

@@ -62,7 +62,7 @@ export function FamilyTreeNode({
     <div className="flex flex-col items-center gap-1.5 min-w-0">
       {/* Avatar */}
       <Avatar
-        className={`h-14 w-14 ${
+        className={`h-16 w-16 ${
           isClaimed
             ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
             : "ring-2 ring-dashed ring-muted-foreground/40 ring-offset-2 ring-offset-background"
@@ -83,14 +83,14 @@ export function FamilyTreeNode({
       </Avatar>
 
       {/* Name */}
-      <p className="text-xs font-medium text-center leading-tight max-w-[100px] truncate">
+      <p className="text-sm font-medium text-center leading-tight max-w-[130px] truncate">
         {node.display_name}
         {node.is_deceased && " \u2020"}
       </p>
 
       {/* "Me" badge */}
       {isSelf && (
-        <Badge className="text-[10px] px-1.5 py-0 bg-primary text-primary-foreground">
+        <Badge className="text-xs px-1.5 py-0 bg-primary text-primary-foreground">
           Me
         </Badge>
       )}
@@ -99,7 +99,7 @@ export function FamilyTreeNode({
       {node.relationship_label && !isSelf && (
         <Badge
           variant="secondary"
-          className="text-[10px] px-1.5 py-0"
+          className="text-xs px-1.5 py-0"
         >
           {node.relationship_label}
         </Badge>
@@ -107,14 +107,14 @@ export function FamilyTreeNode({
 
       {/* Birth year */}
       {node.birth_year && (
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           b. {node.birth_year}
         </span>
       )}
 
       {/* Claim status */}
       {!isClaimed && (
-        <span className="text-[10px] text-muted-foreground/60 italic">
+        <span className="text-xs text-muted-foreground/60 italic">
           Not yet claimed
         </span>
       )}
@@ -124,11 +124,11 @@ export function FamilyTreeNode({
   return (
     <div className="relative group flex flex-col items-center">
       {/* Kebab menu */}
-      <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+      <div className="absolute -top-1 -right-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="h-6 w-6 flex items-center justify-center rounded-full bg-background border shadow-sm hover:bg-accent">
-              <MoreVertical className="h-3 w-3" />
+            <button className="h-8 w-8 sm:h-6 sm:w-6 flex items-center justify-center rounded-full bg-background border shadow-sm hover:bg-accent">
+              <MoreVertical className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-36">

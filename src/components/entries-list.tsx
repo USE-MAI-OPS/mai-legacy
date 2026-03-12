@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Plus, Search, BookOpen, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -38,8 +39,18 @@ interface EntriesListProps {
 // Component
 // ---------------------------------------------------------------------------
 export default function EntriesList({ entries }: EntriesListProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const searchParams = useSearchParams();
+  const urlType = searchParams.get("type") ?? "";
+  const urlQuery = searchParams.get("q") ?? "";
+
+  const [searchQuery, setSearchQuery] = useState(urlQuery);
+  const [typeFilter, setTypeFilter] = useState<string>(urlType || "all");
+
+  // Sync state when URL params change (e.g. navigating from feature cards)
+  useEffect(() => {
+    if (urlType) setTypeFilter(urlType);
+    if (urlQuery) setSearchQuery(urlQuery);
+  }, [urlType, urlQuery]);
 
   const filteredEntries = useMemo(() => {
     return entries.filter((entry) => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,12 +10,16 @@ import { MyStorySection } from "@/components/my-story-section";
 import {
   BookOpenIcon,
   CalendarDaysIcon,
+  Camera,
   FileTextIcon,
   LayersIcon,
+  Loader2,
   TagIcon,
 } from "lucide-react";
 import type { LifeStory } from "@/types/database";
 import { createBrowserClient } from "@supabase/ssr";
+import { uploadAvatar } from "@/lib/supabase/storage";
+import { toast } from "sonner";
 
 export interface ProfileUser {
   display_name: string;
@@ -87,6 +92,10 @@ export function ProfileClient({
   memberId?: string;
   userId?: string;
 }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUrl, setAvatarUrl] = useState(user.avatar_url);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
   const handleSaveLifeStory = async (story: LifeStory) => {
     if (!userId && !memberId) return;
     const supabase = createBrowserClient(
@@ -101,18 +110,109 @@ export function ProfileClient({
     if (error) throw error;
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+
+    // Validate file type and size
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const url = await uploadAvatar(file, userId);
+      if (!url) {
+        toast.error("Failed to upload avatar");
+        return;
+      }
+
+      // Update avatar_url on ALL family_members rows for this user
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { error } = await (supabase as any)
+        .from("family_members")
+        .update({ avatar_url: url })
+        .eq("user_id", userId);
+
+      if (error) {
+        toast.error("Failed to save avatar");
+        return;
+      }
+
+      // Also update family_tree_members that are linked to this user's member rows
+      // Get the member IDs for this user first
+      const { data: memberRows } = await (supabase as any)
+        .from("family_members")
+        .select("id")
+        .eq("user_id", userId);
+
+      if (memberRows && memberRows.length > 0) {
+        const memberIds = memberRows.map((m: { id: string }) => m.id);
+        await (supabase as any)
+          .from("family_tree_members")
+          .update({ avatar_url: url })
+          .in("linked_member_id", memberIds);
+      }
+
+      setAvatarUrl(url);
+      toast.success("Profile picture updated!");
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setUploadingAvatar(false);
+      // Reset the input so the same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <div className="container mx-auto py-8 px-4 max-w-4xl">
       {/* Profile header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8">
-        <Avatar className="size-20">
-          {user.avatar_url ? (
-            <AvatarImage src={user.avatar_url} alt={user.display_name} />
-          ) : null}
-          <AvatarFallback className="text-xl font-semibold bg-primary text-primary-foreground">
-            {getInitials(user.display_name)}
-          </AvatarFallback>
-        </Avatar>
+        <div className="relative group">
+          <Avatar className="size-20">
+            {avatarUrl ? (
+              <AvatarImage src={avatarUrl} alt={user.display_name} />
+            ) : null}
+            <AvatarFallback className="text-xl font-semibold bg-primary text-primary-foreground">
+              {getInitials(user.display_name)}
+            </AvatarFallback>
+          </Avatar>
+
+          {/* Upload overlay */}
+          {userId && (
+            <>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                aria-label="Change profile picture"
+              >
+                {uploadingAvatar ? (
+                  <Loader2 className="size-5 text-white animate-spin" />
+                ) : (
+                  <Camera className="size-5 text-white" />
+                )}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarUpload}
+              />
+            </>
+          )}
+        </div>
         <div className="space-y-2">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight">

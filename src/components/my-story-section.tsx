@@ -257,7 +257,7 @@ export function MyStorySection({
             )}
             {showCareerForm ? (
               <InlineForm
-                fields={["Title", "Company", "Years"]}
+                fields={["Title", "Company", { name: "Years", type: "year-range" }]}
                 onSubmit={([title, company, years]) => {
                   update((s) => ({
                     ...s,
@@ -312,7 +312,7 @@ export function MyStorySection({
             )}
             {showPlaceForm ? (
               <InlineForm
-                fields={["City", "State", "Years"]}
+                fields={["City", "State", { name: "Years", type: "year-range" }]}
                 onSubmit={([city, state, years]) => {
                   update((s) => ({
                     ...s,
@@ -452,7 +452,7 @@ export function MyStorySection({
               </div>
             ) : showMilitaryForm ? (
               <InlineForm
-                fields={["Branch", "Rank", "Years"]}
+                fields={["Branch", "Rank", { name: "Years", type: "year-range" }]}
                 onSubmit={([branch, rank, years]) => {
                   update((s) => ({
                     ...s,
@@ -559,12 +559,67 @@ function AddButton({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Year range select for profile forms
+// ---------------------------------------------------------------------------
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: CURRENT_YEAR - 1939 }, (_, i) => CURRENT_YEAR - i);
+
+function YearRangeSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const parts = value.split(" - ");
+  const startYear = parts[0] || "";
+  const endYear = parts[1] || "";
+
+  const updateRange = (start: string, end: string) => {
+    if (start && end) {
+      onChange(`${start} - ${end}`);
+    } else if (start) {
+      onChange(start);
+    } else {
+      onChange("");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      <select
+        value={startYear}
+        onChange={(e) => updateRange(e.target.value, endYear)}
+        className="flex-1 h-8 rounded-md border border-input bg-background px-1.5 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <option value="">Start</option>
+        {YEAR_OPTIONS.map((y) => (
+          <option key={y} value={y}>{y}</option>
+        ))}
+      </select>
+      <span className="text-xs text-muted-foreground">—</span>
+      <select
+        value={endYear}
+        onChange={(e) => updateRange(startYear, e.target.value)}
+        className="flex-1 h-8 rounded-md border border-input bg-background px-1.5 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <option value="">End</option>
+        <option value="Present">Present</option>
+        {YEAR_OPTIONS.map((y) => (
+          <option key={y} value={y}>{y}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 function InlineForm({
   fields,
   onSubmit,
   onCancel,
 }: {
-  fields: string[];
+  fields: (string | { name: string; type: "year-range" })[];
   onSubmit: (values: string[]) => void;
   onCancel: () => void;
 }) {
@@ -576,6 +631,9 @@ function InlineForm({
     }
   };
 
+  const fieldNames = fields.map((f) => (typeof f === "string" ? f : f.name));
+  const fieldTypes = fields.map((f) => (typeof f === "string" ? "text" : f.type));
+
   return (
     <div className="space-y-2 pt-2 border-t">
       <div
@@ -584,20 +642,33 @@ function InlineForm({
           fields.length === 2 ? "grid-cols-2" : "grid-cols-3"
         )}
       >
-        {fields.map((field, i) => (
-          <Input
-            key={field}
-            placeholder={field}
-            value={values[i]}
-            onChange={(e) => {
-              const newValues = [...values];
-              newValues[i] = e.target.value;
-              setValues(newValues);
-            }}
-            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            className="text-sm h-8"
-            autoFocus={i === 0}
-          />
+        {fieldNames.map((field, i) => (
+          <div key={field} className="space-y-1">
+            <span className="text-xs text-muted-foreground">{field}</span>
+            {fieldTypes[i] === "year-range" ? (
+              <YearRangeSelect
+                value={values[i]}
+                onChange={(val) => {
+                  const newValues = [...values];
+                  newValues[i] = val;
+                  setValues(newValues);
+                }}
+              />
+            ) : (
+              <Input
+                placeholder={field}
+                value={values[i]}
+                onChange={(e) => {
+                  const newValues = [...values];
+                  newValues[i] = e.target.value;
+                  setValues(newValues);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                className="text-sm h-8"
+                autoFocus={i === 0}
+              />
+            )}
+          </div>
         ))}
       </div>
       <div className="flex gap-2">

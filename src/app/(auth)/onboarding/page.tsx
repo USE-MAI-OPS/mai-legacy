@@ -26,6 +26,8 @@ import {
   Flower2,
   Archive,
   BookOpen,
+  Laptop2,
+  Trophy,
 } from "lucide-react";
 import {
   Card,
@@ -75,6 +77,8 @@ const SPECIALTY_OPTIONS: {
   { value: "handyman", label: "Handyman", icon: Hammer },
   { value: "gardener", label: "Gardener", icon: Flower2 },
   { value: "historian", label: "Historian", icon: Archive },
+  { value: "technology", label: "Tech Whiz", icon: Laptop2 },
+  { value: "sports", label: "Athlete", icon: Trophy },
   { value: "other", label: "A Bit of Everything", icon: Sparkles },
 ];
 
@@ -174,6 +178,62 @@ function TagInput({
 }
 
 // ---------------------------------------------------------------------------
+// Year range select (for career, places, military years)
+// ---------------------------------------------------------------------------
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = Array.from({ length: CURRENT_YEAR - 1939 }, (_, i) => CURRENT_YEAR - i);
+
+function YearRangeSelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  // Parse existing value like "2018 - Present" or "2018 - 2023"
+  const parts = value.split(" - ");
+  const startYear = parts[0] || "";
+  const endYear = parts[1] || "";
+
+  const updateRange = (start: string, end: string) => {
+    if (start && end) {
+      onChange(`${start} - ${end}`);
+    } else if (start) {
+      onChange(start);
+    } else {
+      onChange("");
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <select
+        value={startYear}
+        onChange={(e) => updateRange(e.target.value, endYear)}
+        className="flex-1 h-9 rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <option value="">Start</option>
+        {YEAR_OPTIONS.map((y) => (
+          <option key={y} value={y}>{y}</option>
+        ))}
+      </select>
+      <span className="text-xs text-muted-foreground">—</span>
+      <select
+        value={endYear}
+        onChange={(e) => updateRange(startYear, e.target.value)}
+        className="flex-1 h-9 rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <option value="">End</option>
+        <option value="Present">Present</option>
+        {YEAR_OPTIONS.map((y) => (
+          <option key={y} value={y}>{y}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Inline multi-field form row (for career, places, education, milestones)
 // ---------------------------------------------------------------------------
 function InlineFormRow({
@@ -181,7 +241,7 @@ function InlineFormRow({
   onSubmit,
   onCancel,
 }: {
-  fields: { label: string; placeholder: string; width?: string }[];
+  fields: { label: string; placeholder: string; width?: string; type?: "text" | "year-range" }[];
   onSubmit: (values: string[]) => void;
   onCancel: () => void;
 }) {
@@ -202,18 +262,29 @@ function InlineFormRow({
             <Label className="text-xs text-muted-foreground">
               {field.label}
             </Label>
-            <Input
-              placeholder={field.placeholder}
-              value={values[i]}
-              onChange={(e) => {
-                const newValues = [...values];
-                newValues[i] = e.target.value;
-                setValues(newValues);
-              }}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-              className="text-sm h-9"
-              autoFocus={i === 0}
-            />
+            {field.type === "year-range" ? (
+              <YearRangeSelect
+                value={values[i]}
+                onChange={(val) => {
+                  const newValues = [...values];
+                  newValues[i] = val;
+                  setValues(newValues);
+                }}
+              />
+            ) : (
+              <Input
+                placeholder={field.placeholder}
+                value={values[i]}
+                onChange={(e) => {
+                  const newValues = [...values];
+                  newValues[i] = e.target.value;
+                  setValues(newValues);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+                className="text-sm h-9"
+                autoFocus={i === 0}
+              />
+            )}
           </div>
         ))}
       </div>
@@ -596,7 +667,7 @@ export default function OnboardingPage() {
                     fields={[
                       { label: "City", placeholder: "Atlanta" },
                       { label: "State", placeholder: "GA" },
-                      { label: "Years", placeholder: "2020 - Present" },
+                      { label: "Years", placeholder: "", type: "year-range" },
                     ]}
                     onSubmit={([city, state, years]) => {
                       setLifeStory((s) => ({
@@ -719,7 +790,7 @@ export default function OnboardingPage() {
                     fields={[
                       { label: "Title", placeholder: "Software Engineer" },
                       { label: "Company", placeholder: "Acme Corp" },
-                      { label: "Years", placeholder: "2020 - Present" },
+                      { label: "Years", placeholder: "", type: "year-range" },
                     ]}
                     onSubmit={([title, company, years]) => {
                       setLifeStory((s) => ({
@@ -992,7 +1063,7 @@ export default function OnboardingPage() {
                     fields={[
                       { label: "Branch", placeholder: "U.S. Army" },
                       { label: "Rank", placeholder: "Sergeant" },
-                      { label: "Years", placeholder: "2010 - 2014" },
+                      { label: "Years", placeholder: "", type: "year-range" },
                     ]}
                     onSubmit={([branch, rank, years]) => {
                       setLifeStory((s) => ({

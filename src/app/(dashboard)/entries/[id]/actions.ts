@@ -49,6 +49,7 @@ interface UpdateEntryInput {
   content: string;
   type: EntryType;
   tags: string[];
+  structured_data?: { type: string; data: Record<string, unknown> };
 }
 
 export async function updateEntry(entryId: string, input: UpdateEntryInput) {
@@ -64,17 +65,25 @@ export async function updateEntry(entryId: string, input: UpdateEntryInput) {
       return { error: "You must be signed in to update an entry." };
     }
 
+    // Build update payload
+    const updatePayload: Record<string, unknown> = {
+      title: input.title,
+      content: input.content,
+      type: input.type,
+      tags: input.tags,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Include structured_data if provided
+    if (input.structured_data) {
+      updatePayload.structured_data = input.structured_data;
+    }
+
     // Update the entry
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: entry, error: updateError } = await (supabase as any)
       .from("entries")
-      .update({
-        title: input.title,
-        content: input.content,
-        type: input.type,
-        tags: input.tags,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", entryId)
       .select()
       .single();

@@ -1,5 +1,6 @@
+import { Suspense } from "react";
 import { getFamilyContext } from "@/lib/get-family-context";
-import EntriesList from "@/components/entries-list";
+import EntriesList, { EntriesPageSkeleton } from "@/components/entries-list";
 import type { EntryListItem } from "@/components/entries-list";
 import type { EntryType } from "@/types/database";
 
@@ -148,5 +149,9 @@ async function getEntries(): Promise<EntryListItem[]> {
 export default async function EntriesPage() {
   const entries = await getEntries();
 
-  return <EntriesList entries={entries} />;
+  return (
+    <Suspense fallback={<EntriesPageSkeleton />}>
+      <EntriesList entries={entries} />
+    </Suspense>
+  );
 }

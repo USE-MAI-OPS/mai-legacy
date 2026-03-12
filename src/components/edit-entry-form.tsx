@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ImageUpload } from "@/components/image-upload";
 import { updateEntry } from "@/app/(dashboard)/entries/[id]/actions";
 import type { EntryType } from "@/types/database";
 
@@ -36,6 +37,9 @@ const entryTypes: { value: EntryType; label: string; emoji: string }[] = [
   { value: "general", label: "General", emoji: "\uD83D\uDCDD" },
 ];
 
+// Types that support images in their structured_data
+const IMAGE_TYPES: EntryType[] = ["skill", "recipe", "story", "lesson"];
+
 interface EditEntryFormProps {
   entry: {
     id: string;
@@ -43,6 +47,8 @@ interface EditEntryFormProps {
     content: string;
     type: EntryType;
     tags: string[];
+    structured_data?: { type: string; data: Record<string, unknown> } | null;
+    familyId?: string | null;
   };
 }
 
@@ -59,6 +65,10 @@ export default function EditEntryForm({ entry }: EditEntryFormProps) {
   );
   const [saving, setSaving] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+
+  // Images from structured_data
+  const existingImages = (entry.structured_data?.data?.images as string[]) ?? [];
+  const [images, setImages] = useState<string[]>(existingImages);
 
   // -------------------------------------------------------------------------
   // Tag management
@@ -106,11 +116,33 @@ export default function EditEntryForm({ entry }: EditEntryFormProps) {
     setSaving(true);
     setServerError(null);
     try {
+      // Build updated structured_data with images if applicable
+      let structured_data = entry.structured_data ?? undefined;
+      if (IMAGE_TYPES.includes(type)) {
+        if (structured_data) {
+          // Update images in existing structured_data
+          structured_data = {
+            ...structured_data,
+            data: {
+              ...structured_data.data,
+              images,
+            },
+          };
+        } else if (images.length > 0) {
+          // Create minimal structured_data with images
+          structured_data = {
+            type,
+            data: { images },
+          };
+        }
+      }
+
       const result = await updateEntry(entry.id, {
         title: title.trim(),
         content: content.trim(),
         type,
         tags,
+        structured_data: structured_data as { type: string; data: Record<string, unknown> } | undefined,
       });
 
       if (result?.error) {
@@ -124,6 +156,8 @@ export default function EditEntryForm({ entry }: EditEntryFormProps) {
       setSaving(false);
     }
   }
+
+  const supportsImages = IMAGE_TYPES.includes(type);
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-2xl">
@@ -245,6 +279,17 @@ export default function EditEntryForm({ entry }: EditEntryFormProps) {
               </div>
             )}
           </div>
+
+          {/* Photos — only for types that support images */}
+          {supportsImages && (
+            <ImageUpload
+              images={images}
+              onImagesChange={setImages}
+              familyId={entry.familyId ?? undefined}
+              label="Photos"
+              maxImages={6}
+            />
+          )}
         </CardContent>
 
         <CardFooter className="flex justify-end gap-3">

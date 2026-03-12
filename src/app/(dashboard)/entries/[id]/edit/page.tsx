@@ -99,7 +99,7 @@ async function getEntryForEdit(id: string) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: entry, error: entryError } = await (supabase as any)
       .from("entries")
-      .select("id, title, content, type, tags")
+      .select("id, title, content, type, tags, structured_data, family_id")
       .eq("id", id)
       .single();
 
@@ -113,6 +113,8 @@ async function getEntryForEdit(id: string) {
       content: entry.content as string,
       type: entry.type as EntryType,
       tags: (entry.tags as string[] | null) ?? [],
+      structured_data: (entry.structured_data as { type: string; data: Record<string, unknown> } | null) ?? null,
+      familyId: (entry.family_id as string | null) ?? null,
     };
   } catch (err) {
     console.error("Failed to fetch entry for editing:", err);

@@ -16,9 +16,33 @@ export type MemberSpecialty =
   | "handyman"
   | "gardener"
   | "historian"
+  | "technology"
+  | "sports"
   | "other";
 
 export type GoalStatus = "active" | "completed" | "archived";
+
+export type RsvpStatus = "going" | "maybe" | "not_going";
+
+export type RelationshipLabel =
+  | "Mother"
+  | "Father"
+  | "Son"
+  | "Daughter"
+  | "Brother"
+  | "Sister"
+  | "Grandmother"
+  | "Grandfather"
+  | "Grandson"
+  | "Granddaughter"
+  | "Aunt"
+  | "Uncle"
+  | "Cousin"
+  | "Niece"
+  | "Nephew"
+  | "Spouse"
+  | "Partner"
+  | "Other";
 
 // ---------------------------------------------------------------------------
 // Life Story types — used in onboarding, profile, and My Story section
@@ -465,6 +489,117 @@ export interface Database {
           completed_at?: string | null;
           created_at?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      family_tree_members: {
+        Row: {
+          id: string;
+          family_id: string;
+          display_name: string;
+          relationship_label: RelationshipLabel | null;
+          parent_id: string | null;
+          spouse_id: string | null;
+          linked_member_id: string | null;
+          birth_year: number | null;
+          is_deceased: boolean;
+          avatar_url: string | null;
+          added_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          display_name: string;
+          relationship_label?: RelationshipLabel | null;
+          parent_id?: string | null;
+          spouse_id?: string | null;
+          linked_member_id?: string | null;
+          birth_year?: number | null;
+          is_deceased?: boolean;
+          avatar_url?: string | null;
+          added_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          display_name?: string;
+          relationship_label?: RelationshipLabel | null;
+          parent_id?: string | null;
+          spouse_id?: string | null;
+          linked_member_id?: string | null;
+          birth_year?: number | null;
+          is_deceased?: boolean;
+          avatar_url?: string | null;
+          added_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      family_events: {
+        Row: {
+          id: string;
+          family_id: string;
+          title: string;
+          description: string;
+          event_date: string;
+          end_date: string | null;
+          location: string | null;
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          title: string;
+          description?: string;
+          event_date: string;
+          end_date?: string | null;
+          location?: string | null;
+          created_by: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          title?: string;
+          description?: string;
+          event_date?: string;
+          end_date?: string | null;
+          location?: string | null;
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      event_rsvps: {
+        Row: {
+          id: string;
+          event_id: string;
+          user_id: string;
+          status: RsvpStatus;
+          responded_at: string;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          user_id: string;
+          status?: RsvpStatus;
+          responded_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          user_id?: string;
+          status?: RsvpStatus;
+          responded_at?: string;
         };
         Relationships: [];
       };

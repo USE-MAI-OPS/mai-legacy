@@ -70,6 +70,190 @@ export async function POST(request: NextRequest) {
     const familyName = family?.name ?? "your family";
 
     // ------------------------------------------------------------------
+    // 1b. Fetch the family member roster so the Griot knows who's who.
+    // ------------------------------------------------------------------
+    let familyRoster = "";
+
+    try {
+      // Get family_members (real accounts) — pull ALL profile data
+      const { data: members } = await supabase
+        .from("family_members")
+        .select(
+          "id, display_name, role, occupation, specialty, nickname, phone, email, country, state, life_story"
+        )
+        .eq("family_id", familyId);
+
+      // Get family_tree_members (may include non-account placeholders)
+      const { data: treeMembers } = await supabase
+        .from("family_tree_members")
+        .select(
+          "display_name, birth_year, relationship_label, is_deceased, linked_member_id"
+        )
+        .eq("family_id", familyId);
+
+      // Index tree members by linked_member_id for easy lookup
+      const treeByLinked = new Map<
+        string,
+        {
+          birth_year: number | null;
+          relationship_label: string | null;
+          is_deceased: boolean;
+        }
+      >();
+      const unlinkedTreeMembers: {
+        display_name: string;
+        birth_year: number | null;
+        relationship_label: string | null;
+        is_deceased: boolean;
+      }[] = [];
+
+      if (treeMembers) {
+        for (const tm of treeMembers) {
+          if (tm.linked_member_id) {
+            treeByLinked.set(tm.linked_member_id, {
+              birth_year: tm.birth_year,
+              relationship_label: tm.relationship_label,
+              is_deceased: tm.is_deceased,
+            });
+          } else {
+            unlinkedTreeMembers.push(tm);
+          }
+        }
+      }
+
+      const rosterLines: string[] = [];
+
+      // Linked members (real accounts enriched with tree data + full life story)
+      if (members) {
+        for (const m of members) {
+          const tree = treeByLinked.get(m.id);
+          const lines: string[] = [];
+
+          // Header line: name, nickname, relationship, role
+          const header: string[] = [m.display_name];
+          if (m.nickname) header.push(`(aka "${m.nickname}")`);
+          if (tree?.relationship_label) header.push(`— ${tree.relationship_label}`);
+          if (m.role && m.role !== "member") header.push(`[${m.role}]`);
+          if (tree?.is_deceased) header.push(`(deceased)`);
+          lines.push(`• ${header.join(" ")}`);
+
+          // Basic details
+          const details: string[] = [];
+          if (tree?.birth_year) details.push(`Born: ${tree.birth_year}`);
+          if (m.occupation) details.push(`Occupation: ${m.occupation}`);
+          if (m.specialty) details.push(`Specialty: ${m.specialty}`);
+          if (m.country || m.state) {
+            const loc = [m.state, m.country].filter(Boolean).join(", ");
+            details.push(`Location: ${loc}`);
+          }
+          if (m.email) details.push(`Email: ${m.email}`);
+          if (m.phone) details.push(`Phone: ${m.phone}`);
+          if (details.length > 0) lines.push(`  ${details.join(" | ")}`);
+
+          // Life story data
+          const ls = m.life_story as unknown as Record<string, unknown> | null;
+          if (ls && typeof ls === "object") {
+            // Career
+            const career = Array.isArray(ls.career) ? ls.career : [];
+            if (career.length > 0) {
+              const careerStr = career
+                .map(
+                  (c: { title?: string; company?: string; years?: string }) =>
+                    [c.title, c.company, c.years].filter(Boolean).join(" at ").trim() ||
+                    "unknown role"
+                )
+                .join("; ");
+              lines.push(`  Career: ${careerStr}`);
+            }
+
+            // Education
+            const education = Array.isArray(ls.education) ? ls.education : [];
+            if (education.length > 0) {
+              const eduStr = education
+                .map(
+                  (e: { degree?: string; school?: string; year?: string }) =>
+                    [e.degree, e.school, e.year].filter(Boolean).join(", ").trim()
+                )
+                .join("; ");
+              lines.push(`  Education: ${eduStr}`);
+            }
+
+            // Places lived
+            const places = Array.isArray(ls.places) ? ls.places : [];
+            if (places.length > 0) {
+              const placeStr = places
+                .map(
+                  (p: { city?: string; state?: string; years?: string }) =>
+                    [p.city, p.state, p.years ? `(${p.years})` : ""]
+                      .filter(Boolean)
+                      .join(", ")
+                      .trim()
+                )
+                .join("; ");
+              lines.push(`  Places lived: ${placeStr}`);
+            }
+
+            // Skills
+            const skills = Array.isArray(ls.skills) ? ls.skills : [];
+            if (skills.length > 0) {
+              lines.push(`  Skills: ${skills.join(", ")}`);
+            }
+
+            // Hobbies
+            const hobbies = Array.isArray(ls.hobbies) ? ls.hobbies : [];
+            if (hobbies.length > 0) {
+              lines.push(`  Hobbies: ${hobbies.join(", ")}`);
+            }
+
+            // Military
+            const military = ls.military as {
+              branch?: string;
+              rank?: string;
+              years?: string;
+            } | null;
+            if (military && typeof military === "object" && military.branch) {
+              const milStr = [military.branch, military.rank, military.years]
+                .filter(Boolean)
+                .join(", ");
+              lines.push(`  Military service: ${milStr}`);
+            }
+
+            // Milestones
+            const milestones = Array.isArray(ls.milestones) ? ls.milestones : [];
+            if (milestones.length > 0) {
+              const msStr = milestones
+                .map(
+                  (ms: { event?: string; year?: string }) =>
+                    [ms.event, ms.year].filter(Boolean).join(" (") +
+                    (ms.year ? ")" : "")
+                )
+                .join("; ");
+              lines.push(`  Life milestones: ${msStr}`);
+            }
+          }
+
+          rosterLines.push(lines.join("\n"));
+        }
+      }
+
+      // Unlinked tree members (no account, but in the family tree)
+      for (const tm of unlinkedTreeMembers) {
+        const parts: string[] = [tm.display_name];
+        if (tm.relationship_label) parts.push(`— ${tm.relationship_label}`);
+        if (tm.birth_year) parts.push(`born ${tm.birth_year}`);
+        if (tm.is_deceased) parts.push(`(deceased)`);
+        rosterLines.push(`• ${parts.join(" ")}`);
+      }
+
+      if (rosterLines.length > 0) {
+        familyRoster = rosterLines.join("\n\n");
+      }
+    } catch (err) {
+      console.error("[griot] Failed to fetch family roster:", err);
+      // Non-fatal — the Griot will just lack member context.
+    }
+
+    // ------------------------------------------------------------------
     // 2. RAG: search for relevant family knowledge.
     // ------------------------------------------------------------------
     const searchResults = await searchFamilyKnowledge(message, familyId, 6);
@@ -85,7 +269,7 @@ export async function POST(request: NextRequest) {
     // ------------------------------------------------------------------
     // 3. Build the messages array for the LLM.
     // ------------------------------------------------------------------
-    const systemPrompt = buildSystemPrompt(familyName, knowledgeContext);
+    const systemPrompt = buildSystemPrompt(familyName, knowledgeContext, familyRoster);
 
     const messages: { role: string; content: string }[] = [
       { role: "system", content: systemPrompt },
@@ -224,7 +408,11 @@ export async function POST(request: NextRequest) {
 // Griot system prompt
 // ---------------------------------------------------------------------------
 
-function buildSystemPrompt(familyName: string, knowledgeContext: string): string {
+function buildSystemPrompt(
+  familyName: string,
+  knowledgeContext: string,
+  familyRoster: string
+): string {
   const basePrompt = `You are the Griot of the ${familyName} family -- a wise, warm, and deeply knowledgeable keeper of family history, stories, skills, recipes, and life lessons.
 
 Your role:
@@ -241,14 +429,34 @@ Your tone:
 - You are concise when the question is simple, and expansive when the topic deserves depth.
 - You speak as someone who has internalized the family's knowledge, not as a search engine reciting results.`;
 
+  // Build the family roster section
+  let rosterSection = "";
+  if (familyRoster) {
+    rosterSection = `
+
+--- FAMILY MEMBERS ---
+The following people are members of the ${familyName} family. Use this roster to identify who someone is asking about. When a user asks about a person by first name, match it to a family member from this list. Use any available details (birth year, relationship, occupation) to answer questions about them.
+
+${familyRoster}
+--- END FAMILY MEMBERS ---`;
+  }
+
   if (knowledgeContext) {
     return `${basePrompt}
+${rosterSection}
 
 Below is family knowledge retrieved from the ${familyName} family's archive. Draw on this knowledge to answer the question. Reference specific details, names, and stories when relevant. If the knowledge partially answers the question, share what you know and note what gaps remain.
 
 --- FAMILY KNOWLEDGE ---
 ${knowledgeContext}
 --- END FAMILY KNOWLEDGE ---`;
+  }
+
+  if (rosterSection) {
+    return `${basePrompt}
+${rosterSection}
+
+You do not have any specific documented stories or entries to draw on for this question, but you do know the family members listed above. Use that information if relevant, and warmly encourage the family to document more stories, skills, and wisdom.`;
   }
 
   return `${basePrompt}

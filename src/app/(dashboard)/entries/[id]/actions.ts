@@ -6,6 +6,104 @@ import { revalidatePath } from "next/cache";
 import type { EntryType } from "@/types/database";
 
 // ---------------------------------------------------------------------------
+// Copy entry to other families
+// ---------------------------------------------------------------------------
+export async function copyEntryToFamilies(
+  entryId: string,
+  targetFamilyIds: string[]
+) {
+  try {
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { error: "You must be signed in to copy an entry." };
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+
+    // Fetch the source entry
+    const { data: sourceEntry, error: fetchError } = await sb
+      .from("entries")
+      .select("title, content, type, tags, structured_data, author_id, family_id")
+      .eq("id", entryId)
+      .single();
+
+    if (fetchError || !sourceEntry) {
+      return { error: "Entry not found." };
+    }
+
+    if (targetFamilyIds.length === 0) {
+      return { error: "No target families selected." };
+    }
+
+    // Filter out the source family to avoid duplicates
+    const filteredIds = targetFamilyIds.filter(
+      (fid: string) => fid !== sourceEntry.family_id
+    );
+
+    if (filteredIds.length === 0) {
+      return { error: "Entry already exists in the selected families." };
+    }
+
+    // Build insert rows for each target family
+    const insertRows = filteredIds.map((familyId: string) => {
+      const row: Record<string, unknown> = {
+        family_id: familyId,
+        author_id: sourceEntry.author_id,
+        title: sourceEntry.title,
+        content: sourceEntry.content,
+        type: sourceEntry.type,
+        tags: sourceEntry.tags ?? [],
+      };
+      if (sourceEntry.structured_data) {
+        row.structured_data = sourceEntry.structured_data;
+      }
+      return row;
+    });
+
+    const { data: newEntries, error: insertError } = await sb
+      .from("entries")
+      .insert(insertRows)
+      .select();
+
+    if (insertError) {
+      return { error: (insertError as { message: string }).message };
+    }
+
+    // Trigger embedding generation for each new entry (fire-and-forget)
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    for (const entry of newEntries ?? []) {
+      try {
+        fetch(`${baseUrl}/api/entries/embed`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entryId: entry.id }),
+        }).catch((err) => {
+          console.error("Failed to trigger embedding:", err);
+        });
+      } catch {
+        console.error("Failed to trigger embedding for entry:", entry.id);
+      }
+    }
+
+    revalidatePath("/entries");
+    revalidatePath("/dashboard");
+    revalidatePath("/skills");
+
+    return { success: true, copiedCount: newEntries?.length ?? 0 };
+  } catch {
+    return { error: "An unexpected error occurred." };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Delete entry
 // ---------------------------------------------------------------------------
 export async function deleteEntry(entryId: string) {

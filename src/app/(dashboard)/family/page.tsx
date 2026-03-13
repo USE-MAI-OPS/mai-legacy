@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { Users, Plus } from "lucide-react";
+import { Users, Plus, TreePine, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getFamilyContext } from "@/lib/get-family-context";
-import { FamilyTree } from "./components/family-tree";
 import { UpcomingEvents } from "./components/upcoming-events";
 import { FeatureCards } from "./components/feature-cards";
 import type { RsvpStatus } from "@/types/database";
@@ -11,18 +11,6 @@ import type { RsvpStatus } from "@/types/database";
 // ---------------------------------------------------------------------------
 // Types for raw DB rows
 // ---------------------------------------------------------------------------
-interface TreeMemberRow {
-  id: string;
-  display_name: string;
-  relationship_label: string | null;
-  parent_id: string | null;
-  spouse_id: string | null;
-  linked_member_id: string | null;
-  birth_year: number | null;
-  is_deceased: boolean;
-  avatar_url: string | null;
-}
-
 interface EventRow {
   id: string;
   title: string;
@@ -72,11 +60,8 @@ async function getFamilyData() {
       sb.from("families").select("name").eq("id", familyId).single(),
       sb
         .from("family_tree_members")
-        .select(
-          "id, display_name, relationship_label, parent_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url"
-        )
-        .eq("family_id", familyId)
-        .order("created_at", { ascending: true }),
+        .select("id", { count: "exact", head: true })
+        .eq("family_id", familyId),
       sb
         .from("family_members")
         .select("id, display_name, user_id")
@@ -109,18 +94,20 @@ async function getFamilyData() {
     // Entry counts by type
     let entryCounts: Record<string, number> = {};
     try {
-      const { data: countData } = await sb.rpc("get_entry_counts_by_type", {
+      const { data: countData, error: rpcError } = await sb.rpc("get_entry_counts_by_type", {
         p_family_id: familyId,
       });
-      if (countData) {
-        for (const row of countData as EntryCountRow[]) {
-          entryCounts[row.type] = Number(row.count);
-        }
+      if (rpcError || !countData) {
+        // RPC doesn't exist or failed — fall back to direct queries
+        throw new Error("RPC unavailable");
+      }
+      for (const row of countData as EntryCountRow[]) {
+        entryCounts[row.type] = Number(row.count);
       }
     } catch {
-      // RPC may not exist yet — fall back to client-side count
+      // Fall back to client-side count
       try {
-        const types = ["recipe", "skill", "lesson"];
+        const types = ["recipe", "skill", "lesson", "story", "connection"];
         for (const t of types) {
           const { count } = await sb
             .from("entries")
@@ -140,7 +127,7 @@ async function getFamilyData() {
 
     return {
       familyName: familyResult.data?.name ?? "Your Family",
-      treeMembers: (treeMembersResult.data as TreeMemberRow[]) ?? [],
+      treeMemberCount: treeMembersResult.count ?? 0,
       realMembers,
       events,
       rsvps,
@@ -201,19 +188,31 @@ export default async function FamilyPage() {
         </Button>
       </div>
 
-      {/* Family Tree — centerpiece */}
+      {/* Family Tree card */}
       <section>
-        <FamilyTree
-          treeMembers={data.treeMembers}
-          realMembers={data.realMembers.map((m) => ({
-            id: m.id,
-            display_name: m.display_name,
-          }))}
-          familyId={data.familyId}
-          currentUserId={data.currentUserId}
-          currentUserMemberId={data.currentUserMemberId}
-          currentUserDisplayName={data.currentUserDisplayName}
-        />
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <TreePine className="h-5 w-5 text-primary" />
+              Family Tree
+            </CardTitle>
+            <Badge variant="secondary">
+              {data.treeMemberCount} member{data.treeMemberCount !== 1 ? "s" : ""}
+            </Badge>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Explore your family&apos;s lineage and relationships. Add members,
+              build connections, and visualize your family&apos;s story.
+            </p>
+            <Button asChild>
+              <Link href="/family/tree">
+                View Family Tree
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
       </section>
 
       {/* Upcoming Events */}

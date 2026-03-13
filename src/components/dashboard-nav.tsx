@@ -6,17 +6,18 @@ import {
   LayoutDashboard,
   BookOpen,
   MessageCircle,
-  GraduationCap,
   User,
   Users,
   LogOut,
   Menu,
   X,
-  Wrench,
   Target,
   ChevronDown,
   Check,
   Plus,
+  Sparkles,
+  HelpCircle,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -36,6 +37,7 @@ import {
   getActiveFamilyIdClient,
   setActiveFamilyIdClient,
 } from "@/lib/active-family";
+import { useTourOptional } from "@/components/tour/tour-provider";
 
 interface FamilyInfo {
   id: string;
@@ -53,14 +55,23 @@ const navItems = [
   { href: "/family", label: "Family", icon: Users },
   { href: "/entries", label: "Entries", icon: BookOpen },
   { href: "/griot", label: "The Griot", icon: MessageCircle },
-  { href: "/tutorials", label: "Tutorials", icon: GraduationCap },
-  { href: "/skills", label: "Skills Hub", icon: Wrench },
   { href: "/goals", label: "Goals", icon: Target },
   { href: "/profile", label: "Profile", icon: User },
+  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/help", label: "Help & Support", icon: HelpCircle },
 ];
+
+/** Map nav hrefs to data-tour-step attribute values */
+const tourStepMap: Record<string, string> = {
+  "/entries": "nav-entries",
+  "/griot": "nav-griot",
+  "/family": "nav-family",
+  "/profile": "nav-profile",
+};
 
 export function DashboardNav() {
   const pathname = usePathname();
+  const tour = useTourOptional();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [families, setFamilies] = useState<FamilyInfo[]>([]);
   const [activeFamilyId, setActiveFamilyId] = useState<string | null>(null);
@@ -158,6 +169,7 @@ export function DashboardNav() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  data-tour-step={tourStepMap[item.href]}
                   className={cn(
                     "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
                     isActive
@@ -249,11 +261,25 @@ export function DashboardNav() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
+                  <Link href="/settings">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Account Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
                   <Link href="/family/settings">
                     <Users className="mr-2 h-4 w-4" />
                     Family Settings
                   </Link>
                 </DropdownMenuItem>
+                {tour && (
+                  <DropdownMenuItem
+                    onClick={() => tour.startTour()}
+                  >
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Replay Tour
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild className="text-destructive p-0">
                   <form action={signOut} className="w-full">
@@ -356,6 +382,21 @@ export function DashboardNav() {
                 </Link>
               );
             })}
+            {tour && (
+              <>
+                <Separator className="my-2" />
+                <button
+                  onClick={() => {
+                    setMobileOpen(false);
+                    tour.startTour();
+                  }}
+                  className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Replay Tour
+                </button>
+              </>
+            )}
             <Separator className="my-2" />
             <form action={signOut}>
               <button

@@ -223,6 +223,56 @@ export async function createFamily(
   return { success: true };
 }
 
+export async function forgotPassword(formData: FormData) {
+  const supabase = await createClient();
+  const origin = (await headers()).get("origin");
+
+  const email = formData.get("email") as string;
+
+  if (!email) {
+    redirect("/forgot-password?error=Please+enter+your+email+address");
+  }
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/auth/callback?next=/reset-password`,
+  });
+
+  if (error) {
+    redirect(`/forgot-password?error=${encodeURIComponent(error.message)}`);
+  }
+
+  redirect(
+    "/forgot-password?message=Check+your+email+for+a+password+reset+link"
+  );
+}
+
+export async function resetPassword(formData: FormData) {
+  const supabase = await createClient();
+
+  const password = formData.get("password") as string;
+  const confirmPassword = formData.get("confirmPassword") as string;
+
+  if (!password || !confirmPassword) {
+    redirect("/reset-password?error=Please+fill+in+all+fields");
+  }
+
+  if (password !== confirmPassword) {
+    redirect("/reset-password?error=Passwords+do+not+match");
+  }
+
+  if (password.length < 6) {
+    redirect("/reset-password?error=Password+must+be+at+least+6+characters");
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    redirect(`/reset-password?error=${encodeURIComponent(error.message)}`);
+  }
+
+  redirect("/login?message=Password+updated+successfully.+Please+sign+in.");
+}
+
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();

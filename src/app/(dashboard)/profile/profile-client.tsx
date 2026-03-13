@@ -3,18 +3,22 @@
 import { useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { StatsCard } from "@/components/stats-card";
 import { MyStorySection } from "@/components/my-story-section";
 import {
-  BookOpenIcon,
   CalendarDaysIcon,
   Camera,
+  Check,
   FileTextIcon,
   LayersIcon,
   Loader2,
+  Pencil,
   TagIcon,
+  X as XIcon,
 } from "lucide-react";
 import type { LifeStory } from "@/types/database";
 import { createBrowserClient } from "@supabase/ssr";
@@ -29,7 +33,6 @@ export interface ProfileUser {
   joined_at: string;
   stats: {
     entries_created: number;
-    tutorials_created: number;
     types_contributed: string[];
   };
 }
@@ -95,6 +98,56 @@ export function ProfileClient({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarUrl, setAvatarUrl] = useState(user.avatar_url);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [displayName, setDisplayName] = useState(user.display_name);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(user.display_name);
+  const [savingName, setSavingName] = useState(false);
+
+  const handleSaveDisplayName = async () => {
+    const trimmed = nameInput.trim();
+    if (!trimmed || trimmed === displayName || !userId) return;
+
+    setSavingName(true);
+    try {
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+
+      // Update display_name on ALL family_members rows for this user
+      const { error } = await (supabase as any)
+        .from("family_members")
+        .update({ display_name: trimmed })
+        .eq("user_id", userId);
+
+      if (error) {
+        toast.error("Failed to update display name");
+        return;
+      }
+
+      // Also update linked family_tree_members
+      const { data: memberRows } = await (supabase as any)
+        .from("family_members")
+        .select("id")
+        .eq("user_id", userId);
+
+      if (memberRows && memberRows.length > 0) {
+        const memberIds = memberRows.map((m: { id: string }) => m.id);
+        await (supabase as any)
+          .from("family_tree_members")
+          .update({ name: trimmed })
+          .in("linked_member_id", memberIds);
+      }
+
+      setDisplayName(trimmed);
+      setEditingName(false);
+      toast.success("Display name updated!");
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const handleSaveLifeStory = async (story: LifeStory) => {
     if (!userId && !memberId) return;
@@ -180,10 +233,10 @@ export function ProfileClient({
         <div className="relative group">
           <Avatar className="size-20">
             {avatarUrl ? (
-              <AvatarImage src={avatarUrl} alt={user.display_name} />
+              <AvatarImage src={avatarUrl} alt={displayName} />
             ) : null}
             <AvatarFallback className="text-xl font-semibold bg-primary text-primary-foreground">
-              {getInitials(user.display_name)}
+              {getInitials(displayName)}
             </AvatarFallback>
           </Avatar>
 
@@ -215,9 +268,60 @@ export function ProfileClient({
         </div>
         <div className="space-y-2">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">
-              {user.display_name}
-            </h1>
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveDisplayName();
+                    if (e.key === "Escape") {
+                      setNameInput(displayName);
+                      setEditingName(false);
+                    }
+                  }}
+                  className="text-xl font-bold h-9 w-56"
+                  autoFocus
+                  disabled={savingName}
+                />
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-7"
+                  onClick={handleSaveDisplayName}
+                  disabled={savingName}
+                >
+                  <Check className="size-4 text-green-600" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-7"
+                  onClick={() => {
+                    setNameInput(displayName);
+                    setEditingName(false);
+                  }}
+                  disabled={savingName}
+                >
+                  <XIcon className="size-4" />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold tracking-tight">
+                  {displayName}
+                </h1>
+                {userId && (
+                  <button
+                    onClick={() => setEditingName(true)}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Edit display name"
+                  >
+                    <Pencil className="size-3.5" />
+                  </button>
+                )}
+              </>
+            )}
             <Badge
               variant="secondary"
               className="capitalize text-xs"
@@ -234,30 +338,25 @@ export function ProfileClient({
       </div>
 
       {/* Stats grid */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 mb-8">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 mb-8">
         <StatsCard
           label="Entries Created"
           value={user.stats.entries_created}
           icon={<FileTextIcon className="size-5" />}
         />
         <StatsCard
-          label="Tutorials Created"
-          value={user.stats.tutorials_created}
-          icon={<BookOpenIcon className="size-5" />}
-        />
-        <StatsCard
-          label="Types Contributed"
+          label="Categories"
           value={user.stats.types_contributed.length}
           icon={<LayersIcon className="size-5" />}
         />
       </div>
 
-      {/* Types contributed */}
+      {/* Categories contributed */}
       <Card className="mb-8">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <TagIcon className="size-4" />
-            Types Contributed
+            Categories
           </CardTitle>
         </CardHeader>
         <CardContent>

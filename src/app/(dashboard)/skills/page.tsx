@@ -35,20 +35,6 @@ async function getSkillEntries() {
       }
     }
 
-    // Also check for tutorials associated with these entries
-    const entryIds = (data ?? []).map((e: any) => e.id);
-    const { data: tutorials } =
-      entryIds.length > 0
-        ? await sb
-            .from("skill_tutorials")
-            .select("entry_id")
-            .in("entry_id", entryIds)
-        : { data: [] };
-
-    const tutorialEntryIds = new Set(
-      (tutorials ?? []).map((t: any) => t.entry_id)
-    );
-
     return (data ?? []).map((entry: any) => {
       const authorName = authorMap[entry.author_id] ?? "Unknown";
 
@@ -64,7 +50,7 @@ async function getSkillEntries() {
         authorName,
         date: entry.created_at,
         difficulty,
-        hasTutorial: tutorialEntryIds.has(entry.id),
+        hasTutorial: false,
       };
     });
   } catch {

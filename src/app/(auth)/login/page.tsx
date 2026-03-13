@@ -10,8 +10,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { SubmitButton } from "@/components/submit-button";
+import { PasswordInput } from "@/components/password-input";
 
 export default async function LoginPage({
   searchParams,
@@ -43,7 +44,7 @@ export default async function LoginPage({
         )}
 
         <form action={signInWithGoogle}>
-          <Button variant="outline" className="w-full" type="submit">
+          <SubmitButton variant="outline" className="w-full" loadingText="Connecting…">
             <svg
               className="size-4"
               viewBox="0 0 24 24"
@@ -67,7 +68,7 @@ export default async function LoginPage({
               />
             </svg>
             Continue with Google
-          </Button>
+          </SubmitButton>
         </form>
 
         <div className="flex items-center gap-4">
@@ -92,20 +93,27 @@ export default async function LoginPage({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Password</Label>
+              <Link
+                href="/forgot-password"
+                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               placeholder="Your password"
               required
               autoComplete="current-password"
             />
           </div>
 
-          <Button type="submit" className="w-full">
+          <SubmitButton className="w-full" loadingText="Signing in…">
             Sign in
-          </Button>
+          </SubmitButton>
         </form>
       </CardContent>
 

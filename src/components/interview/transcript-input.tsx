@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { InterviewGuide } from "./interview-guide";
 
 interface FamilyMember {
   id: string;
@@ -61,6 +62,9 @@ export function TranscriptInput({
           transcript here. We&apos;ll pull out the stories, recipes, lessons,
           and more.
         </p>
+        <div className="pt-2">
+          <InterviewGuide />
+        </div>
       </div>
 
       {/* Family Member Selector */}

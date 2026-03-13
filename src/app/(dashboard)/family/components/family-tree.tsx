@@ -102,7 +102,7 @@ function TreeBranch({
     <div className="flex flex-col items-center">
       {/* Vertical connector from parent (unless root) */}
       {!isRoot && (
-        <div className="w-px h-6 bg-border" />
+        <div className="w-0.5 h-6 bg-border" />
       )}
 
       {/* Node (optionally with spouse) */}
@@ -119,9 +119,9 @@ function TreeBranch({
           <>
             {/* Horizontal spouse connector */}
             <div className="flex items-center self-center">
-              <div className="w-4 h-px bg-primary/50" />
-              <div className="w-2 h-2 rounded-full bg-primary/50" />
-              <div className="w-4 h-px bg-primary/50" />
+              <div className="w-4 h-0.5 bg-primary/50" />
+              <div className="w-2.5 h-2.5 rounded-full bg-primary/50" />
+              <div className="w-4 h-0.5 bg-primary/50" />
             </div>
             <FamilyTreeNode
               node={node.spouse}
@@ -138,34 +138,48 @@ function TreeBranch({
       {/* Children */}
       {node.children.length > 0 && (
         <>
-          {/* Vertical line down to children branch */}
-          <div className="w-px h-6 bg-border" />
+          {/* Vertical line down to children horizontal bar */}
+          <div className="w-0.5 h-6 bg-border" />
 
-          {/* Horizontal bar spanning all children */}
-          {node.children.length > 1 && (
-            <div className="flex items-start">
-              <div
-                className="h-px bg-border"
-                style={{
-                  width: `${Math.max(node.children.length * 140, 140)}px`,
-                }}
-              />
-            </div>
-          )}
+          {/* Children — each child owns its left/right halves of the horizontal bar */}
+          <div className="flex items-start">
+            {node.children.map((child, i) => {
+              const total = node.children.length;
+              const isOnly = total === 1;
+              const isFirst = i === 0;
+              const isLast = i === total - 1;
 
-          {/* Child nodes */}
-          <div className="flex gap-6 items-start">
-            {node.children.map((child) => (
-              <TreeBranch
-                key={child.data.id}
-                node={child}
-                currentUserId={currentUserId}
-                currentUserMemberId={currentUserMemberId}
-                onEdit={onEdit}
-                onDelete={onDelete}
-                onInvite={onInvite}
-              />
-            ))}
+              return (
+                <div
+                  key={child.data.id}
+                  className={`relative flex flex-col items-center ${
+                    !isOnly ? "px-3" : ""
+                  }`}
+                >
+                  {/* Horizontal bar segment — spans full wrapper width incl. padding */}
+                  {!isOnly && (
+                    <div className="absolute top-0 left-0 right-0 flex h-0.5">
+                      <div
+                        className={`flex-1 ${!isFirst ? "bg-border" : ""}`}
+                      />
+                      <div
+                        className={`flex-1 ${!isLast ? "bg-border" : ""}`}
+                      />
+                    </div>
+                  )}
+
+                  {/* Child branch */}
+                  <TreeBranch
+                    node={child}
+                    currentUserId={currentUserId}
+                    currentUserMemberId={currentUserMemberId}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onInvite={onInvite}
+                  />
+                </div>
+              );
+            })}
           </div>
         </>
       )}
@@ -318,9 +332,9 @@ export function FamilyTree({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between pb-2">
         <div className="flex items-center gap-2">
           <TreePine className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold">Family Tree</h2>
@@ -328,7 +342,7 @@ export function FamilyTree({
             ({treeMembers.length} member{treeMembers.length !== 1 ? "s" : ""})
           </span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-3">
           <Button variant="outline" size="sm" onClick={handleInviteGeneral}>
             <Mail className="mr-1.5 h-3.5 w-3.5" />
             Invite

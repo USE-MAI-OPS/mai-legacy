@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { signup, signInWithGoogle } from "../actions";
+import { signInWithGoogle } from "../actions";
 import {
   Card,
   CardContent,
@@ -8,10 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { SubmitButton } from "@/components/submit-button";
+import { SignupForm } from "./signup-form";
 
 export default async function SignupPage({
   searchParams,
@@ -43,7 +42,7 @@ export default async function SignupPage({
         )}
 
         <form action={signInWithGoogle}>
-          <Button variant="outline" className="w-full" type="submit">
+          <SubmitButton variant="outline" className="w-full" loadingText="Connecting…">
             <svg
               className="size-4"
               viewBox="0 0 24 24"
@@ -67,7 +66,7 @@ export default async function SignupPage({
               />
             </svg>
             Continue with Google
-          </Button>
+          </SubmitButton>
         </form>
 
         <div className="flex items-center gap-4">
@@ -78,61 +77,7 @@ export default async function SignupPage({
           <Separator className="flex-1" />
         </div>
 
-        <form action={signup} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="displayName">Display name</Label>
-            <Input
-              id="displayName"
-              name="displayName"
-              type="text"
-              placeholder="Your name"
-              required
-              autoComplete="name"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              placeholder="you@example.com"
-              required
-              autoComplete="email"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              placeholder="At least 6 characters"
-              required
-              minLength={6}
-              autoComplete="new-password"
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="confirmPassword">Confirm password</Label>
-            <Input
-              id="confirmPassword"
-              name="confirmPassword"
-              type="password"
-              placeholder="Re-enter your password"
-              required
-              minLength={6}
-              autoComplete="new-password"
-            />
-          </div>
-
-          <Button type="submit" className="w-full">
-            Create account
-          </Button>
-        </form>
+        <SignupForm />
       </CardContent>
 
       <CardFooter className="justify-center">

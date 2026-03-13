@@ -2,11 +2,15 @@ import Link from "next/link";
 import {
   BookOpen,
   MessageCircle,
-  GraduationCap,
   Users,
   Plus,
   ArrowRight,
   Target,
+  Sparkles,
+  Utensils,
+  History,
+  Upload,
+  TreePine,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,7 +27,6 @@ import { LegacyBoard } from "@/components/legacy-board";
 const MOCK_STATS = [
   { label: "Total Entries", value: 24, icon: BookOpen, href: "/entries" },
   { label: "Griot Chats", value: 8, icon: MessageCircle, href: "/griot" },
-  { label: "Tutorials", value: 4, icon: GraduationCap, href: "/tutorials" },
   { label: "Members", value: 5, icon: Users, href: "/family/settings" },
 ];
 
@@ -90,30 +93,6 @@ const MOCK_TRADITIONS = [
   },
 ];
 
-// TODO: Replace with real goal data once family_goals CRUD is wired up
-const MOCK_GOALS = [
-  {
-    id: "g1",
-    title: "Document 50 family recipes",
-    current: 12,
-    target: 50,
-    status: "active",
-  },
-  {
-    id: "g2",
-    title: "Interview all elders",
-    current: 3,
-    target: 6,
-    status: "active",
-  },
-  {
-    id: "g3",
-    title: "Digitize photo albums",
-    current: 1,
-    target: 4,
-    status: "active",
-  },
-];
 
 const typeColors: Record<string, string> = {
   story: "bg-blue-100 text-blue-800",
@@ -177,17 +156,16 @@ async function getDashboardData() {
     const [
       entriesCount,
       griotCount,
-      tutorialsCount,
       membersCount,
       recentEntriesResult,
       familyMembersResult,
       familyResult,
       traditionsResult,
       entryTypesResult,
+      goalsResult,
     ] = await Promise.all([
       sb.from("entries").select("id", { count: "exact", head: true }).eq("family_id", familyId),
       sb.from("griot_conversations").select("id", { count: "exact", head: true }).eq("family_id", familyId),
-      sb.from("skill_tutorials").select("id", { count: "exact", head: true }).eq("family_id", familyId),
       sb.from("family_members").select("id", { count: "exact", head: true }).eq("family_id", familyId),
       sb
         .from("entries")
@@ -210,6 +188,13 @@ async function getDashboardData() {
         .from("entries")
         .select("type, author_id")
         .eq("family_id", familyId),
+      sb
+        .from("family_goals")
+        .select("id, title, target_count, current_count, status")
+        .eq("family_id", familyId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(3),
     ]);
 
     // Build author name map from family members (already fetched above)
@@ -262,12 +247,12 @@ async function getDashboardData() {
       stats: {
         entries: entriesCount.count ?? 0,
         griotChats: griotCount.count ?? 0,
-        tutorials: tutorialsCount.count ?? 0,
         members: membersCount.count ?? 0,
       },
       recentEntries: recentEntriesResult.data ?? [],
       familyMembers: familyMembersResult.data ?? [],
       traditions: traditionsResult.data ?? [],
+      goals: goalsResult.data ?? [],
       authorNameMap,
       entryTypeCounts: {
         recipe: typeCounts["recipe"] ?? 0,
@@ -294,7 +279,6 @@ export default async function DashboardPage() {
     ? [
         { label: "Total Entries", value: data.stats.entries, icon: BookOpen, href: "/entries" },
         { label: "Griot Chats", value: data.stats.griotChats, icon: MessageCircle, href: "/griot" },
-        { label: "Tutorials", value: data.stats.tutorials, icon: GraduationCap, href: "/tutorials" },
         { label: "Members", value: data.stats.members, icon: Users, href: "/family/settings" },
       ]
     : MOCK_STATS;
@@ -334,7 +318,10 @@ export default async function DashboardPage() {
     ? data.displayName.split(" ")[0]
     : "Kobe";
 
-  const familyName = data?.familyName ?? "Powell Family";
+  const rawFamilyName = data?.familyName ?? "Powell Family";
+  // Strip leading "The " so templates like "The {name} Legacy Board" don't
+  // render as "The The Powells Legacy Board" when the stored name is "The Powells".
+  const familyName = rawFamilyName.replace(/^The\s+/i, "");
 
   // Resolve traditions
   const traditions = data
@@ -356,6 +343,9 @@ export default async function DashboardPage() {
     : MOCK_TRADITIONS;
 
   const userId = data?.userId;
+
+  // Resolve goals (real data only, no mock fallback)
+  const goals = data?.goals ?? [];
 
   // Legacy board data
   const legacyBoardStats = data
@@ -388,7 +378,7 @@ export default async function DashboardPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" data-tour-step="dashboard-welcome">
         <div>
           <h1 className="text-3xl font-bold">Welcome back, {welcomeName}</h1>
           <p className="text-muted-foreground mt-1">
@@ -404,7 +394,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         {stats.map((stat) => (
           <Link key={stat.label} href={stat.href}>
             <Card className="hover:shadow-md transition-shadow cursor-pointer">
@@ -423,6 +413,73 @@ export default async function DashboardPage() {
           </Link>
         ))}
       </div>
+
+      {/* Getting Started — shown when dashboard is empty */}
+      {data && data.stats.entries === 0 && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Get Started Building Your Legacy
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Your family&apos;s knowledge base is empty — here are some great first steps:
+            </p>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <Link
+                href="/entries/new"
+                className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+              >
+                <div className="rounded-full bg-orange-100 dark:bg-orange-900/30 p-2 shrink-0">
+                  <Utensils className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Add a Family Recipe</p>
+                  <p className="text-xs text-muted-foreground">Preserve a dish everyone loves</p>
+                </div>
+              </Link>
+              <Link
+                href="/entries/new"
+                className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+              >
+                <div className="rounded-full bg-blue-100 dark:bg-blue-900/30 p-2 shrink-0">
+                  <History className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Write a Family Story</p>
+                  <p className="text-xs text-muted-foreground">Capture a memory before it fades</p>
+                </div>
+              </Link>
+              <Link
+                href="/entries/import-interview"
+                className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+              >
+                <div className="rounded-full bg-purple-100 dark:bg-purple-900/30 p-2 shrink-0">
+                  <Upload className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Import an Interview</p>
+                  <p className="text-xs text-muted-foreground">Record an elder, then upload the transcript</p>
+                </div>
+              </Link>
+              <Link
+                href="/family/tree"
+                className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+              >
+                <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-2 shrink-0">
+                  <TreePine className="h-4 w-4 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Build the Family Tree</p>
+                  <p className="text-xs text-muted-foreground">Map out your family&apos;s lineage</p>
+                </div>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Legacy Board */}
       <LegacyBoard
@@ -568,39 +625,58 @@ export default async function DashboardPage() {
       </div>
 
       {/* Family Goals Preview */}
-      {/* TODO: Replace MOCK_GOALS with real data from family_goals table once goals CRUD is wired up */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Target className="h-5 w-5 text-emerald-500" />
             Family Goals
           </CardTitle>
-          <Badge variant="outline" className="text-xs">
-            {MOCK_GOALS.length} active
-          </Badge>
+          {goals.length > 0 ? (
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/goals">
+                View all
+                <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/goals">
+                <Plus className="mr-1 h-3 w-3" />
+                Set a Goal
+              </Link>
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
-          <div className="grid sm:grid-cols-3 gap-4">
-            {MOCK_GOALS.map((goal) => {
-              const pct = Math.round((goal.current / goal.target) * 100);
-              return (
-                <div key={goal.id} className="space-y-2">
-                  <p className="text-sm font-medium leading-tight">
-                    {goal.title}
-                  </p>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className="bg-emerald-500 h-2 rounded-full transition-all"
-                      style={{ width: `${pct}%` }}
-                    />
+          {goals.length > 0 ? (
+            <div className="grid sm:grid-cols-3 gap-4">
+              {goals.map((goal: { id: string; title: string; current_count: number; target_count: number }) => {
+                const pct = goal.target_count > 0 ? Math.round((goal.current_count / goal.target_count) * 100) : 0;
+                return (
+                  <div key={goal.id} className="space-y-2">
+                    <p className="text-sm font-medium leading-tight">
+                      {goal.title}
+                    </p>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div
+                        className="bg-emerald-500 h-2 rounded-full transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {goal.current_count} / {goal.target_count} ({pct}%)
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {goal.current} / {goal.target} ({pct}%)
-                  </p>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-sm text-muted-foreground">
+                No goals yet. Set a family goal to track your legacy-building progress!
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

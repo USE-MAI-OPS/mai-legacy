@@ -13,6 +13,7 @@ import {
   Wrench,
   Medal,
   Flag,
+  Pencil,
   Plus,
   X,
   ChevronDown,
@@ -185,12 +186,20 @@ export function MyStorySection({
     }
   };
 
-  // --- Add item forms state ---
-  const [showCareerForm, setShowCareerForm] = useState(false);
-  const [showPlaceForm, setShowPlaceForm] = useState(false);
-  const [showEduForm, setShowEduForm] = useState(false);
-  const [showMilestoneForm, setShowMilestoneForm] = useState(false);
-  const [showMilitaryForm, setShowMilitaryForm] = useState(false);
+  // --- Add/edit item forms state ---
+  // null = hidden, -1 = adding new, >= 0 = editing that index
+  const [careerFormIdx, setCareerFormIdx] = useState<number | null>(null);
+  const [placeFormIdx, setPlaceFormIdx] = useState<number | null>(null);
+  const [eduFormIdx, setEduFormIdx] = useState<number | null>(null);
+  const [milestoneFormIdx, setMilestoneFormIdx] = useState<number | null>(null);
+  const [militaryFormIdx, setMilitaryFormIdx] = useState<number | null>(null);
+
+  // Convenience booleans
+  const showCareerForm = careerFormIdx !== null;
+  const showPlaceForm = placeFormIdx !== null;
+  const showEduForm = eduFormIdx !== null;
+  const showMilestoneForm = milestoneFormIdx !== null;
+  const showMilitaryForm = militaryFormIdx !== null;
 
   return (
     <Card>
@@ -237,6 +246,13 @@ export function MyStorySection({
                     {c.years}
                   </span>
                   <button
+                    onClick={() => setCareerFormIdx(i)}
+                    className="text-muted-foreground hover:text-primary transition-colors"
+                    aria-label="Edit"
+                  >
+                    <Pencil className="size-3" />
+                  </button>
+                  <button
                     onClick={() =>
                       update((s) => ({
                         ...s,
@@ -258,17 +274,33 @@ export function MyStorySection({
             {showCareerForm ? (
               <InlineForm
                 fields={["Title", "Company", { name: "Years", type: "year-range" }]}
+                initialValues={
+                  careerFormIdx !== null && careerFormIdx >= 0
+                    ? [story.career[careerFormIdx].title, story.career[careerFormIdx].company, story.career[careerFormIdx].years]
+                    : undefined
+                }
                 onSubmit={([title, company, years]) => {
-                  update((s) => ({
-                    ...s,
-                    career: [...s.career, { title, company, years }],
-                  }));
-                  setShowCareerForm(false);
+                  if (careerFormIdx !== null && careerFormIdx >= 0) {
+                    // Editing existing
+                    update((s) => ({
+                      ...s,
+                      career: s.career.map((item, idx) =>
+                        idx === careerFormIdx ? { title, company, years } : item
+                      ),
+                    }));
+                  } else {
+                    // Adding new
+                    update((s) => ({
+                      ...s,
+                      career: [...s.career, { title, company, years }],
+                    }));
+                  }
+                  setCareerFormIdx(null);
                 }}
-                onCancel={() => setShowCareerForm(false)}
+                onCancel={() => setCareerFormIdx(null)}
               />
             ) : (
-              <AddButton onClick={() => setShowCareerForm(true)} />
+              <AddButton onClick={() => setCareerFormIdx(-1)} />
             )}
           </div>
         </StorySection>
@@ -292,6 +324,13 @@ export function MyStorySection({
                     {p.years}
                   </span>
                   <button
+                    onClick={() => setPlaceFormIdx(i)}
+                    className="text-muted-foreground hover:text-primary transition-colors"
+                    aria-label="Edit"
+                  >
+                    <Pencil className="size-3" />
+                  </button>
+                  <button
                     onClick={() =>
                       update((s) => ({
                         ...s,
@@ -313,17 +352,31 @@ export function MyStorySection({
             {showPlaceForm ? (
               <InlineForm
                 fields={["City", "State", { name: "Years", type: "year-range" }]}
+                initialValues={
+                  placeFormIdx !== null && placeFormIdx >= 0
+                    ? [story.places[placeFormIdx].city, story.places[placeFormIdx].state, story.places[placeFormIdx].years]
+                    : undefined
+                }
                 onSubmit={([city, state, years]) => {
-                  update((s) => ({
-                    ...s,
-                    places: [...s.places, { city, state, years }],
-                  }));
-                  setShowPlaceForm(false);
+                  if (placeFormIdx !== null && placeFormIdx >= 0) {
+                    update((s) => ({
+                      ...s,
+                      places: s.places.map((item, idx) =>
+                        idx === placeFormIdx ? { city, state, years } : item
+                      ),
+                    }));
+                  } else {
+                    update((s) => ({
+                      ...s,
+                      places: [...s.places, { city, state, years }],
+                    }));
+                  }
+                  setPlaceFormIdx(null);
                 }}
-                onCancel={() => setShowPlaceForm(false)}
+                onCancel={() => setPlaceFormIdx(null)}
               />
             ) : (
-              <AddButton onClick={() => setShowPlaceForm(true)} />
+              <AddButton onClick={() => setPlaceFormIdx(-1)} />
             )}
           </div>
         </StorySection>
@@ -344,6 +397,13 @@ export function MyStorySection({
                   <span className="text-xs text-muted-foreground">
                     {e.year}
                   </span>
+                  <button
+                    onClick={() => setEduFormIdx(i)}
+                    className="text-muted-foreground hover:text-primary transition-colors"
+                    aria-label="Edit"
+                  >
+                    <Pencil className="size-3" />
+                  </button>
                   <button
                     onClick={() =>
                       update((s) => ({
@@ -366,17 +426,31 @@ export function MyStorySection({
             {showEduForm ? (
               <InlineForm
                 fields={["School", "Degree", "Year"]}
+                initialValues={
+                  eduFormIdx !== null && eduFormIdx >= 0
+                    ? [story.education[eduFormIdx].school, story.education[eduFormIdx].degree, story.education[eduFormIdx].year]
+                    : undefined
+                }
                 onSubmit={([school, degree, year]) => {
-                  update((s) => ({
-                    ...s,
-                    education: [...s.education, { school, degree, year }],
-                  }));
-                  setShowEduForm(false);
+                  if (eduFormIdx !== null && eduFormIdx >= 0) {
+                    update((s) => ({
+                      ...s,
+                      education: s.education.map((item, idx) =>
+                        idx === eduFormIdx ? { school, degree, year } : item
+                      ),
+                    }));
+                  } else {
+                    update((s) => ({
+                      ...s,
+                      education: [...s.education, { school, degree, year }],
+                    }));
+                  }
+                  setEduFormIdx(null);
                 }}
-                onCancel={() => setShowEduForm(false)}
+                onCancel={() => setEduFormIdx(null)}
               />
             ) : (
-              <AddButton onClick={() => setShowEduForm(true)} />
+              <AddButton onClick={() => setEduFormIdx(-1)} />
             )}
           </div>
         </StorySection>
@@ -428,7 +502,7 @@ export function MyStorySection({
         {/* Military Service */}
         <StorySection title="Military Service" icon={Medal}>
           <div className="mt-2">
-            {story.military ? (
+            {story.military && !showMilitaryForm ? (
               <div className="flex items-start justify-between py-1.5">
                 <div>
                   <p className="text-sm font-medium">
@@ -443,6 +517,13 @@ export function MyStorySection({
                     {story.military.years}
                   </span>
                   <button
+                    onClick={() => setMilitaryFormIdx(0)}
+                    className="text-muted-foreground hover:text-primary transition-colors"
+                    aria-label="Edit"
+                  >
+                    <Pencil className="size-3" />
+                  </button>
+                  <button
                     onClick={() => update((s) => ({ ...s, military: null }))}
                     className="text-muted-foreground hover:text-destructive transition-colors"
                   >
@@ -453,14 +534,19 @@ export function MyStorySection({
             ) : showMilitaryForm ? (
               <InlineForm
                 fields={["Branch", "Rank", { name: "Years", type: "year-range" }]}
+                initialValues={
+                  militaryFormIdx !== null && militaryFormIdx >= 0 && story.military
+                    ? [story.military.branch, story.military.rank, story.military.years]
+                    : undefined
+                }
                 onSubmit={([branch, rank, years]) => {
                   update((s) => ({
                     ...s,
                     military: { branch, rank, years },
                   }));
-                  setShowMilitaryForm(false);
+                  setMilitaryFormIdx(null);
                 }}
-                onCancel={() => setShowMilitaryForm(false)}
+                onCancel={() => setMilitaryFormIdx(null)}
               />
             ) : (
               <div className="text-center py-3">
@@ -468,7 +554,7 @@ export function MyStorySection({
                   No military service recorded.
                 </p>
                 <AddButton
-                  onClick={() => setShowMilitaryForm(true)}
+                  onClick={() => setMilitaryFormIdx(-1)}
                   label="Add Service Record"
                 />
               </div>
@@ -494,6 +580,13 @@ export function MyStorySection({
                       {m.year}
                     </span>
                     <button
+                      onClick={() => setMilestoneFormIdx(i)}
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                      aria-label="Edit"
+                    >
+                      <Pencil className="size-3" />
+                    </button>
+                    <button
                       onClick={() =>
                         update((s) => ({
                           ...s,
@@ -517,17 +610,31 @@ export function MyStorySection({
             {showMilestoneForm ? (
               <InlineForm
                 fields={["Event", "Year"]}
+                initialValues={
+                  milestoneFormIdx !== null && milestoneFormIdx >= 0
+                    ? [story.milestones[milestoneFormIdx].event, story.milestones[milestoneFormIdx].year]
+                    : undefined
+                }
                 onSubmit={([event, year]) => {
-                  update((s) => ({
-                    ...s,
-                    milestones: [...s.milestones, { event, year }],
-                  }));
-                  setShowMilestoneForm(false);
+                  if (milestoneFormIdx !== null && milestoneFormIdx >= 0) {
+                    update((s) => ({
+                      ...s,
+                      milestones: s.milestones.map((item, idx) =>
+                        idx === milestoneFormIdx ? { event, year } : item
+                      ),
+                    }));
+                  } else {
+                    update((s) => ({
+                      ...s,
+                      milestones: [...s.milestones, { event, year }],
+                    }));
+                  }
+                  setMilestoneFormIdx(null);
                 }}
-                onCancel={() => setShowMilestoneForm(false)}
+                onCancel={() => setMilestoneFormIdx(null)}
               />
             ) : (
-              <AddButton onClick={() => setShowMilestoneForm(true)} />
+              <AddButton onClick={() => setMilestoneFormIdx(-1)} />
             )}
           </div>
         </StorySection>
@@ -616,14 +723,18 @@ function YearRangeSelect({
 
 function InlineForm({
   fields,
+  initialValues,
   onSubmit,
   onCancel,
 }: {
   fields: (string | { name: string; type: "year-range" })[];
+  initialValues?: string[];
   onSubmit: (values: string[]) => void;
   onCancel: () => void;
 }) {
-  const [values, setValues] = useState<string[]>(fields.map(() => ""));
+  const [values, setValues] = useState<string[]>(
+    initialValues ?? fields.map(() => "")
+  );
 
   const handleSubmit = () => {
     if (values.every((v) => v.trim())) {

@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   Wrench,
   Search,
-  GraduationCap,
   Plus,
   BookOpen,
 } from "lucide-react";
@@ -59,7 +58,7 @@ export default function SkillsClient({
   }, [initialSkills, search, difficultyFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -115,14 +114,6 @@ export default function SkillsClient({
                       {skill.title}
                     </CardTitle>
                     <div className="flex items-center gap-1.5 shrink-0">
-                      {skill.hasTutorial && (
-                        <div
-                          className="flex items-center gap-1 text-xs text-primary"
-                          title="Has tutorial"
-                        >
-                          <GraduationCap className="h-4 w-4" />
-                        </div>
-                      )}
                       {skill.difficulty && (
                         <Badge
                           variant="secondary"

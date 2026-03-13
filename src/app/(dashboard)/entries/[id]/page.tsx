@@ -10,9 +10,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { typeConfig } from "@/components/entry-card";
+import { typeConfig } from "@/lib/entry-type-config";
 import { createClient } from "@/lib/supabase/server";
 import { DeleteEntryButton } from "@/components/delete-entry-button";
+import { CopyToFamiliesButton } from "@/components/copy-to-families-button";
 import { RecipeView } from "@/components/entry-views/recipe-view";
 import { ConnectionView } from "@/components/entry-views/connection-view";
 import { SkillView } from "@/components/entry-views/skill-view";
@@ -40,6 +41,7 @@ const MOCK_ENTRIES: Record<
     authorName: string;
     date: string;
     structuredData: EntryStructuredData;
+    familyId?: string;
   }
 > = {
   "1": {
@@ -229,6 +231,7 @@ async function getEntry(id: string) {
       authorName,
       date: entry.created_at as string,
       structuredData: (entry.structured_data ?? null) as EntryStructuredData,
+      familyId: entry.family_id as string,
     };
   } catch (err) {
     console.error("Failed to fetch entry:", err);
@@ -291,13 +294,19 @@ export default async function EntryDetailPage({
             </div>
 
             {/* Action buttons */}
-            <div className="flex gap-2 shrink-0">
+            <div className="flex flex-wrap gap-2 shrink-0">
               <Button variant="outline" size="sm" asChild>
                 <Link href={`/entries/${entry.id}/edit`}>
                   <Pencil className="size-4 mr-2" />
                   Edit
                 </Link>
               </Button>
+              {entry.familyId && (
+                <CopyToFamiliesButton
+                  entryId={entry.id}
+                  currentFamilyId={entry.familyId}
+                />
+              )}
               <DeleteEntryButton entryId={entry.id} />
             </div>
           </div>

@@ -15,9 +15,9 @@ import { SignupForm } from "./signup-form";
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; message?: string }>;
+  searchParams: Promise<{ error?: string; message?: string; redirect?: string }>;
 }) {
-  const { error, message } = await searchParams;
+  const { error, message, redirect: redirectTo } = await searchParams;
 
   return (
     <Card className="w-full max-w-md">
@@ -77,14 +77,14 @@ export default async function SignupPage({
           <Separator className="flex-1" />
         </div>
 
-        <SignupForm />
+        <SignupForm redirectTo={redirectTo} />
       </CardContent>
 
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link
-            href="/login"
+            href={redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : "/login"}
             className="font-medium text-primary underline-offset-4 hover:underline"
           >
             Sign in

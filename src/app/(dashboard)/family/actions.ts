@@ -13,6 +13,14 @@ function clean(val: string | null | undefined): string | null {
   return val;
 }
 
+/** Auto-capitalize the first letter of each word in a name */
+function capitalizeName(name: string): string {
+  return name
+    .split(" ")
+    .map((w) => (w.length > 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
+
 // ---------------------------------------------------------------------------
 // Tree Member Actions
 // ---------------------------------------------------------------------------
@@ -38,7 +46,7 @@ export async function addTreeMember(data: {
 
   const insertPayload: Record<string, unknown> = {
     family_id: data.familyId,
-    display_name: data.displayName,
+    display_name: capitalizeName(data.displayName),
     relationship_label: clean(data.relationshipLabel),
     parent_id: clean(data.parentId),
     spouse_id: clean(data.spouseId),
@@ -89,7 +97,7 @@ export async function updateTreeMember(
   const sb = supabase as any;
 
   const update: Record<string, unknown> = {};
-  if (data.displayName !== undefined) update.display_name = data.displayName;
+  if (data.displayName !== undefined) update.display_name = capitalizeName(data.displayName);
   if (data.relationshipLabel !== undefined)
     update.relationship_label = clean(data.relationshipLabel);
   if (data.parentId !== undefined) update.parent_id = clean(data.parentId);

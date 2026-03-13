@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { updateFamilyName, sendInvite, removeMember } from "./actions";
+import { updateFamilyName, sendInvite, createInviteLink, removeMember } from "./actions";
 import type { FamilyRole } from "@/types/database";
 
 interface Member {
@@ -67,15 +67,28 @@ export function FamilySettingsClient({
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<FamilyRole>("member");
   const [copied, setCopied] = useState(false);
+  const [inviteLink, setInviteLink] = useState("");
+  const [generatingLink, setGeneratingLink] = useState(false);
   const [saving, setSaving] = useState(false);
   const [inviting, setInviting] = useState(false);
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(
-      `${window.location.origin}/invite/${familyId}`
-    );
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopyLink = async () => {
+    setGeneratingLink(true);
+    try {
+      const result = await createInviteLink(familyId);
+      if (!result.success || !result.url) {
+        alert(result.error || "Failed to create invite link");
+        return;
+      }
+      setInviteLink(result.url);
+      await navigator.clipboard.writeText(result.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      alert("Failed to create invite link");
+    } finally {
+      setGeneratingLink(false);
+    }
   };
 
   const handleSave = async () => {
@@ -181,10 +194,11 @@ export function FamilySettingsClient({
             <div className="flex gap-2">
               <Input
                 readOnly
-                value={`${typeof window !== "undefined" ? window.location.origin : ""}/invite/${familyId}`}
+                value={inviteLink || "Click to generate a shareable link..."}
                 className="font-mono text-xs"
+                placeholder="Click to generate a shareable link..."
               />
-              <Button variant="outline" onClick={handleCopyLink}>
+              <Button variant="outline" onClick={handleCopyLink} disabled={generatingLink}>
                 {copied ? (
                   <Check className="h-4 w-4" />
                 ) : (
@@ -192,6 +206,9 @@ export function FamilySettingsClient({
                 )}
               </Button>
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Each link is unique and expires in 7 days.
+            </p>
           </div>
 
           {/* Pending invites */}

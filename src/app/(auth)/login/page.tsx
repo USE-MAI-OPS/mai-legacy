@@ -17,9 +17,9 @@ import { PasswordInput } from "@/components/password-input";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; message?: string }>;
+  searchParams: Promise<{ error?: string; message?: string; redirect?: string }>;
 }) {
-  const { error, message } = await searchParams;
+  const { error, message, redirect: redirectTo } = await searchParams;
 
   return (
     <Card className="w-full max-w-md">
@@ -80,6 +80,7 @@ export default async function LoginPage({
         </div>
 
         <form action={login} className="flex flex-col gap-4">
+          {redirectTo && <input type="hidden" name="redirect" value={redirectTo} />}
           <div className="flex flex-col gap-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -121,7 +122,7 @@ export default async function LoginPage({
         <p className="text-sm text-muted-foreground">
           Don&apos;t have an account?{" "}
           <Link
-            href="/signup"
+            href={redirectTo ? `/signup?redirect=${encodeURIComponent(redirectTo)}` : "/signup"}
             className="font-medium text-primary underline-offset-4 hover:underline"
           >
             Create one

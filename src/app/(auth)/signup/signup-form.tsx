@@ -9,11 +9,12 @@ import { SubmitButton } from "@/components/submit-button";
 import { PasswordInput } from "@/components/password-input";
 import { PasswordStrengthBar } from "@/components/password-strength";
 
-export function SignupForm() {
+export function SignupForm({ redirectTo }: { redirectTo?: string }) {
   const [password, setPassword] = useState("");
 
   return (
     <form action={signup} className="flex flex-col gap-4">
+      {redirectTo && <input type="hidden" name="redirect" value={redirectTo} />}
       <div className="flex flex-col gap-2">
         <Label htmlFor="displayName">Display name</Label>
         <Input

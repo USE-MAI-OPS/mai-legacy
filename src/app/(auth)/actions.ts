@@ -11,9 +11,11 @@ export async function login(formData: FormData) {
 
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const redirectTo = formData.get("redirect") as string | null;
 
   if (!email || !password) {
-    redirect("/login?error=Please+fill+in+all+fields");
+    const rp = redirectTo ? `&redirect=${encodeURIComponent(redirectTo)}` : "";
+    redirect(`/login?error=Please+fill+in+all+fields${rp}`);
   }
 
   const { error } = await supabase.auth.signInWithPassword({
@@ -22,10 +24,11 @@ export async function login(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`);
+    const rp = redirectTo ? `&redirect=${encodeURIComponent(redirectTo)}` : "";
+    redirect(`/login?error=${encodeURIComponent(error.message)}${rp}`);
   }
 
-  redirect("/dashboard");
+  redirect(redirectTo || "/dashboard");
 }
 
 export async function signup(formData: FormData) {
@@ -35,17 +38,20 @@ export async function signup(formData: FormData) {
   const password = formData.get("password") as string;
   const confirmPassword = formData.get("confirmPassword") as string;
   const displayName = formData.get("displayName") as string;
+  const redirectTo = formData.get("redirect") as string | null;
+
+  const rp = redirectTo ? `&redirect=${encodeURIComponent(redirectTo)}` : "";
 
   if (!email || !password || !confirmPassword || !displayName) {
-    redirect("/signup?error=Please+fill+in+all+fields");
+    redirect(`/signup?error=Please+fill+in+all+fields${rp}`);
   }
 
   if (password !== confirmPassword) {
-    redirect("/signup?error=Passwords+do+not+match");
+    redirect(`/signup?error=Passwords+do+not+match${rp}`);
   }
 
   if (password.length < 6) {
-    redirect("/signup?error=Password+must+be+at+least+6+characters");
+    redirect(`/signup?error=Password+must+be+at+least+6+characters${rp}`);
   }
 
   // Sign up — with email confirmation disabled in Supabase,
@@ -61,16 +67,17 @@ export async function signup(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/signup?error=${encodeURIComponent(error.message)}`);
+    redirect(`/signup?error=${encodeURIComponent(error.message)}${rp}`);
   }
 
-  // If session exists, user is auto-confirmed → go to onboarding
+  // If session exists, user is auto-confirmed
   if (data.session) {
-    redirect("/onboarding");
+    // If there's an invite redirect, go there instead of onboarding
+    redirect(redirectTo || "/onboarding");
   }
 
   // Fallback: email confirmation is still enabled
-  redirect("/signup?message=Check+your+email+to+confirm+your+account");
+  redirect(`/signup?message=Check+your+email+to+confirm+your+account${rp}`);
 }
 
 export async function signInWithGoogle() {

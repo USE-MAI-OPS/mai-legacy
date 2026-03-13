@@ -21,18 +21,10 @@ interface BuiltTreeNode {
 function buildTree(members: TreeNodeData[]): BuiltTreeNode[] {
   const byId = new Map<string, TreeNodeData>();
   const childrenMap = new Map<string, TreeNodeData[]>();
-  const spouseSet = new Set<string>(); // IDs that appear as someone's spouse
 
   // Index all members
   for (const m of members) {
     byId.set(m.id, m);
-  }
-
-  // Collect spouse references
-  for (const m of members) {
-    if (m.spouse_id && byId.has(m.spouse_id)) {
-      spouseSet.add(m.spouse_id);
-    }
   }
 
   // Group children by parent
@@ -44,11 +36,24 @@ function buildTree(members: TreeNodeData[]): BuiltTreeNode[] {
     }
   }
 
-  // Recursively build tree
+  // Recursively build tree — merges children from both spouses so that
+  // kids assigned to either parent appear together under the couple.
   function buildNode(m: TreeNodeData): BuiltTreeNode {
     const spouse =
       m.spouse_id && byId.has(m.spouse_id) ? byId.get(m.spouse_id)! : null;
-    const children = (childrenMap.get(m.id) ?? [])
+
+    // Collect children of this member AND their spouse (deduplicated)
+    const ownChildren = childrenMap.get(m.id) ?? [];
+    const spouseChildren = spouse ? (childrenMap.get(spouse.id) ?? []) : [];
+    const seenIds = new Set(ownChildren.map((c) => c.id));
+    const mergedChildren = [...ownChildren];
+    for (const child of spouseChildren) {
+      if (!seenIds.has(child.id)) {
+        mergedChildren.push(child);
+      }
+    }
+
+    const children = mergedChildren
       .sort((a, b) => {
         // Sort by birth year if available, otherwise by name
         if (a.birth_year && b.birth_year) return a.birth_year - b.birth_year;
@@ -58,15 +63,26 @@ function buildTree(members: TreeNodeData[]): BuiltTreeNode[] {
     return { data: m, children, spouse };
   }
 
-  // Find roots: no parent_id AND not listed only as someone's spouse
+  // For each root-level spouse pair, designate one as "secondary" so that
+  // each couple appears exactly once. The first-encountered member of the
+  // pair becomes the primary root; the other renders alongside as their spouse.
+  const secondarySpouses = new Set<string>();
+
+  for (const m of members) {
+    if (m.parent_id) continue; // only process root-level members
+    if (m.spouse_id && byId.has(m.spouse_id)) {
+      const spouse = byId.get(m.spouse_id)!;
+      if (spouse.parent_id) continue; // spouse is a child elsewhere, not a root pair
+      // First-encountered member of the pair becomes primary
+      if (!secondarySpouses.has(m.id) && !secondarySpouses.has(spouse.id)) {
+        secondarySpouses.add(spouse.id);
+      }
+    }
+  }
+
   const roots = members.filter((m) => {
     if (m.parent_id) return false;
-    // If this member is someone's spouse and doesn't have their own children, they'll be rendered alongside their partner
-    if (spouseSet.has(m.id)) {
-      // But only skip if they have no children themselves
-      const hasOwnChildren = childrenMap.has(m.id);
-      if (!hasOwnChildren) return false;
-    }
+    if (secondarySpouses.has(m.id)) return false;
     return true;
   });
 

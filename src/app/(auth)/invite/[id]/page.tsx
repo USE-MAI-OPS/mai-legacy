@@ -3,21 +3,18 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import { Users, Check, AlertCircle, Loader2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Users, Check, AlertCircle, Loader2, LogIn } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
-
-// Mock invite data used when Supabase isn't configured
-const MOCK_INVITE = {
-  familyName: "The Powell Family",
-  invitedBy: "Kobe Powell",
-  role: "member" as const,
-  familyId: "mock-family-id",
-  expired: false,
-};
 
 interface InviteData {
   familyName: string;
@@ -38,11 +35,18 @@ export default function AcceptInvitePage() {
   const [error, setError] = useState<string | null>(null);
   const [invite, setInvite] = useState<InviteData | null>(null);
   const [fetching, setFetching] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
     async function fetchInvite() {
       try {
         const supabase = createClient();
+
+        // Check if user is logged in
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        setIsLoggedIn(!!user);
 
         // Fetch the invite record
         const { data: inviteData, error: inviteError } = await supabase
@@ -52,8 +56,8 @@ export default function AcceptInvitePage() {
           .single();
 
         if (inviteError || !inviteData) {
-          // Fall back to mock data
-          setInvite(MOCK_INVITE);
+          setInvite(null);
+          setError("This invite link is invalid or has been removed.");
           setFetching(false);
           return;
         }
@@ -79,6 +83,7 @@ export default function AcceptInvitePage() {
           .from("family_members")
           .select("display_name")
           .eq("user_id", inviteData.invited_by)
+          .limit(1)
           .single();
 
         setInvite({
@@ -89,8 +94,9 @@ export default function AcceptInvitePage() {
           expired,
         });
       } catch (e) {
-        console.error("Failed to fetch invite, using mock data:", e);
-        setInvite(MOCK_INVITE);
+        console.error("Failed to fetch invite:", e);
+        setInvite(null);
+        setError("Something went wrong loading this invite.");
       } finally {
         setFetching(false);
       }
@@ -111,7 +117,25 @@ export default function AcceptInvitePage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        // Fallback: mock acceptance
+        setError("You need to be logged in to accept this invite.");
+        setLoading(false);
+        return;
+      }
+
+      // Check if user is already a member of this family
+      const { data: existingMember } = await supabase
+        .from("family_members")
+        .select("id")
+        .eq("family_id", invite.familyId)
+        .eq("user_id", user.id)
+        .single();
+
+      if (existingMember) {
+        // Already a member, just mark invite and redirect
+        await supabase
+          .from("family_invites")
+          .update({ accepted: true })
+          .eq("id", inviteId);
         setAccepted(true);
         setTimeout(() => router.push("/dashboard"), 1500);
         return;
@@ -140,12 +164,15 @@ export default function AcceptInvitePage() {
     } catch (e: unknown) {
       console.error("Failed to accept invite:", e);
       const message =
-        e instanceof Error ? e.message : "Failed to join family. Please try again.";
+        e instanceof Error
+          ? e.message
+          : "Failed to join family. Please try again.";
       setError(message);
       setLoading(false);
     }
   };
 
+  // --- Loading state ---
   if (fetching) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
@@ -159,6 +186,7 @@ export default function AcceptInvitePage() {
     );
   }
 
+  // --- Error state (invalid / already accepted) ---
   if (!invite && error) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
@@ -178,6 +206,7 @@ export default function AcceptInvitePage() {
     );
   }
 
+  // --- Expired state ---
   if (invite?.expired) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
@@ -202,6 +231,7 @@ export default function AcceptInvitePage() {
 
   if (!invite) return null;
 
+  // --- Success state ---
   if (accepted) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
@@ -222,6 +252,50 @@ export default function AcceptInvitePage() {
     );
   }
 
+  // --- Not logged in: show login/signup prompt ---
+  if (!isLoggedIn) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
+              <Users className="h-7 w-7 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">You&apos;re Invited!</CardTitle>
+            <CardDescription>
+              <span className="font-medium text-foreground">
+                {invite.invitedBy}
+              </span>{" "}
+              has invited you to join{" "}
+              <span className="font-medium text-foreground">
+                {invite.familyName}
+              </span>{" "}
+              on MAI Legacy.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-center text-muted-foreground">
+              You need an account to accept this invite. Sign up or log in, then
+              come back to this page.
+            </p>
+            <Button className="w-full" asChild>
+              <Link href={`/signup?redirect=/invite/${inviteId}`}>
+                <LogIn className="mr-2 h-4 w-4" />
+                Sign Up to Join
+              </Link>
+            </Button>
+            <Button variant="outline" className="w-full" asChild>
+              <Link href={`/login?redirect=/invite/${inviteId}`}>
+                Already have an account? Log In
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // --- Logged in: show accept form ---
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -265,14 +339,6 @@ export default function AcceptInvitePage() {
           >
             {loading ? "Joining..." : "Accept & Join Family"}
           </Button>
-
-          <p className="text-center text-xs text-muted-foreground">
-            Don&apos;t have an account?{" "}
-            <Link href="/signup" className="text-primary underline">
-              Sign up first
-            </Link>
-            , then come back to this link.
-          </p>
         </CardContent>
       </Card>
     </div>

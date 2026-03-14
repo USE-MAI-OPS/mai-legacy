@@ -30,6 +30,7 @@ export async function addTreeMember(data: {
   displayName: string;
   relationshipLabel: string | null;
   parentId: string | null;
+  parent2Id?: string | null;
   spouseId: string | null;
   birthYear: number | null;
   isDeceased: boolean;
@@ -49,6 +50,7 @@ export async function addTreeMember(data: {
     display_name: capitalizeName(data.displayName),
     relationship_label: clean(data.relationshipLabel),
     parent_id: clean(data.parentId),
+    parent2_id: clean(data.parent2Id ?? null),
     spouse_id: clean(data.spouseId),
     birth_year: data.birthYear || null,
     is_deceased: data.isDeceased,
@@ -86,6 +88,7 @@ export async function updateTreeMember(
     displayName: string;
     relationshipLabel: string | null;
     parentId: string | null;
+    parent2Id: string | null;
     spouseId: string | null;
     birthYear: number | null;
     isDeceased: boolean;
@@ -101,6 +104,7 @@ export async function updateTreeMember(
   if (data.relationshipLabel !== undefined)
     update.relationship_label = clean(data.relationshipLabel);
   if (data.parentId !== undefined) update.parent_id = clean(data.parentId);
+  if (data.parent2Id !== undefined) update.parent2_id = clean(data.parent2Id);
   if (data.spouseId !== undefined) update.spouse_id = clean(data.spouseId);
   if (data.birthYear !== undefined) update.birth_year = data.birthYear;
   if (data.isDeceased !== undefined) update.is_deceased = data.isDeceased;

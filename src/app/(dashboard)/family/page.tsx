@@ -45,10 +45,19 @@ async function getFamilyData() {
   try {
     const ctx = await getFamilyContext();
     if (!ctx) return null;
-    const { userId, familyId, supabase } = ctx;
+    const { userId, familyId, supabase, connectedUserIds, connectedTreeMemberIds } = ctx;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
+
+    // Build tree count query — filter to connected members
+    let treeCountQuery = sb
+      .from("family_tree_members")
+      .select("id", { count: "exact", head: true })
+      .eq("family_id", familyId);
+    if (connectedTreeMemberIds.length > 0) {
+      treeCountQuery = treeCountQuery.in("id", connectedTreeMemberIds);
+    }
 
     // Parallel data fetches
     const [
@@ -58,14 +67,12 @@ async function getFamilyData() {
       eventsResult,
     ] = await Promise.all([
       sb.from("families").select("name").eq("id", familyId).single(),
-      sb
-        .from("family_tree_members")
-        .select("id", { count: "exact", head: true })
-        .eq("family_id", familyId),
+      treeCountQuery,
       sb
         .from("family_members")
         .select("id, display_name, user_id")
         .eq("family_id", familyId)
+        .in("user_id", connectedUserIds)
         .order("joined_at", { ascending: true }),
       sb
         .from("family_events")

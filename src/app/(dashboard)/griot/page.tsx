@@ -374,7 +374,7 @@ export default function GriotPage() {
   const isDisconnected = isConnected === false;
 
   return (
-    <div className="relative h-[calc(100vh-3.5rem)] md:h-screen overflow-hidden bg-background">
+    <div className="relative h-[calc(100vh-3.5rem)] overflow-hidden bg-background">
       <div className="flex h-full">
         {/* -------- Conversation sidebar -------- */}
         {showSidebar && (

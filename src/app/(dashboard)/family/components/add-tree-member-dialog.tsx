@@ -79,6 +79,7 @@ export function AddTreeMemberDialog({
   const [displayName, setDisplayName] = useState("");
   const [relationshipLabel, setRelationshipLabel] = useState("none");
   const [parentId, setParentId] = useState("none");
+  const [parent2Id, setParent2Id] = useState("none");
   const [spouseId, setSpouseId] = useState("none");
   const [birthYear, setBirthYear] = useState("");
   const [isDeceased, setIsDeceased] = useState(false);
@@ -90,6 +91,7 @@ export function AddTreeMemberDialog({
       setDisplayName(editNode?.display_name ?? "");
       setRelationshipLabel(editNode?.relationship_label ?? "none");
       setParentId(editNode?.parent_id ?? "none");
+      setParent2Id(editNode?.parent2_id ?? "none");
       setSpouseId(editNode?.spouse_id ?? "none");
       setBirthYear(editNode?.birth_year?.toString() ?? "");
       setIsDeceased(editNode?.is_deceased ?? false);
@@ -108,6 +110,7 @@ export function AddTreeMemberDialog({
             displayName: displayName.trim(),
             relationshipLabel: relationshipLabel === "none" ? null : relationshipLabel,
             parentId: uuidOrNull(parentId),
+            parent2Id: uuidOrNull(parent2Id),
             spouseId: uuidOrNull(spouseId),
             birthYear: birthYear ? parseInt(birthYear, 10) : null,
             isDeceased,
@@ -124,6 +127,7 @@ export function AddTreeMemberDialog({
             displayName: displayName.trim(),
             relationshipLabel: relationshipLabel === "none" ? null : relationshipLabel,
             parentId: uuidOrNull(parentId),
+            parent2Id: uuidOrNull(parent2Id),
             spouseId: uuidOrNull(spouseId),
             birthYear: birthYear ? parseInt(birthYear, 10) : null,
             isDeceased,
@@ -208,6 +212,26 @@ export function AddTreeMemberDialog({
                     {m.display_name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Parent 2 */}
+          <div className="space-y-1.5">
+            <Label>Parent 2 (Other Parent)</Label>
+            <Select value={parent2Id} onValueChange={setParent2Id}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="None" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {selectableMembers
+                  .filter((m) => m.id !== parentId || parentId === "none")
+                  .map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.display_name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>

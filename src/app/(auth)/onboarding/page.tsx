@@ -55,7 +55,7 @@ import type {
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const TOTAL_STEPS = 8;
+const TOTAL_STEPS = 9;
 
 const EMPTY_LIFE_STORY: LifeStory = {
   career: [],
@@ -326,6 +326,14 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Parent linking state (required for connection chain)
+  const [motherName, setMotherName] = useState("");
+  const [motherBirthYear, setMotherBirthYear] = useState("");
+  const [motherDeceased, setMotherDeceased] = useState(false);
+  const [fatherName, setFatherName] = useState("");
+  const [fatherBirthYear, setFatherBirthYear] = useState("");
+  const [fatherDeceased, setFatherDeceased] = useState(false);
+
   // Inline form toggles
   const [showCareerForm, setShowCareerForm] = useState(false);
   const [showPlaceForm, setShowPlaceForm] = useState(false);
@@ -353,6 +361,16 @@ export default function OnboardingPage() {
         specialty: specialty || undefined,
       };
 
+      // Parent data for connection chain (required)
+      const parentData = {
+        motherName: motherName.trim(),
+        motherBirthYear: motherBirthYear ? parseInt(motherBirthYear) : undefined,
+        motherIsDeceased: motherDeceased,
+        fatherName: fatherName.trim(),
+        fatherBirthYear: fatherBirthYear ? parseInt(fatherBirthYear) : undefined,
+        fatherIsDeceased: fatherDeceased,
+      };
+
       // Create each family — first one gets full profile data,
       // subsequent ones inherit from the first membership row
       for (let i = 0; i < validFamilyNames.length; i++) {
@@ -361,7 +379,8 @@ export default function OnboardingPage() {
           validFamilyNames[i],
           displayName,
           isFirst ? lifeStory : undefined,
-          isFirst ? profileFields : undefined
+          isFirst ? profileFields : undefined,
+          parentData
         );
         if (result?.error) {
           setError(result.error);
@@ -381,6 +400,7 @@ export default function OnboardingPage() {
   const canGoNext = () => {
     if (step === 0) return validFamilyNames.length > 0;
     if (step === 1) return displayName.trim().length > 0;
+    if (step === 2) return motherName.trim().length > 0 && fatherName.trim().length > 0;
     return true; // All other steps are optional
   };
 
@@ -403,6 +423,12 @@ export default function OnboardingPage() {
       icon: User,
       title: "About You",
       description: "How should your family know you?",
+    },
+    {
+      icon: Heart,
+      title: "Who Are Your Parents?",
+      description:
+        "This is how we connect you to your family. Both are required to build your connection chain.",
     },
     {
       icon: Globe,
@@ -596,8 +622,89 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {/* ---- STEP 2: Where You're From ---- */}
+          {/* ---- STEP 2: Who Are Your Parents? ---- */}
           {step === 2 && (
+            <div className="space-y-5">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-6 w-6 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center">
+                    <Heart className="h-3 w-3 text-pink-600 dark:text-pink-400" />
+                  </div>
+                  <Label className="font-semibold">Mother</Label>
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Mother's full name"
+                    value={motherName}
+                    onChange={(e) => setMotherName(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Birth year (optional)"
+                      value={motherBirthYear}
+                      onChange={(e) => setMotherBirthYear(e.target.value)}
+                      className="flex-1"
+                    />
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={motherDeceased}
+                        onChange={(e) => setMotherDeceased(e.target.checked)}
+                        className="rounded border-border"
+                      />
+                      Deceased
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                    <User className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <Label className="font-semibold">Father</Label>
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Father's full name"
+                    value={fatherName}
+                    onChange={(e) => setFatherName(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Birth year (optional)"
+                      value={fatherBirthYear}
+                      onChange={(e) => setFatherBirthYear(e.target.value)}
+                      className="flex-1"
+                    />
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={fatherDeceased}
+                        onChange={(e) => setFatherDeceased(e.target.checked)}
+                        className="rounded border-border"
+                      />
+                      Deceased
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground text-center">
+                Your parents are the foundation of your family connection chain.
+                This is how we connect you to the rest of your family.
+              </p>
+            </div>
+          )}
+
+          {/* ---- STEP 3: Where You're From ---- */}
+          {step === 3 && (
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -695,7 +802,7 @@ export default function OnboardingPage() {
           )}
 
           {/* ---- STEP 3: What's Your Specialty? ---- */}
-          {step === 3 && (
+          {step === 4 && (
             <div className="grid grid-cols-2 gap-3">
               {SPECIALTY_OPTIONS.map((opt) => {
                 const Icon = opt.icon;
@@ -741,7 +848,7 @@ export default function OnboardingPage() {
           )}
 
           {/* ---- STEP 4: Career & Education ---- */}
-          {step === 4 && (
+          {step === 5 && (
             <div className="space-y-4">
               {/* Career */}
               <div className="space-y-2">
@@ -895,7 +1002,7 @@ export default function OnboardingPage() {
           )}
 
           {/* ---- STEP 5: Skills & Interests ---- */}
-          {step === 5 && (
+          {step === 6 && (
             <div className="space-y-5">
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5 text-sm font-medium">
@@ -948,7 +1055,7 @@ export default function OnboardingPage() {
           )}
 
           {/* ---- STEP 6: Life Milestones + Military ---- */}
-          {step === 6 && (
+          {step === 7 && (
             <div className="space-y-4">
               {/* Milestones */}
               <div className="space-y-2">
@@ -1091,7 +1198,7 @@ export default function OnboardingPage() {
           )}
 
           {/* ---- STEP 7: Review & Create ---- */}
-          {step === 7 && (
+          {step === 8 && (
             <div className="space-y-4">
               {/* Summary card */}
               <div className="rounded-lg border p-4 space-y-3">
@@ -1243,7 +1350,7 @@ export default function OnboardingPage() {
             )}
             <div className="flex-1" />
 
-            {step >= 2 && step < TOTAL_STEPS - 1 && (
+            {step >= 3 && step < TOTAL_STEPS - 1 && (
               <Button
                 type="button"
                 variant="ghost"

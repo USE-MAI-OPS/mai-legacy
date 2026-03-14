@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/card";
 import { typeConfig } from "@/lib/entry-type-config";
 import { createClient } from "@/lib/supabase/server";
+import { getFamilyContext } from "@/lib/get-family-context";
 import { DeleteEntryButton } from "@/components/delete-entry-button";
-import { CopyToFamiliesButton } from "@/components/copy-to-families-button";
+
 import { RecipeView } from "@/components/entry-views/recipe-view";
 import { ConnectionView } from "@/components/entry-views/connection-view";
 import { SkillView } from "@/components/entry-views/skill-view";
@@ -210,6 +211,17 @@ async function getEntry(id: string) {
       return MOCK_ENTRIES[id] ?? null;
     }
 
+    // Connection chain access control: verify entry author is connected to current user
+    const ctx = await getFamilyContext();
+    if (ctx && entry.author_id) {
+      const isConnected =
+        entry.author_id === user.id ||
+        ctx.connectedUserIds.includes(entry.author_id);
+      if (!isConnected) {
+        return null; // Not connected — triggers notFound()
+      }
+    }
+
     // Resolve author display name via a separate query
     let authorName = "Unknown";
     if (entry.author_id) {
@@ -301,12 +313,7 @@ export default async function EntryDetailPage({
                   Edit
                 </Link>
               </Button>
-              {entry.familyId && (
-                <CopyToFamiliesButton
-                  entryId={entry.id}
-                  currentFamilyId={entry.familyId}
-                />
-              )}
+
               <DeleteEntryButton entryId={entry.id} />
             </div>
           </div>

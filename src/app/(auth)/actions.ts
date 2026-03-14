@@ -112,6 +112,14 @@ export async function createFamily(
     country?: string;
     state?: string;
     specialty?: MemberSpecialty;
+  },
+  parentData?: {
+    motherName: string;
+    motherBirthYear?: number;
+    motherIsDeceased?: boolean;
+    fatherName: string;
+    fatherBirthYear?: number;
+    fatherIsDeceased?: boolean;
   }
 ) {
   // Use the normal client to verify the user is authenticated
@@ -225,6 +233,70 @@ export async function createFamily(
     await setActiveFamilyCookie(family.id);
   } catch {
     // Non-critical — cookie will be set on next page load
+  }
+
+  // Create tree nodes for the user and their parents (connection chain foundation)
+  if (parentData?.motherName && parentData?.fatherName) {
+    try {
+      // Get the family_members row we just created (need its ID for linked_member_id)
+      const { data: memberRow } = await (admin as any)
+        .from("family_members")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("family_id", family.id)
+        .single();
+
+      if (memberRow) {
+        // 1. Create mother tree node
+        const { data: motherNode } = await (admin as any)
+          .from("family_tree_members")
+          .insert({
+            family_id: family.id,
+            display_name: parentData.motherName.trim(),
+            relationship_label: "Mother",
+            birth_year: parentData.motherBirthYear || null,
+            is_deceased: parentData.motherIsDeceased ?? false,
+          })
+          .select("id")
+          .single();
+
+        // 2. Create father tree node
+        const { data: fatherNode } = await (admin as any)
+          .from("family_tree_members")
+          .insert({
+            family_id: family.id,
+            display_name: parentData.fatherName.trim(),
+            relationship_label: "Father",
+            birth_year: parentData.fatherBirthYear || null,
+            is_deceased: parentData.fatherIsDeceased ?? false,
+            spouse_id: motherNode?.id ?? null,
+          })
+          .select("id")
+          .single();
+
+        // Set bidirectional spouse link on mother
+        if (motherNode && fatherNode) {
+          await (admin as any)
+            .from("family_tree_members")
+            .update({ spouse_id: fatherNode.id })
+            .eq("id", motherNode.id);
+        }
+
+        // 3. Create user's own tree node linked to both parents
+        await (admin as any)
+          .from("family_tree_members")
+          .insert({
+            family_id: family.id,
+            display_name: displayName.trim(),
+            linked_member_id: memberRow.id,
+            parent_id: motherNode?.id ?? null,
+            parent2_id: fatherNode?.id ?? null,
+          });
+      }
+    } catch (treeError) {
+      // Non-critical — tree nodes can be added later
+      console.error("Failed to create tree nodes during onboarding:", treeError);
+    }
   }
 
   return { success: true };

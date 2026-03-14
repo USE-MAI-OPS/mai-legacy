@@ -1,210 +1,370 @@
 "use client";
 
-import { useState, useTransition, useCallback } from "react";
+import {
+  useState,
+  useRef,
+  useTransition,
+  useCallback,
+  useEffect,
+  memo,
+} from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, TreePine, Mail, UserPlus } from "lucide-react";
+import {
+  Plus,
+  TreePine,
+  Mail,
+  UserPlus,
+  ZoomIn,
+  ZoomOut,
+  Maximize,
+} from "lucide-react";
 import { FamilyTreeNode, type TreeNodeData } from "./family-tree-node";
 import { AddTreeMemberDialog } from "./add-tree-member-dialog";
 import { InviteMemberDialog } from "./invite-member-dialog";
 import { addTreeMember, deleteTreeMember } from "../actions";
 import { toast } from "sonner";
+import { useFamilyForceLayout, type SimNode } from "./use-family-force-layout";
+import { FamilyTreeConnectors } from "./family-tree-connectors";
 
 // ---------------------------------------------------------------------------
-// Tree building
+// Draggable node wrapper — positioned absolutely at sim coordinates
 // ---------------------------------------------------------------------------
-interface BuiltTreeNode {
-  data: TreeNodeData;
-  children: BuiltTreeNode[];
-  spouse: TreeNodeData | null;
-}
-
-function buildTree(members: TreeNodeData[]): BuiltTreeNode[] {
-  const byId = new Map<string, TreeNodeData>();
-  const childrenMap = new Map<string, TreeNodeData[]>();
-
-  // Index all members
-  for (const m of members) {
-    byId.set(m.id, m);
-  }
-
-  // Group children by parent
-  for (const m of members) {
-    if (m.parent_id) {
-      const siblings = childrenMap.get(m.parent_id) ?? [];
-      siblings.push(m);
-      childrenMap.set(m.parent_id, siblings);
-    }
-  }
-
-  // Recursively build tree — merges children from both spouses so that
-  // kids assigned to either parent appear together under the couple.
-  function buildNode(m: TreeNodeData): BuiltTreeNode {
-    const spouse =
-      m.spouse_id && byId.has(m.spouse_id) ? byId.get(m.spouse_id)! : null;
-
-    // Collect children of this member AND their spouse (deduplicated)
-    const ownChildren = childrenMap.get(m.id) ?? [];
-    const spouseChildren = spouse ? (childrenMap.get(spouse.id) ?? []) : [];
-    const seenIds = new Set(ownChildren.map((c) => c.id));
-    const mergedChildren = [...ownChildren];
-    for (const child of spouseChildren) {
-      if (!seenIds.has(child.id)) {
-        mergedChildren.push(child);
-      }
-    }
-
-    const children = mergedChildren
-      .sort((a, b) => {
-        // Sort by birth year if available, otherwise by name
-        if (a.birth_year && b.birth_year) return a.birth_year - b.birth_year;
-        return a.display_name.localeCompare(b.display_name);
-      })
-      .map(buildNode);
-    return { data: m, children, spouse };
-  }
-
-  // For each root-level spouse pair, designate one as "secondary" so that
-  // each couple appears exactly once. The first-encountered member of the
-  // pair becomes the primary root; the other renders alongside as their spouse.
-  const secondarySpouses = new Set<string>();
-
-  for (const m of members) {
-    if (m.parent_id) continue; // only process root-level members
-    if (m.spouse_id && byId.has(m.spouse_id)) {
-      const spouse = byId.get(m.spouse_id)!;
-      if (spouse.parent_id) continue; // spouse is a child elsewhere, not a root pair
-      // First-encountered member of the pair becomes primary
-      if (!secondarySpouses.has(m.id) && !secondarySpouses.has(spouse.id)) {
-        secondarySpouses.add(spouse.id);
-      }
-    }
-  }
-
-  const roots = members.filter((m) => {
-    if (m.parent_id) return false;
-    if (secondarySpouses.has(m.id)) return false;
-    return true;
-  });
-
-  return roots
-    .sort((a, b) => {
-      if (a.birth_year && b.birth_year) return a.birth_year - b.birth_year;
-      return a.display_name.localeCompare(b.display_name);
-    })
-    .map(buildNode);
-}
-
-// ---------------------------------------------------------------------------
-// Tree branch renderer
-// ---------------------------------------------------------------------------
-function TreeBranch({
+const DraggableNode = memo(function DraggableNode({
   node,
   currentUserId,
   currentUserMemberId,
   onEdit,
   onDelete,
   onInvite,
-  isRoot,
+  onDragStart,
 }: {
-  node: BuiltTreeNode;
+  node: SimNode;
   currentUserId: string;
   currentUserMemberId: string | null;
   onEdit: (n: TreeNodeData) => void;
   onDelete: (id: string) => void;
   onInvite: (memberName: string) => void;
-  isRoot?: boolean;
+  onDragStart: (nodeId: string, x: number, y: number) => void;
 }) {
-  return (
-    <div className="flex flex-col items-center">
-      {/* Vertical connector from parent (unless root) */}
-      {!isRoot && (
-        <div className="w-0.5 h-6 bg-border" />
-      )}
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      // Don't hijack clicks on buttons/links/inputs
+      const target = e.target as HTMLElement;
+      if (
+        target.closest(
+          "button, a, input, [role='button'], [role='menuitem'], [role='menu']"
+        )
+      )
+        return;
 
-      {/* Node (optionally with spouse) */}
-      <div className="flex items-start gap-4">
-        <FamilyTreeNode
-          node={node.data}
-          currentUserId={currentUserId}
-          currentUserMemberId={currentUserMemberId}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onInvite={onInvite}
-        />
-        {node.spouse && (
-          <>
-            {/* Horizontal spouse connector */}
-            <div className="flex items-center self-center">
-              <div className="w-4 h-0.5 bg-primary/50" />
-              <div className="w-2.5 h-2.5 rounded-full bg-primary/50" />
-              <div className="w-4 h-0.5 bg-primary/50" />
-            </div>
-            <FamilyTreeNode
-              node={node.spouse}
+      e.stopPropagation();
+      onDragStart(node.id, node.x ?? 0, node.y ?? 0);
+    },
+    [node.id, node.x, node.y, onDragStart]
+  );
+
+  return (
+    <div
+      data-draggable="true"
+      data-node-id={node.id}
+      className="absolute cursor-grab active:cursor-grabbing"
+      style={{
+        transform: `translate(${(node.x ?? 0) - 55}px, ${(node.y ?? 0) - 55}px)`,
+        width: 110,
+        willChange: "transform",
+      }}
+      onPointerDown={handlePointerDown}
+    >
+      <FamilyTreeNode
+        node={node.data!}
+        currentUserId={currentUserId}
+        currentUserMemberId={currentUserMemberId}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onInvite={onInvite}
+      />
+    </div>
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Force-directed tree viewport with pan & zoom
+// ---------------------------------------------------------------------------
+function ForceDirectedTree({
+  members,
+  currentUserId,
+  currentUserMemberId,
+  onEdit,
+  onDelete,
+  onInvite,
+}: {
+  members: TreeNodeData[];
+  currentUserId: string;
+  currentUserMemberId: string | null;
+  onEdit: (n: TreeNodeData) => void;
+  onDelete: (id: string) => void;
+  onInvite: (memberName: string) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+
+  // Measure container
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        setContainerSize({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const {
+    nodes,
+    unionNodes,
+    spousePairs,
+    parentChildLinks,
+    dragHandlers,
+    settled,
+  } = useFamilyForceLayout(members, containerSize);
+
+  // Pan & zoom state
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [scale, setScale] = useState(1);
+  const dragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const panStart = useRef({ x: 0, y: 0 });
+  const nodeDragging = useRef(false);
+  const nodeDragStartPos = useRef({ x: 0, y: 0 });
+
+  // Node drag → convert screen coords to simulation coords
+  const handleNodeDragStart = useCallback(
+    (nodeId: string, _simX: number, _simY: number) => {
+      nodeDragging.current = true;
+      dragHandlers.onDragStart(nodeId, _simX, _simY);
+    },
+    [dragHandlers]
+  );
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      const target = e.target as HTMLElement;
+      // Skip interactive elements
+      if (
+        target.closest(
+          "button, a, input, [role='button'], [role='menuitem'], [role='menu']"
+        )
+      )
+        return;
+
+      // Check if it's a node drag (handled by DraggableNode)
+      if (target.closest("[data-draggable]")) {
+        // Node dragging is managed by node's own handler
+        nodeDragStartPos.current = { x: e.clientX, y: e.clientY };
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        return;
+      }
+
+      // Viewport pan
+      dragging.current = true;
+      dragStart.current = { x: e.clientX, y: e.clientY };
+      panStart.current = { ...pan };
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    },
+    [pan]
+  );
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (nodeDragging.current) {
+        // Convert screen delta to simulation coordinates
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect) return;
+        const simX = (e.clientX - rect.left - pan.x) / scale;
+        const simY = (e.clientY - rect.top - pan.y) / scale;
+        dragHandlers.onDrag(simX, simY);
+        return;
+      }
+
+      if (!dragging.current) return;
+      const dx = e.clientX - dragStart.current.x;
+      const dy = e.clientY - dragStart.current.y;
+      setPan({ x: panStart.current.x + dx, y: panStart.current.y + dy });
+    },
+    [pan, scale, dragHandlers]
+  );
+
+  const handlePointerUp = useCallback(() => {
+    if (nodeDragging.current) {
+      nodeDragging.current = false;
+      dragHandlers.onDragEnd();
+      return;
+    }
+    dragging.current = false;
+  }, [dragHandlers]);
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.05 : 0.05;
+    setScale((s) => Math.min(2, Math.max(0.3, s + delta)));
+  }, []);
+
+  const zoomIn = useCallback(() => setScale((s) => Math.min(2, s + 0.15)), []);
+  const zoomOut = useCallback(
+    () => setScale((s) => Math.max(0.3, s - 0.15)),
+    []
+  );
+
+  // Fit-to-view: compute bounding box of all nodes and center
+  const fitToView = useCallback(() => {
+    if (nodes.length === 0) {
+      setPan({ x: 0, y: 0 });
+      setScale(1);
+      return;
+    }
+
+    let minX = Infinity,
+      maxX = -Infinity,
+      minY = Infinity,
+      maxY = -Infinity;
+    for (const n of nodes) {
+      const x = n.x ?? 0;
+      const y = n.y ?? 0;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+
+    const treeWidth = maxX - minX + 200;
+    const treeHeight = maxY - minY + 200;
+    const newScale = Math.min(
+      1.2,
+      Math.max(
+        0.3,
+        Math.min(
+          containerSize.width / treeWidth,
+          containerSize.height / treeHeight
+        )
+      )
+    );
+
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    setPan({
+      x: containerSize.width / 2 - centerX * newScale,
+      y: containerSize.height / 2 - centerY * newScale,
+    });
+    setScale(newScale);
+  }, [nodes, containerSize]);
+
+  // Auto-fit on first settle
+  const hasFitted = useRef(false);
+  useEffect(() => {
+    if (settled && !hasFitted.current && nodes.length > 0) {
+      hasFitted.current = true;
+      fitToView();
+    }
+  }, [settled, nodes.length, fitToView]);
+
+  // Compute the canvas size needed (large enough for all nodes)
+  const canvasWidth = Math.max(containerSize.width * 3, 3000);
+  const canvasHeight = Math.max(containerSize.height * 3, 3000);
+
+  return (
+    <div className="relative w-full h-full">
+      {/* Zoom controls */}
+      <div className="absolute top-3 right-3 z-20 flex flex-col gap-1">
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 bg-card/80 backdrop-blur-sm"
+          onClick={zoomIn}
+        >
+          <ZoomIn className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 bg-card/80 backdrop-blur-sm"
+          onClick={zoomOut}
+        >
+          <ZoomOut className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 bg-card/80 backdrop-blur-sm"
+          onClick={fitToView}
+        >
+          <Maximize className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+
+      {/* Pannable & zoomable area */}
+      <div
+        ref={containerRef}
+        className="w-full h-full overflow-hidden cursor-grab active:cursor-grabbing"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+        onWheel={handleWheel}
+        style={{ touchAction: "none" }}
+      >
+        <div
+          className={`relative transition-opacity duration-500 ${
+            nodes.length > 0 ? "opacity-100" : "opacity-0"
+          }`}
+          style={{
+            width: canvasWidth,
+            height: canvasHeight,
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+            transformOrigin: "0 0",
+            transition:
+              dragging.current || nodeDragging.current
+                ? "none"
+                : "transform 0.1s ease-out",
+          }}
+        >
+          {/* Layer 1: SVG connectors (behind) */}
+          <FamilyTreeConnectors
+            spousePairs={spousePairs}
+            parentChildLinks={parentChildLinks}
+            unionNodes={unionNodes}
+            width={canvasWidth}
+            height={canvasHeight}
+          />
+
+          {/* Layer 2: HTML nodes (on top) */}
+          {nodes.map((node) => (
+            <DraggableNode
+              key={node.id}
+              node={node}
               currentUserId={currentUserId}
               currentUserMemberId={currentUserMemberId}
               onEdit={onEdit}
               onDelete={onDelete}
               onInvite={onInvite}
+              onDragStart={handleNodeDragStart}
             />
-          </>
-        )}
+          ))}
+        </div>
       </div>
-
-      {/* Children */}
-      {node.children.length > 0 && (
-        <>
-          {/* Vertical line down to children horizontal bar */}
-          <div className="w-0.5 h-6 bg-border" />
-
-          {/* Children — each child owns its left/right halves of the horizontal bar */}
-          <div className="flex items-start">
-            {node.children.map((child, i) => {
-              const total = node.children.length;
-              const isOnly = total === 1;
-              const isFirst = i === 0;
-              const isLast = i === total - 1;
-
-              return (
-                <div
-                  key={child.data.id}
-                  className={`relative flex flex-col items-center ${
-                    !isOnly ? "px-3" : ""
-                  }`}
-                >
-                  {/* Horizontal bar segment — spans full wrapper width incl. padding */}
-                  {!isOnly && (
-                    <div className="absolute top-0 left-0 right-0 flex h-0.5">
-                      <div
-                        className={`flex-1 ${!isFirst ? "bg-border" : ""}`}
-                      />
-                      <div
-                        className={`flex-1 ${!isLast ? "bg-border" : ""}`}
-                      />
-                    </div>
-                  )}
-
-                  {/* Child branch */}
-                  <TreeBranch
-                    node={child}
-                    currentUserId={currentUserId}
-                    currentUserMemberId={currentUserMemberId}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    onInvite={onInvite}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Main component
+// Main component (state management, dialogs, header)
 // ---------------------------------------------------------------------------
 interface RealMember {
   id: string;
@@ -234,8 +394,6 @@ export function FamilyTree({
   const [inviteForName, setInviteForName] = useState<string | null>(null);
   const [addingSelf, setAddingSelf] = useState(false);
   const [, startTransition] = useTransition();
-
-  const tree = buildTree(treeMembers);
 
   // Check if current user already exists in the tree
   const userInTree = currentUserMemberId
@@ -348,7 +506,7 @@ export function FamilyTree({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5 h-full">
       {/* Header */}
       <div className="flex items-center justify-between pb-2">
         <div className="flex items-center gap-2">
@@ -390,22 +548,16 @@ export function FamilyTree({
         </div>
       )}
 
-      {/* Scrollable tree area */}
-      <div className="overflow-x-auto pb-4">
-        <div className="flex gap-10 justify-center min-w-max py-4 px-8">
-          {tree.map((rootNode) => (
-            <TreeBranch
-              key={rootNode.data.id}
-              node={rootNode}
-              currentUserId={currentUserId}
-              currentUserMemberId={currentUserMemberId}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onInvite={handleInvite}
-              isRoot
-            />
-          ))}
-        </div>
+      {/* Force-directed tree area */}
+      <div className="flex-1 min-h-0">
+        <ForceDirectedTree
+          members={treeMembers}
+          currentUserId={currentUserId}
+          currentUserMemberId={currentUserMemberId}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onInvite={handleInvite}
+        />
       </div>
 
       {/* Dialogs */}

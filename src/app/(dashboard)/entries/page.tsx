@@ -97,16 +97,17 @@ async function getEntries(): Promise<EntryListItem[]> {
   try {
     const ctx = await getFamilyContext();
     if (!ctx) return MOCK_ENTRIES;
-    const { familyId, supabase } = ctx;
+    const { familyId, supabase, connectedUserIds } = ctx;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
 
-    // Fetch all entries for the family (including structured_data for summaries)
+    // Fetch entries from connected family members only
     const { data: entries, error: entriesError } = await sb
       .from("entries")
       .select("id, title, content, type, tags, structured_data, created_at, author_id")
       .eq("family_id", familyId)
+      .in("author_id", connectedUserIds)
       .order("created_at", { ascending: false });
 
     if (entriesError || !entries) {

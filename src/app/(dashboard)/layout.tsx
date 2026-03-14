@@ -18,7 +18,7 @@ export default function DashboardLayout({
           Skip to content
         </a>
         <DashboardNav />
-        <main id="main-content" className="md:pl-64">{children}</main>
+        <main id="main-content" className="pt-14">{children}</main>
         <TourOverlay />
       </div>
     </TourProvider>

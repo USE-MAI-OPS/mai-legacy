@@ -26,7 +26,8 @@ export interface SearchResult {
 export async function searchFamilyKnowledge(
   query: string,
   familyId: string,
-  matchCount: number = 8
+  matchCount: number = 8,
+  allowedAuthorIds?: string[]
 ): Promise<SearchResult[]> {
   // 1. Embed the query using the same model used for entry chunks.
   const queryEmbedding = await generateEmbedding(query);
@@ -39,6 +40,7 @@ export async function searchFamilyKnowledge(
     match_family_id: familyId,
     match_threshold: 0.3, // Only return reasonably relevant results.
     match_count: matchCount,
+    allowed_author_ids: allowedAuthorIds ?? null,
   });
 
   if (error) {

@@ -33,21 +33,28 @@ async function getTreeData() {
   try {
     const ctx = await getFamilyContext();
     if (!ctx) return null;
-    const { userId, familyId, supabase } = ctx;
+    const { userId, familyId, supabase, connectedTreeMemberIds } = ctx;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
 
+    // Build tree query — filter to connected members if connection chain is active
+    let treeQuery = sb
+      .from("family_tree_members")
+      .select(
+        "id, display_name, relationship_label, parent_id, parent2_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url"
+      )
+      .eq("family_id", familyId)
+      .order("created_at", { ascending: true });
+
+    if (connectedTreeMemberIds.length > 0) {
+      treeQuery = treeQuery.in("id", connectedTreeMemberIds);
+    }
+
     const [familyResult, treeMembersResult, realMembersResult] =
       await Promise.all([
         sb.from("families").select("name").eq("id", familyId).single(),
-        sb
-          .from("family_tree_members")
-          .select(
-            "id, display_name, relationship_label, parent_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url"
-          )
-          .eq("family_id", familyId)
-          .order("created_at", { ascending: true }),
+        treeQuery,
         sb
           .from("family_members")
           .select("id, display_name, user_id")
@@ -100,7 +107,7 @@ export default async function FamilyTreePage() {
   const memberCount = data.treeMembers.length;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-3.5rem)] md:h-screen">
+    <div className="flex flex-col h-[calc(100vh-3.5rem)]">
       {/* Compact header */}
       <div className="flex items-center justify-between px-6 py-5 border-b bg-card shrink-0">
         <div className="flex items-center gap-3">
@@ -121,8 +128,8 @@ export default async function FamilyTreePage() {
         </div>
       </div>
 
-      {/* Tree fills remaining height */}
-      <div className="flex-1 overflow-auto px-6 pt-5">
+      {/* Tree fills remaining height — viewport handles its own pan/zoom */}
+      <div className="flex-1 overflow-hidden px-6 pt-5">
         <FamilyTree
           treeMembers={data.treeMembers}
           realMembers={data.realMembers.map((m) => ({

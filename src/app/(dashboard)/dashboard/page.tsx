@@ -138,7 +138,7 @@ async function getDashboardData() {
   try {
     const ctx = await getFamilyContext();
     if (!ctx) return null;
-    const { userId, familyId, supabase } = ctx;
+    const { userId, familyId, supabase, connectedUserIds } = ctx;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
@@ -164,19 +164,21 @@ async function getDashboardData() {
       entryTypesResult,
       goalsResult,
     ] = await Promise.all([
-      sb.from("entries").select("id", { count: "exact", head: true }).eq("family_id", familyId),
+      sb.from("entries").select("id", { count: "exact", head: true }).eq("family_id", familyId).in("author_id", connectedUserIds),
       sb.from("griot_conversations").select("id", { count: "exact", head: true }).eq("family_id", familyId),
-      sb.from("family_members").select("id", { count: "exact", head: true }).eq("family_id", familyId),
+      sb.from("family_members").select("id", { count: "exact", head: true }).eq("family_id", familyId).in("user_id", connectedUserIds),
       sb
         .from("entries")
         .select("id, title, type, created_at, author_id")
         .eq("family_id", familyId)
+        .in("author_id", connectedUserIds)
         .order("created_at", { ascending: false })
         .limit(4),
       sb
         .from("family_members")
-        .select("display_name, role")
+        .select("display_name, role, user_id")
         .eq("family_id", familyId)
+        .in("user_id", connectedUserIds)
         .order("joined_at", { ascending: true }),
       sb.from("families").select("name").eq("id", familyId).single(),
       sb
@@ -187,7 +189,8 @@ async function getDashboardData() {
       sb
         .from("entries")
         .select("type, author_id")
-        .eq("family_id", familyId),
+        .eq("family_id", familyId)
+        .in("author_id", connectedUserIds),
       sb
         .from("family_goals")
         .select("id, title, target_count, current_count, status")
@@ -197,17 +200,14 @@ async function getDashboardData() {
         .limit(3),
     ]);
 
-    // Build author name map from family members (already fetched above)
+    // Build author name map from connected family members
     const authorNameMap: Record<string, string> = {};
-    for (const m of familyMembersResult.data ?? []) {
-      // family_members query has display_name and we need user_id for mapping
-      // We already have user_id from the family_members query if we add it
-    }
-    // Fetch a lookup of user_id → display_name for this family
+    // Fetch a lookup of user_id → display_name for connected members
     const { data: memberLookup } = await sb
       .from("family_members")
       .select("user_id, display_name")
-      .eq("family_id", familyId);
+      .eq("family_id", familyId)
+      .in("user_id", connectedUserIds);
     for (const m of memberLookup ?? []) {
       if (m.user_id && m.display_name) authorNameMap[m.user_id] = m.display_name;
     }

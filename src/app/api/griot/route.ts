@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { searchFamilyKnowledge } from "@/lib/rag/search";
+import { getConnectionChain } from "@/lib/connection-chain";
 import type { ConversationMessage } from "@/types/database";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -59,6 +60,11 @@ export async function POST(request: NextRequest) {
     }
 
     // ------------------------------------------------------------------
+    // 0. Resolve connection chain for filtering
+    // ------------------------------------------------------------------
+    const chain = await getConnectionChain(supabase, familyId, user.id);
+
+    // ------------------------------------------------------------------
     // 1. Retrieve the family name for the Griot persona.
     // ------------------------------------------------------------------
     const { data: family } = await supabase
@@ -71,25 +77,33 @@ export async function POST(request: NextRequest) {
 
     // ------------------------------------------------------------------
     // 1b. Fetch the family member roster so the Griot knows who's who.
+    //     Filtered to connected members only.
     // ------------------------------------------------------------------
     let familyRoster = "";
 
     try {
-      // Get family_members (real accounts) — pull ALL profile data
+      // Get family_members (real accounts) — filtered by connection chain
       const { data: members } = await supabase
         .from("family_members")
         .select(
           "id, display_name, role, occupation, specialty, nickname, phone, email, country, state, life_story"
         )
-        .eq("family_id", familyId);
+        .eq("family_id", familyId)
+        .in("user_id", chain.connectedUserIds);
 
-      // Get family_tree_members (may include non-account placeholders)
-      const { data: treeMembers } = await supabase
+      // Get family_tree_members — filtered by connection chain
+      let treeQuery = supabase
         .from("family_tree_members")
         .select(
-          "display_name, birth_year, relationship_label, is_deceased, linked_member_id"
+          "id, display_name, birth_year, relationship_label, is_deceased, linked_member_id"
         )
         .eq("family_id", familyId);
+
+      if (chain.connectedTreeMemberIds.length > 0) {
+        treeQuery = treeQuery.in("id", chain.connectedTreeMemberIds);
+      }
+
+      const { data: treeMembers } = await treeQuery;
 
       // Index tree members by linked_member_id for easy lookup
       const treeByLinked = new Map<
@@ -256,7 +270,7 @@ export async function POST(request: NextRequest) {
     // ------------------------------------------------------------------
     // 2. RAG: search for relevant family knowledge.
     // ------------------------------------------------------------------
-    const searchResults = await searchFamilyKnowledge(message, familyId, 6);
+    const searchResults = await searchFamilyKnowledge(message, familyId, 6, chain.connectedUserIds);
 
     // Build the context block for the system prompt.
     let knowledgeContext = "";

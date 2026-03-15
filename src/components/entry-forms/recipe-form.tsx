@@ -45,6 +45,12 @@ interface RecipeFormProps {
   }) => Promise<void>;
   saving?: boolean;
   familyId?: string;
+  mode?: "create" | "edit";
+  cancelHref?: string;
+  initialTitle?: string;
+  initialTags?: string[];
+  initialImages?: string[];
+  initialData?: Partial<RecipeData>;
 }
 
 // ---------------------------------------------------------------------------
@@ -113,20 +119,24 @@ function flattenRecipeToContent(
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export default function RecipeForm({ onSubmit, saving = false, familyId }: RecipeFormProps) {
+export default function RecipeForm({ onSubmit, saving = false, familyId, mode = "create", cancelHref = "/entries", initialTitle, initialTags, initialImages, initialData }: RecipeFormProps) {
   // State
-  const [title, setTitle] = useState("");
-  const [story, setStory] = useState("");
-  const [ingredients, setIngredients] = useState<string[]>([""]);
-  const [instructions, setInstructions] = useState<string[]>([""]);
-  const [prepTime, setPrepTime] = useState("");
-  const [cookTime, setCookTime] = useState("");
-  const [servings, setServings] = useState("");
-  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">("easy");
-  const [cuisine, setCuisine] = useState("");
+  const [title, setTitle] = useState(initialTitle ?? "");
+  const [story, setStory] = useState(initialData?.story ?? "");
+  const [ingredients, setIngredients] = useState<string[]>(
+    initialData?.ingredients?.map(i => `${i.amount} ${i.unit} ${i.item}`.trim()) ?? [""]
+  );
+  const [instructions, setInstructions] = useState<string[]>(
+    initialData?.instructions?.map(i => i.text) ?? [""]
+  );
+  const [prepTime, setPrepTime] = useState(initialData?.prep_time ?? "");
+  const [cookTime, setCookTime] = useState(initialData?.cook_time ?? "");
+  const [servings, setServings] = useState(initialData?.servings ?? "");
+  const [difficulty, setDifficulty] = useState<"easy" | "medium" | "hard">(initialData?.difficulty ?? "easy");
+  const [cuisine, setCuisine] = useState(initialData?.cuisine ?? "");
   const [tagInput, setTagInput] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
-  const [images, setImages] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>(initialTags ?? []);
+  const [images, setImages] = useState<string[]>(initialImages ?? []);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // ---------------------------------------------------------------------------
@@ -245,9 +255,9 @@ export default function RecipeForm({ onSubmit, saving = false, familyId }: Recip
             <UtensilsCrossed className="size-6" />
           </div>
           <div>
-            <CardTitle className="font-serif text-3xl text-primary">New Recipe</CardTitle>
+            <CardTitle className="font-serif text-3xl text-primary">{mode === "edit" ? "Edit Recipe" : "New Recipe"}</CardTitle>
             <CardDescription className="text-base">
-              Preserve a cherished family recipe for generations to come.
+              {mode === "edit" ? "Update this recipe's details." : "Preserve a cherished family recipe for generations to come."}
             </CardDescription>
           </div>
         </div>
@@ -487,11 +497,11 @@ export default function RecipeForm({ onSubmit, saving = false, familyId }: Recip
 
       <CardFooter className="flex justify-end gap-4 p-6 bg-muted/10 rounded-b-2xl border-t border-border/50">
         <Button variant="ghost" size="lg" className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5" asChild>
-          <Link href="/entries">Cancel</Link>
+          <Link href={cancelHref}>Cancel</Link>
         </Button>
         <Button size="lg" className="rounded-xl px-8 shadow-md" onClick={handleSubmit} disabled={saving}>
           {saving && <Loader2 className="size-5 mr-2 animate-spin" />}
-          Preserve Recipe
+          {mode === "edit" ? "Save Changes" : "Preserve Recipe"}
         </Button>
       </CardFooter>
     </Card>

@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { Users, Plus, TreePine, ArrowRight } from "lucide-react";
+import { Users, Plus, TreePine, ArrowRight, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getFamilyContext } from "@/lib/get-family-context";
 import { UpcomingEvents } from "./components/upcoming-events";
 import { FeatureCards } from "./components/feature-cards";
+import { TraditionsSection } from "@/components/traditions-section";
 import type { RsvpStatus } from "@/types/database";
 
 // ---------------------------------------------------------------------------
@@ -65,6 +66,8 @@ async function getFamilyData() {
       treeMembersResult,
       realMembersResult,
       eventsResult,
+      traditionsResult,
+      goalsResult,
     ] = await Promise.all([
       sb.from("families").select("name").eq("id", familyId).single(),
       treeCountQuery,
@@ -83,6 +86,18 @@ async function getFamilyData() {
         .gte("event_date", new Date().toISOString())
         .order("event_date", { ascending: true })
         .limit(6),
+      sb
+        .from("family_traditions")
+        .select("*")
+        .eq("family_id", familyId)
+        .order("created_at", { ascending: true }),
+      sb
+        .from("family_goals")
+        .select("id, title, target_count, current_count, status")
+        .eq("family_id", familyId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(5),
     ]);
 
     const events = (eventsResult.data as EventRow[]) ?? [];
@@ -144,6 +159,16 @@ async function getFamilyData() {
       currentUserDisplayName: currentUserMember?.display_name ?? null,
       familyId,
       memberCount: realMembers.length,
+      goals: (goalsResult.data ?? []) as Array<{ id: string; title: string; target_count: number; current_count: number }>,
+      traditions: (traditionsResult.data ?? []).map(
+        (t: { id: string; name: string; description: string; frequency: string; created_by: string }) => ({
+          id: t.id,
+          name: t.name,
+          description: t.description ?? "",
+          frequency: t.frequency ?? "annual",
+          created_by: t.created_by,
+        })
+      ),
     };
   } catch (err) {
     console.error("Family data fetch failed:", err);
@@ -175,51 +200,48 @@ export default async function FamilyPage() {
 
   return (
     <div className="p-6 space-y-8 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Users className="h-8 w-8 text-primary" />
-            {data.familyName}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {data.memberCount} member{data.memberCount !== 1 ? "s" : ""} · Your
-            family hub
-          </p>
-        </div>
-        <Button variant="outline" asChild>
-          <Link href="/family/invite">
-            <Plus className="mr-2 h-4 w-4" />
-            Invite Member
-          </Link>
-        </Button>
-      </div>
+      {/* Storytelling Header Block */}
+      <section className="relative rounded-2xl overflow-hidden mb-12 shadow-sm border bg-[#2C4835] dark:bg-green-950">
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          {/* Left: Photo */}
+          <div className="relative h-64 md:h-[400px]">
+            <img 
+              src="https://images.unsplash.com/photo-1596707328607-4e5ff41d0172?q=80&w=2072&auto=format&fit=crop" 
+              alt="Our Family" 
+              className="w-full h-full object-cover"
+            />
+          </div>
 
-      {/* Family Tree card */}
-      <section>
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <TreePine className="h-5 w-5 text-primary" />
-              Family Tree
-            </CardTitle>
-            <Badge variant="secondary">
-              {data.treeMemberCount} member{data.treeMemberCount !== 1 ? "s" : ""}
-            </Badge>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Explore your family&apos;s lineage and relationships. Add members,
-              build connections, and visualize your family&apos;s story.
-            </p>
-            <Button asChild>
-              <Link href="/family/tree">
-                View Family Tree
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+          {/* Right: Overlapping Box Content */}
+          <div className="flex flex-col justify-center p-8 md:p-12 text-white relative">
+            <div className="relative z-10">
+              <Badge variant="outline" className="mb-4 bg-white/10 text-white border-white/20">
+                {data.memberCount} member{data.memberCount !== 1 ? "s" : ""}
+              </Badge>
+              <h1 className="text-4xl md:text-5xl font-bold font-serif mb-4 leading-tight">
+                {data.familyName}
+              </h1>
+              <p className="text-green-50 mb-8 font-serif italic text-lg opacity-90 max-w-md">
+                Explore your family's lineage and relationships. Trace the roots that connect you all.
+              </p>
+              
+              <div className="flex flex-wrap items-center gap-4">
+                <Button size="lg" variant="secondary" className="bg-white text-[#2C4835] hover:bg-green-50 rounded-full font-serif" asChild>
+                  <Link href="/family/tree">
+                    <TreePine className="mr-2 h-5 w-5" />
+                    View Family Tree
+                  </Link>
+                </Button>
+                <Button variant="outline" size="lg" className="border-white/30 text-white hover:bg-white/10 rounded-full font-serif bg-transparent" asChild>
+                  <Link href="/family/invite">
+                    <Plus className="mr-2 h-5 w-5" />
+                    Invite Member
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Upcoming Events */}
@@ -230,6 +252,69 @@ export default async function FamilyPage() {
           familyId={data.familyId}
           currentUserId={data.currentUserId}
         />
+      </section>
+
+      {/* Family Traditions */}
+      <section>
+        <TraditionsSection traditions={data.traditions} userId={data.currentUserId} />
+      </section>
+
+      {/* Family Goals */}
+      <section>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-emerald-500" />
+              Family Goals
+            </CardTitle>
+            {data.goals.length > 0 ? (
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/goals">
+                  View all
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/goals">
+                  <Plus className="mr-1 h-3 w-3" />
+                  Set a Goal
+                </Link>
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            {data.goals.length > 0 ? (
+              <div className="grid sm:grid-cols-3 gap-4">
+                {data.goals.map((goal) => {
+                  const pct = goal.target_count > 0 ? Math.round((goal.current_count / goal.target_count) * 100) : 0;
+                  return (
+                    <div key={goal.id} className="space-y-2">
+                      <p className="text-sm font-medium leading-tight">
+                        {goal.title}
+                      </p>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div
+                          className="bg-emerald-500 h-2 rounded-full transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {goal.current_count} / {goal.target_count} ({pct}%)
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground">
+                  No goals yet. Set a family goal to track your legacy-building progress!
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </section>
 
       {/* Feature Cards (Recipes, Skills, Lessons) */}

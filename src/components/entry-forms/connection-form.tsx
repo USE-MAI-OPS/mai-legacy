@@ -37,6 +37,11 @@ interface ConnectionFormProps {
     structured_data: { type: "connection"; data: ConnectionData };
   }) => Promise<void>;
   saving?: boolean;
+  mode?: "create" | "edit";
+  cancelHref?: string;
+  initialTitle?: string;
+  initialTags?: string[];
+  initialData?: Partial<ConnectionData>;
 }
 
 // ---------------------------------------------------------------------------
@@ -97,17 +102,22 @@ function flattenConnectionToContent(
 export default function ConnectionForm({
   onSubmit,
   saving = false,
+  mode = "create",
+  cancelHref = "/entries",
+  initialTitle,
+  initialTags,
+  initialData,
 }: ConnectionFormProps) {
   // State
-  const [fullName, setFullName] = useState("");
-  const [relationship, setRelationship] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [address, setAddress] = useState("");
-  const [birthday, setBirthday] = useState("");
-  const [notes, setNotes] = useState("");
+  const [fullName, setFullName] = useState(initialData?.name ?? "");
+  const [relationship, setRelationship] = useState(initialData?.relationship ?? "");
+  const [phone, setPhone] = useState(initialData?.phone ?? "");
+  const [email, setEmail] = useState(initialData?.email ?? "");
+  const [address, setAddress] = useState(initialData?.address ?? "");
+  const [birthday, setBirthday] = useState(initialData?.birthday ?? "");
+  const [notes, setNotes] = useState(initialData?.notes ?? "");
   const [tagInput, setTagInput] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>(initialTags ?? []);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // ---------------------------------------------------------------------------
@@ -195,9 +205,9 @@ export default function ConnectionForm({
             <Users className="size-6" />
           </div>
           <div>
-            <CardTitle className="font-serif text-3xl text-primary">New Connection</CardTitle>
+            <CardTitle className="font-serif text-3xl text-primary">{mode === "edit" ? "Edit Connection" : "New Connection"}</CardTitle>
             <CardDescription className="text-base">
-              Keep track of the people who matter to your family.
+              {mode === "edit" ? "Update this connection's details." : "Keep track of the people who matter to your family."}
             </CardDescription>
           </div>
         </div>
@@ -364,11 +374,11 @@ export default function ConnectionForm({
 
       <CardFooter className="flex justify-end gap-4 p-6 bg-muted/10 rounded-b-2xl border-t border-border/50">
         <Button variant="ghost" size="lg" className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5" asChild>
-          <Link href="/entries">Cancel</Link>
+          <Link href={cancelHref}>Cancel</Link>
         </Button>
         <Button size="lg" className="rounded-xl px-8 shadow-md" onClick={handleSubmit} disabled={saving}>
           {saving && <Loader2 className="size-5 mr-2 animate-spin" />}
-          Save Connection
+          {mode === "edit" ? "Save Changes" : "Save Connection"}
         </Button>
       </CardFooter>
     </Card>

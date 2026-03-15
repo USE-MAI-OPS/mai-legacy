@@ -227,9 +227,9 @@ export function ProfileClient({
   };
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
+    <div className="container mx-auto py-12 px-4 max-w-3xl">
       {/* Profile header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-12">
         <div className="relative group">
           <Avatar className="size-20">
             {avatarUrl ? (
@@ -308,29 +308,29 @@ export function ProfileClient({
               </div>
             ) : (
               <>
-                <h1 className="text-2xl font-bold tracking-tight">
+                <h1 className="text-3xl font-serif font-bold tracking-tight text-stone-900 dark:text-stone-100">
                   {displayName}
                 </h1>
                 {userId && (
                   <button
                     onClick={() => setEditingName(true)}
-                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-stone-400 hover:text-amber-700 transition-colors"
                     aria-label="Edit display name"
                   >
-                    <Pencil className="size-3.5" />
+                    <Pencil className="size-4" />
                   </button>
                 )}
               </>
             )}
             <Badge
-              variant="secondary"
-              className="capitalize text-xs"
+              variant="outline"
+              className="capitalize text-xs rounded-full border-amber-700/30 text-amber-800 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/30"
             >
               {user.role}
             </Badge>
           </div>
-          <p className="text-sm text-muted-foreground">{user.email}</p>
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <p className="text-sm font-medium text-stone-500 dark:text-stone-400">{user.email}</p>
+          <div className="flex items-center gap-1.5 text-xs tracking-widest uppercase font-semibold text-stone-400">
             <CalendarDaysIcon className="size-3.5" />
             Joined {formatDate(user.joined_at)}
           </div>
@@ -338,7 +338,7 @@ export function ProfileClient({
       </div>
 
       {/* Stats grid */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 mb-8">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 mb-12">
         <StatsCard
           label="Entries Created"
           value={user.stats.entries_created}
@@ -352,82 +352,85 @@ export function ProfileClient({
       </div>
 
       {/* Categories contributed */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <TagIcon className="size-4" />
-            Categories
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      {user.stats.types_contributed.length > 0 && (
+        <div className="mb-12">
+          <h3 className="text-xs tracking-widest uppercase font-semibold text-stone-500 mb-4 flex items-center gap-2">
+            <TagIcon className="size-3.5" />
+            Categories Contributed
+          </h3>
           <div className="flex flex-wrap gap-2">
             {user.stats.types_contributed.map((type) => (
               <Badge
                 key={type}
                 variant="secondary"
-                className={`capitalize border-0 ${typeColors[type] || ""}`}
+                className={`capitalize border-0 px-3 py-1 rounded-full text-xs font-medium shadow-sm ${typeColors[type] || ""}`}
               >
                 {type}
               </Badge>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
       {/* My Story - Life Resume */}
-      <div className="mb-8">
+      <div className="mb-16">
         <MyStorySection
           initialData={lifeStory}
           onSave={memberId ? handleSaveLifeStory : undefined}
         />
       </div>
 
-      {/* Recent contributions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Recent Contributions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {recentEntries.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">
-              No contributions yet.
-            </p>
-          ) : (
-            <div className="space-y-1">
-              {recentEntries.map((entry, i) => (
-                <div key={entry.id}>
-                  <div className="flex items-center justify-between py-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+      {/* Timeline Journey: Recent contributions */}
+      <div className="mt-8">
+        <h2 className="text-2xl font-serif font-semibold mb-8 text-stone-900 dark:text-stone-100">
+          Your Legacy Timeline
+        </h2>
+        
+        {recentEntries.length === 0 ? (
+          <p className="text-stone-500 italic font-serif">
+            Your journey begins here. Share your first memory or recipe.
+          </p>
+        ) : (
+          <div className="relative border-l border-stone-200 dark:border-stone-800 ml-3 md:ml-4 space-y-10 pb-8">
+            {recentEntries.map((entry) => (
+              <div key={entry.id} className="relative pl-8 md:pl-10">
+                {/* Timeline Node */}
+                <div className="absolute -left-[5px] top-2 size-2.5 rounded-full bg-amber-700 ring-4 ring-white dark:ring-[#161B17]" />
+                
+                {/* Content Card */}
+                <div className="group block">
+                  <span className="text-xs font-semibold tracking-widest uppercase text-stone-500 mb-2 block">
+                    {formatRelativeDate(entry.created_at)}
+                  </span>
+                  <div className="bg-white dark:bg-[#1A221C] border border-stone-200 dark:border-[#2C3B2F] rounded-2xl p-5 shadow-sm transition-all hover:shadow-md">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="font-serif text-lg font-medium text-stone-900 dark:text-stone-100 mb-2">
+                          {entry.title}
+                        </h3>
+                        <Badge
+                          variant="secondary"
+                          className={`text-[10px] uppercase tracking-wider font-semibold border-0 px-2.5 py-0.5 rounded-full ${
+                            typeColors[entry.type] || "bg-stone-100 text-stone-800 dark:bg-stone-800 dark:text-stone-300"
+                          }`}
+                        >
+                          {entry.type}
+                        </Badge>
+                      </div>
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-stone-50 dark:bg-[#232F26] text-stone-400 group-hover:text-amber-700 transition-colors">
                         <FileTextIcon className="size-4" />
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {entry.title}
-                        </p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <Badge
-                            variant="secondary"
-                            className={`text-[10px] capitalize border-0 px-1.5 py-0 ${
-                              typeColors[entry.type] || ""
-                            }`}
-                          >
-                            {entry.type}
-                          </Badge>
-                        </div>
-                      </div>
                     </div>
-                    <span className="text-xs text-muted-foreground shrink-0 ml-4">
-                      {formatRelativeDate(entry.created_at)}
-                    </span>
                   </div>
-                  {i < recentEntries.length - 1 && <Separator />}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            ))}
+            
+            {/* End of Timeline Indicator */}
+            <div className="absolute -left-[5px] bottom-0 size-2.5 rounded-full border-2 border-stone-300 dark:border-stone-700 bg-white dark:bg-[#161B17]" />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

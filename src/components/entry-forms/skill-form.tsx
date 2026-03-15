@@ -38,6 +38,12 @@ interface SkillFormProps {
   }) => Promise<void>;
   saving?: boolean;
   familyId?: string;
+  mode?: "create" | "edit";
+  cancelHref?: string;
+  initialTitle?: string;
+  initialTags?: string[];
+  initialImages?: string[];
+  initialData?: Partial<SkillData>;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,24 +116,25 @@ function flattenSkillToContent(
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export default function SkillForm({ onSubmit, saving = false, familyId }: SkillFormProps) {
+export default function SkillForm({ onSubmit, saving = false, familyId, mode = "create", cancelHref = "/entries", initialTitle, initialTags, initialImages, initialData }: SkillFormProps) {
   // State
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(initialTitle ?? "");
   const [difficulty, setDifficulty] = useState<"beginner" | "intermediate" | "advanced">(
-    "beginner"
+    initialData?.difficulty ?? "beginner"
   );
   const [prereqInput, setPrereqInput] = useState("");
-  const [prerequisites, setPrerequisites] = useState<string[]>([]);
+  const [prerequisites, setPrerequisites] = useState<string[]>(initialData?.prerequisites ?? []);
   const [materialInput, setMaterialInput] = useState("");
-  const [materials, setMaterials] = useState<string[]>([]);
-  const [steps, setSteps] = useState<SkillStep[]>([
-    { title: "", description: "", tips: "" },
-  ]);
-  const [exercises, setExercises] = useState("");
-  const [story, setStory] = useState("");
+  const [materials, setMaterials] = useState<string[]>(initialData?.what_you_need ?? []);
+  const [steps, setSteps] = useState<SkillStep[]>(
+    initialData?.steps?.map(s => ({ title: s.title, description: s.description, tips: s.tips ?? "" }))
+    ?? [{ title: "", description: "", tips: "" }]
+  );
+  const [exercises, setExercises] = useState(initialData?.practice_exercises?.join("\n") ?? "");
+  const [story, setStory] = useState(initialData?.story ?? "");
   const [tagInput, setTagInput] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
-  const [images, setImages] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>(initialTags ?? []);
+  const [images, setImages] = useState<string[]>(initialImages ?? []);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // ---------------------------------------------------------------------------
@@ -328,9 +335,9 @@ export default function SkillForm({ onSubmit, saving = false, familyId }: SkillF
             <Wrench className="size-6" />
           </div>
           <div>
-            <CardTitle className="font-serif text-3xl text-primary">New Skill</CardTitle>
+            <CardTitle className="font-serif text-3xl text-primary">{mode === "edit" ? "Edit Skill" : "New Skill"}</CardTitle>
             <CardDescription className="text-base">
-              Document a skill so others in your family can learn it too.
+              {mode === "edit" ? "Update this skill's details." : "Document a skill so others in your family can learn it too."}
             </CardDescription>
           </div>
         </div>
@@ -509,11 +516,11 @@ export default function SkillForm({ onSubmit, saving = false, familyId }: SkillF
 
       <CardFooter className="flex justify-end gap-4 p-6 bg-muted/10 rounded-b-2xl border-t border-border/50">
         <Button variant="ghost" size="lg" className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5" asChild>
-          <Link href="/entries">Cancel</Link>
+          <Link href={cancelHref}>Cancel</Link>
         </Button>
         <Button size="lg" className="rounded-xl px-8 shadow-md" onClick={handleSubmit} disabled={saving}>
           {saving && <Loader2 className="size-5 mr-2 animate-spin" />}
-          Save Skill
+          {mode === "edit" ? "Save Changes" : "Save Skill"}
         </Button>
       </CardFooter>
     </Card>

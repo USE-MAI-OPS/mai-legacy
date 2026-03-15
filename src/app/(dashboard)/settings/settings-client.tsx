@@ -131,62 +131,62 @@ export function SettingsClient({
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
+    <div className="p-6 md:p-10 max-w-4xl mx-auto space-y-10">
       {/* Page header */}
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-          <Settings className="h-5 w-5 text-primary" />
+      <div className="flex items-center gap-4 border-b border-stone-200 dark:border-stone-800 pb-8">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-700/10 text-amber-700 dark:bg-amber-500/10 dark:text-amber-500 items-center justify-center">
+          <Settings className="h-6 w-6" />
         </div>
         <div>
-          <h1 className="text-2xl font-semibold">Account Settings</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-3xl font-serif font-bold text-stone-900 dark:text-stone-100">Account Settings</h1>
+          <p className="text-sm font-medium text-stone-500">
             Manage your account preferences and security
           </p>
         </div>
       </div>
 
       {/* Account Info */}
-      <Card>
+      <Card className="border-stone-200 dark:border-[#2C3B2F] shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Mail className="h-4 w-4" />
+          <CardTitle className="flex items-center gap-2 text-xl font-serif text-stone-900 dark:text-stone-100">
+            <Mail className="h-5 w-5 text-amber-700 dark:text-amber-500" />
             Account Information
           </CardTitle>
           <CardDescription>
             Your account details and sign-in method
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <CardContent className="space-y-6">
+          <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-muted-foreground text-xs">
+              <Label className="text-xs tracking-widest uppercase font-semibold text-stone-500">
                 Email Address
               </Label>
-              <p className="text-sm font-medium">{email || "Not available"}</p>
+              <p className="text-base font-medium text-stone-900 dark:text-stone-100">{email || "Not available"}</p>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-muted-foreground text-xs">
+              <Label className="text-xs tracking-widest uppercase font-semibold text-stone-500">
                 Sign-in Method
               </Label>
-              <p className="text-sm font-medium capitalize">
+              <p className="text-base font-medium capitalize text-stone-900 dark:text-stone-100">
                 {isOAuth ? `${provider} (OAuth)` : "Email & Password"}
               </p>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-muted-foreground text-xs">
+              <Label className="text-xs tracking-widest uppercase font-semibold text-stone-500">
                 Account Created
               </Label>
-              <p className="text-sm font-medium">{formatDate(createdAt)}</p>
+              <p className="text-base font-medium text-stone-900 dark:text-stone-100">{formatDate(createdAt)}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Change Password */}
-      <Card>
+      <Card className="border-stone-200 dark:border-[#2C3B2F] shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Lock className="h-4 w-4" />
+          <CardTitle className="flex items-center gap-2 text-xl font-serif text-stone-900 dark:text-stone-100">
+            <Lock className="h-5 w-5 text-amber-700 dark:text-amber-500" />
             Change Password
           </CardTitle>
           <CardDescription>
@@ -305,10 +305,10 @@ export function SettingsClient({
       </Card>
 
       {/* Appearance */}
-      <Card>
+      <Card className="border-stone-200 dark:border-[#2C3B2F] shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Sun className="h-4 w-4" />
+          <CardTitle className="flex items-center gap-2 text-xl font-serif text-stone-900 dark:text-stone-100">
+            <Sun className="h-5 w-5 text-amber-700 dark:text-amber-500" />
             Appearance
           </CardTitle>
           <CardDescription>
@@ -357,10 +357,10 @@ export function SettingsClient({
       </Card>
 
       {/* Danger Zone */}
-      <Card className="border-destructive/30">
+      <Card className="border-destructive/30 shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base text-destructive">
-            <AlertTriangle className="h-4 w-4" />
+          <CardTitle className="flex items-center gap-2 text-xl font-serif text-destructive">
+            <AlertTriangle className="h-5 w-5" />
             Danger Zone
           </CardTitle>
           <CardDescription>
@@ -392,9 +392,9 @@ export function SettingsClient({
       </Card>
 
       {/* Security note */}
-      <div className="flex items-start gap-3 rounded-lg border bg-muted/30 px-4 py-3">
-        <Shield className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-        <p className="text-xs text-muted-foreground">
+      <div className="flex items-start gap-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-[#161B17] px-5 py-4 shadow-sm">
+        <Shield className="h-5 w-5 text-stone-400 mt-0.5 shrink-0" />
+        <p className="text-sm font-medium leading-relaxed text-stone-500 dark:text-stone-400 font-serif">
           Your data is encrypted and securely stored. MAI Legacy never shares
           your personal information with third parties.
         </p>

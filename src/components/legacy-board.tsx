@@ -63,11 +63,11 @@ export function LegacyBoard({
         <h2 className="text-lg font-semibold">The {familyName} Legacy Board</h2>
       </div>
 
-      {/* Masonry-style staggered grid */}
-      <div className="columns-1 sm:columns-2 lg:columns-3 gap-4 space-y-4">
+      {/* Asymmetrical Magazine-style Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 grid-flow-row-dense">
         {/* ---- Pin: Family Stats ---- */}
-        <Card className="break-inside-avoid border-l-4 border-l-amber-400 bg-gradient-to-br from-amber-50/60 to-white">
-          <CardContent className="pt-5 pb-4">
+        <Card className="md:col-span-2 lg:col-span-2 border-l-4 border-l-amber-400 bg-gradient-to-br from-amber-50/60 to-white shadow-sm hover:shadow-md transition-shadow">
+          <CardContent className="pt-6 pb-6 h-full flex flex-col justify-center">
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="h-4 w-4 text-amber-600" />
               <h3 className="text-sm font-semibold text-amber-800">
@@ -101,7 +101,7 @@ export function LegacyBoard({
 
         {/* ---- Pin: Most Popular Recipes ---- */}
         {stats.totalRecipes > 0 && (
-          <Card className="break-inside-avoid bg-gradient-to-br from-orange-50/70 to-white">
+          <Card className="border-t-4 border-t-orange-400 bg-gradient-to-br from-orange-50/70 to-white shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="pt-5 pb-4">
               <div className="flex items-center gap-2 mb-3">
                 <UtensilsCrossed className="h-4 w-4 text-orange-500" />
@@ -132,7 +132,7 @@ export function LegacyBoard({
 
         {/* ---- Pin: Top Skills ---- */}
         {stats.totalSkills > 0 && (
-          <Card className="break-inside-avoid border-l-4 border-l-green-400">
+          <Card className="border-t-4 border-t-green-400 shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="pt-5 pb-4">
               <div className="flex items-center gap-2 mb-3">
                 <Wrench className="h-4 w-4 text-green-600" />
@@ -163,7 +163,7 @@ export function LegacyBoard({
 
         {/* ---- Pin: Recent Stories ---- */}
         {stats.totalStories > 0 && (
-          <Card className="break-inside-avoid bg-gradient-to-br from-blue-50/60 to-white">
+          <Card className="md:col-span-2 bg-gradient-to-br from-blue-50/60 to-white border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="pt-5 pb-4">
               <div className="flex items-center gap-2 mb-3">
                 <BookOpen className="h-4 w-4 text-blue-600" />
@@ -194,7 +194,7 @@ export function LegacyBoard({
 
         {/* ---- Pin: Family Wisdom (Lessons) ---- */}
         {stats.totalLessons > 0 && (
-          <Card className="break-inside-avoid border-l-4 border-l-purple-400">
+          <Card className="border-r-4 border-r-purple-400 shadow-sm hover:shadow-md transition-shadow">
             <CardContent className="pt-5 pb-4">
               <div className="flex items-center gap-2 mb-3">
                 <GraduationCap className="h-4 w-4 text-purple-600" />
@@ -214,7 +214,7 @@ export function LegacyBoard({
 
         {/* ---- Pin: Top Contributor ---- */}
         {topContributor && topContributor.count > 0 && (
-          <Card className="break-inside-avoid bg-gradient-to-br from-teal-50/60 to-white">
+          <Card className="border-b-4 border-b-teal-400 bg-gradient-to-br from-teal-50/60 to-white shadow-sm hover:shadow-md transition-shadow flex flex-col justify-center">
             <CardContent className="pt-5 pb-4">
               <div className="flex items-center gap-2 mb-3">
                 <Crown className="h-4 w-4 text-teal-600" />
@@ -235,7 +235,7 @@ export function LegacyBoard({
         )}
 
         {/* ---- Pin: Family Strength ---- */}
-        <Card className="break-inside-avoid bg-gradient-to-br from-pink-50/50 to-white">
+        <Card className="md:col-span-2 lg:col-span-3 bg-gradient-to-br from-pink-50/50 to-white border border-pink-100 shadow-sm hover:shadow-md transition-shadow">
           <CardContent className="pt-5 pb-4">
             <div className="flex items-center gap-2 mb-3">
               <Heart className="h-4 w-4 text-pink-500" />

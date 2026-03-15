@@ -32,6 +32,12 @@ interface StoryFormProps {
   }) => Promise<void>;
   saving?: boolean;
   familyId?: string;
+  mode?: "create" | "edit";
+  cancelHref?: string;
+  initialTitle?: string;
+  initialTags?: string[];
+  initialImages?: string[];
+  initialData?: Partial<StoryData>;
 }
 
 // ---------------------------------------------------------------------------
@@ -71,17 +77,17 @@ function flattenStoryToContent(
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export default function StoryForm({ onSubmit, saving = false, familyId }: StoryFormProps) {
+export default function StoryForm({ onSubmit, saving = false, familyId, mode = "create", cancelHref = "/entries", initialTitle, initialTags, initialImages, initialData }: StoryFormProps) {
   // State
-  const [title, setTitle] = useState("");
-  const [when, setWhen] = useState("");
-  const [where, setWhere] = useState("");
+  const [title, setTitle] = useState(initialTitle ?? "");
+  const [when, setWhen] = useState(initialData?.year ?? "");
+  const [where, setWhere] = useState(initialData?.location ?? "");
   const [personInput, setPersonInput] = useState("");
-  const [people, setPeople] = useState<string[]>([]);
-  const [narrative, setNarrative] = useState("");
+  const [people, setPeople] = useState<string[]>(initialData?.people_involved ?? []);
+  const [narrative, setNarrative] = useState(initialData?.narrative ?? "");
   const [tagInput, setTagInput] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
-  const [images, setImages] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>(initialTags ?? []);
+  const [images, setImages] = useState<string[]>(initialImages ?? []);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // ---------------------------------------------------------------------------
@@ -184,9 +190,9 @@ export default function StoryForm({ onSubmit, saving = false, familyId }: StoryF
             <BookOpen className="size-6" />
           </div>
           <div>
-            <CardTitle className="font-serif text-3xl text-primary">New Story</CardTitle>
+            <CardTitle className="font-serif text-3xl text-primary">{mode === "edit" ? "Edit Story" : "New Story"}</CardTitle>
             <CardDescription className="text-base">
-              Preserve a family memory before it fades away.
+              {mode === "edit" ? "Update this story's details." : "Preserve a family memory before it fades away."}
             </CardDescription>
           </div>
         </div>
@@ -359,11 +365,11 @@ export default function StoryForm({ onSubmit, saving = false, familyId }: StoryF
 
       <CardFooter className="flex justify-end gap-4 p-6 bg-muted/10 rounded-b-2xl border-t border-border/50">
         <Button variant="ghost" size="lg" className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5" asChild>
-          <Link href="/entries">Cancel</Link>
+          <Link href={cancelHref}>Cancel</Link>
         </Button>
         <Button size="lg" className="rounded-xl px-8 shadow-md" onClick={handleSubmit} disabled={saving}>
           {saving && <Loader2 className="size-5 mr-2 animate-spin" />}
-          Preserve Story
+          {mode === "edit" ? "Save Changes" : "Preserve Story"}
         </Button>
       </CardFooter>
     </Card>

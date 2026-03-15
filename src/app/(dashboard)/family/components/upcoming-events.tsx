@@ -12,6 +12,7 @@ import {
   HelpCircle,
   X,
   Trash2,
+  Utensils,
 } from "lucide-react";
 import { respondToEvent, deleteEvent } from "../actions";
 import { CreateEventDialog } from "./create-event-dialog";
@@ -199,20 +200,25 @@ export function UpcomingEvents({
           </Button>
         </div>
 
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-10">
-            <CalendarDays className="h-10 w-10 text-muted-foreground/40 mb-3" />
-            <p className="text-sm text-muted-foreground text-center">
-              No upcoming events. Plan your next family gathering!
+        <Card className="border-dashed bg-muted/30 overflow-hidden">
+          <CardContent className="flex flex-col items-center justify-center py-16 px-4 relative">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] pointer-events-none mix-blend-multiply" />
+            <div className="h-24 w-24 rounded-full bg-orange-100 dark:bg-orange-950/50 flex items-center justify-center mb-6 relative z-10">
+              <Utensils className="h-12 w-12 text-orange-600 dark:text-orange-400 opacity-80" />
+            </div>
+            <h3 className="text-2xl md:text-3xl font-serif font-bold text-foreground mb-3 text-center tracking-tight relative z-10">
+              The table is waiting.
+            </h3>
+            <p className="text-muted-foreground text-center max-w-sm mb-8 font-serif italic text-lg opacity-90 relative z-10">
+              There are no upcoming events. Plan your next gathering, reunion, or simple family dinner to keep the stories flowing.
             </p>
             <Button
-              variant="ghost"
-              size="sm"
-              className="mt-2"
+              size="lg"
+              className="rounded-full shadow-md font-serif text-base px-8 relative z-10"
               onClick={() => setDialogOpen(true)}
             >
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Create Event
+              <Plus className="mr-2 h-5 w-5" />
+              Plan a Gathering
             </Button>
           </CardContent>
         </Card>

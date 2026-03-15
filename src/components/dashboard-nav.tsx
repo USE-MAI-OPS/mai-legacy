@@ -15,6 +15,7 @@ import {
   Sparkles,
   HelpCircle,
   Settings,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -39,16 +40,6 @@ interface UserInfo {
   role: string;
   familyName: string;
 }
-
-const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/family", label: "Family", icon: Users },
-  { href: "/entries", label: "Entries", icon: BookOpen },
-  { href: "/griot", label: "The Griot", icon: MessageCircle },
-  { href: "/goals", label: "Goals", icon: Target },
-  { href: "/profile", label: "Profile", icon: User },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
 
 /** Map nav hrefs to data-tour-step attribute values */
 const tourStepMap: Record<string, string> = {
@@ -154,40 +145,106 @@ export function DashboardNav() {
           href="/dashboard"
           className="flex items-center gap-2 shrink-0"
         >
-          <span className="text-lg font-bold">MAI</span>
+          <span className="text-xl font-bold">MAI</span>
         </Link>
 
-        {/* Nav links - centered */}
-        <nav className="flex items-center justify-center gap-1 flex-1 min-w-0">
-          {navItems.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(item.href));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                data-tour-step={tourStepMap[item.href]}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap",
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            );
-          })}
+        {/* Nav links - absolutely centered in viewport */}
+        <nav className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1">
+          <Link
+            href="/dashboard"
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-md text-base font-medium transition-colors whitespace-nowrap",
+              pathname === "/dashboard"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            )}
+          >
+            Dashboard
+          </Link>
+
+          {/* Our Legacy Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-base font-medium transition-colors outline-none whitespace-nowrap font-serif",
+                pathname.startsWith("/entries")
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              )}
+            >
+              Our Legacy <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuItem asChild>
+                <Link href="/entries" className="w-full cursor-pointer">All Entries</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/entries?type=recipe" className="w-full cursor-pointer">Recipes</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/entries?type=skill" className="w-full cursor-pointer">Skills</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/entries?type=story" className="w-full cursor-pointer">Stories</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/entries?type=tradition" className="w-full cursor-pointer">Traditions</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Our Family Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-base font-medium transition-colors outline-none whitespace-nowrap font-serif",
+                pathname.startsWith("/family")
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              )}
+            >
+              Our Family <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuItem asChild>
+                <Link href="/family" className="w-full cursor-pointer">Family Hub</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/family/tree" className="w-full cursor-pointer">Family Tree</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Family Goals */}
+          <Link
+            href="/goals"
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-md text-base font-medium transition-colors whitespace-nowrap font-serif",
+              pathname.startsWith("/goals")
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            )}
+          >
+            Family Goals
+          </Link>
+
+          {/* The Griot CTA */}
+          <Link
+            href="/griot"
+            data-tour-step="nav-griot"
+            className="ml-2 flex items-center gap-2 px-4 py-1.5 rounded-full text-base font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap font-serif shadow-sm"
+          >
+            <Sparkles className="h-4 w-4" />
+            The Griot
+          </Link>
         </nav>
 
         {/* Right side: family name + user menu */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="ml-auto flex items-center gap-2 shrink-0">
           {/* Family name (display only) */}
           <div className="flex items-center gap-1.5 px-2 py-1">
             <Users className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground font-medium truncate max-w-[120px] hidden xl:inline">
+            <span className="text-sm text-muted-foreground font-medium truncate max-w-[140px] hidden xl:inline">
               {userInfo.familyName}
             </span>
           </div>
@@ -287,29 +344,76 @@ export function DashboardNav() {
       {/* Mobile nav overlay */}
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 top-14 z-40 bg-background/80 backdrop-blur-sm">
-          <nav className="bg-card border-b p-4 space-y-1">
-            {navItems.map((item) => {
-              const isActive =
-                pathname === item.href ||
-                (item.href !== "/dashboard" &&
-                  pathname.startsWith(item.href));
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  )}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
+          <nav className="bg-card border-b p-4 space-y-1 h-full overflow-y-auto pb-20">
+            <Link
+              href="/dashboard"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                pathname === "/dashboard"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              )}
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              Dashboard
+            </Link>
+
+            <Separator className="my-2" />
+            
+            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider font-serif">
+              Our Legacy
+            </div>
+            <Link href="/entries" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+              <BookOpen className="h-4 w-4" /> All Entries
+            </Link>
+            <Link href="/entries?type=recipe" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+              &bull; Recipes
+            </Link>
+            <Link href="/entries?type=skill" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+              &bull; Skills
+            </Link>
+            <Link href="/entries?type=story" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+              &bull; Stories
+            </Link>
+            <Link href="/entries?type=tradition" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+              &bull; Traditions
+            </Link>
+
+            <Separator className="my-2" />
+
+            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider font-serif">
+              Our Family
+            </div>
+            <Link href="/family" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+              <Users className="h-4 w-4" /> Family Hub
+            </Link>
+            <Link href="/family/tree" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+              &bull; Family Tree
+            </Link>
+
+            <Separator className="my-2" />
+
+            <Link
+              href="/goals"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors font-serif",
+                pathname.startsWith("/goals")
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              )}
+            >
+              <Target className="h-4 w-4" /> Family Goals
+            </Link>
+
+            <Link
+              href="/griot"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-3 px-3 py-2 mt-2 rounded-full text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 font-serif"
+            >
+              <Sparkles className="h-4 w-4" /> The Griot CTA
+            </Link>
 
             <Separator className="my-2" />
 
@@ -323,8 +427,7 @@ export function DashboardNav() {
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
             >
-              <HelpCircle className="h-4 w-4" />
-              Help & Support
+              <HelpCircle className="h-4 w-4" /> Help & Support
             </Link>
 
             {tour && (

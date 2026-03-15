@@ -374,54 +374,55 @@ export default function GriotPage() {
   const isDisconnected = isConnected === false;
 
   return (
-    <div className="relative h-[calc(100vh-3.5rem)] overflow-hidden bg-background">
-      <div className="flex h-full">
+    <div className="relative h-[calc(100vh-3.5rem)] overflow-hidden bg-[#161b17] text-stone-200">
+      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-[0.03] mix-blend-screen pointer-events-none" />
+      <div className="flex h-full relative z-10">
         {/* -------- Conversation sidebar -------- */}
         {showSidebar && (
-          <aside className="hidden md:flex w-56 shrink-0 flex-col border-r bg-muted/30">
-            <div className="flex items-center justify-between px-3 py-3.5 border-b">
-              <span className="text-sm font-medium text-muted-foreground">
+          <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-[#2C3B2F] bg-[#111512]">
+            <div className="flex items-center justify-between px-4 py-4 border-b border-[#2C3B2F]">
+              <span className="text-sm font-medium text-stone-400 font-serif tracking-wider uppercase">
                 Conversations
               </span>
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                  className="h-7 w-7 text-stone-400 hover:text-stone-200 hover:bg-[#1A221C]"
                   onClick={handleNewConversation}
                   title="New conversation"
                 >
-                  <PlusIcon className="h-3.5 w-3.5" />
+                  <PlusIcon className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                  className="h-7 w-7 text-stone-400 hover:text-stone-200 hover:bg-[#1A221C]"
                   onClick={() => setShowSidebar(false)}
                   title="Hide sidebar"
                 >
-                  <PanelLeftCloseIcon className="h-3.5 w-3.5" />
+                  <PanelLeftCloseIcon className="h-4 w-4" />
                 </Button>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto">
-              <div className="p-2 space-y-0.5">
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+              <div className="p-3 space-y-1">
                 {!conversationsLoaded ? (
                   <div className="px-3 py-8 text-center">
-                    <span className="text-xs text-muted-foreground">
-                      Loading...
+                    <span className="text-xs text-stone-500 font-serif italic">
+                      Loading memories...
                     </span>
                   </div>
                 ) : isDisconnected ? (
                   <div className="px-3 py-8 text-center">
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-stone-500 font-serif italic">
                       Connect Supabase to save conversations
                     </span>
                   </div>
                 ) : conversations.length === 0 ? (
                   <div className="px-3 py-8 text-center">
-                    <MessageSquareIcon className="h-6 w-6 mx-auto text-muted-foreground/40 mb-2" />
-                    <span className="text-xs text-muted-foreground">
+                    <MessageSquareIcon className="h-6 w-6 mx-auto text-stone-600 mb-3 opacity-50" />
+                    <span className="text-sm font-serif italic text-stone-500">
                       No conversations yet
                     </span>
                   </div>
@@ -435,18 +436,19 @@ export default function GriotPage() {
                         key={convo.id}
                         onClick={() => handleSelectConversation(convo)}
                         className={cn(
-                          "group w-full text-left px-2.5 py-2 rounded-md text-xs transition-colors relative",
+                          "group w-full text-left px-3 py-3 rounded-lg text-sm transition-all relative border",
                           isActive
-                            ? "bg-accent text-accent-foreground"
-                            : "hover:bg-accent/50 text-muted-foreground"
+                            ? "bg-[#1A221C] text-stone-200 border-[#3D5240] shadow-sm"
+                            : "hover:bg-[#1A221C]/50 text-stone-400 border-transparent"
                         )}
                       >
-                        <p className="truncate font-medium">{preview}</p>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                        <p className="truncate font-serif leading-snug">{preview}</p>
+                        <p className="text-[11px] text-stone-500 mt-1.5 uppercase tracking-wider">
                           {updatedAt.toLocaleDateString([], {
                             month: "short",
                             day: "numeric",
                           })}{" "}
+                          &middot;{" "}
                           {updatedAt.toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
@@ -456,16 +458,16 @@ export default function GriotPage() {
                           variant="ghost"
                           size="icon"
                           className={cn(
-                            "absolute right-1 top-1/2 -translate-y-1/2 h-5 w-5",
+                            "absolute right-1.5 top-1/2 -translate-y-1/2 h-6 w-6",
                             "opacity-0 group-hover:opacity-100 transition-opacity",
-                            "text-muted-foreground hover:text-destructive hover:bg-transparent"
+                            "text-stone-500 hover:text-red-400 hover:bg-red-400/10"
                           )}
                           onClick={(e) =>
                             handleDeleteConversation(e, convo.id)
                           }
                           title="Delete"
                         >
-                          <Trash2Icon className="h-3 w-3" />
+                          <Trash2Icon className="h-3.5 w-3.5" />
                         </Button>
                       </button>
                     );
@@ -477,38 +479,38 @@ export default function GriotPage() {
         )}
 
         {/* -------- Main chat area -------- */}
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex flex-col flex-1 min-w-0 bg-transparent">
           {/* Demo banner */}
           {isDisconnected && (
-            <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800 shrink-0">
-              <AlertTriangleIcon className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-              <span className="text-xs text-amber-700 dark:text-amber-400">
+            <div className="flex items-center gap-2 px-6 py-2 bg-amber-950/40 border-b border-amber-900/50 shrink-0">
+              <AlertTriangleIcon className="h-4 w-4 text-amber-500 shrink-0" />
+              <span className="text-sm font-serif italic text-amber-200/90">
                 Demo mode — connect Supabase for real AI responses
               </span>
             </div>
           )}
 
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3.5 border-b bg-background shrink-0">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[#2C3B2F] bg-[#111512]/80 backdrop-blur-md shrink-0">
+            <div className="flex items-center gap-4">
               {!showSidebar && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="hidden md:flex h-8 w-8 text-muted-foreground hover:text-foreground"
+                  className="hidden md:flex h-8 w-8 text-stone-400 hover:text-stone-200 hover:bg-[#1A221C]"
                   onClick={() => setShowSidebar(true)}
                   title="Show sidebar"
                 >
                   <PanelLeftOpenIcon className="h-4 w-4" />
                 </Button>
               )}
-              <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
-                <SparklesIcon className="size-5 text-primary" />
+              <div className="flex size-10 items-center justify-center rounded-xl bg-amber-900/20 border border-amber-500/20 shadow-[0_0_15px_rgba(217,119,6,0.15)]">
+                <SparklesIcon className="size-5 text-amber-500/80" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold">The Griot</h1>
-                <p className="text-xs text-muted-foreground">
-                  Your family&apos;s AI knowledge keeper
+                <h1 className="text-2xl font-bold font-serif text-amber-50 tracking-wide">The Griot</h1>
+                <p className="text-xs text-stone-400 font-serif italic mt-0.5">
+                  Your family's AI knowledge keeper
                 </p>
               </div>
             </div>
@@ -516,7 +518,7 @@ export default function GriotPage() {
               variant="outline"
               size="sm"
               onClick={handleNewConversation}
-              className="gap-1.5 text-sm h-8"
+              className="gap-2 text-sm h-9 bg-transparent border-[#3D5240] text-stone-300 hover:bg-[#1A221C] hover:text-stone-100 rounded-full px-4"
             >
               <PlusIcon className="size-4" />
               New
@@ -525,24 +527,24 @@ export default function GriotPage() {
 
           {/* Messages / empty state */}
           <div
-            className="flex-1 min-h-0 overflow-y-auto"
+            className="flex-1 min-h-0 overflow-y-auto scroll-smooth"
             ref={scrollRef}
           >
             {isEmpty && !isLoading ? (
               /* ---- Empty state ---- */
-              <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                <div className="max-w-lg">
-                  <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20 mx-auto mb-6">
-                    <SparklesIcon className="size-8 text-primary" />
+              <div className="flex flex-col items-center justify-center h-full text-center px-6">
+                <div className="max-w-xl w-full">
+                  <div className="flex size-24 items-center justify-center rounded-full bg-amber-900/20 border border-amber-500/20 mx-auto mb-8 shadow-[0_0_30px_rgba(217,119,6,0.1)]">
+                    <SparklesIcon className="size-10 text-amber-500/80" />
                   </div>
-                  <h2 className="text-2xl font-bold mb-2">Ask the Griot</h2>
-                  <p className="text-muted-foreground text-sm mb-8 leading-relaxed max-w-md mx-auto">
-                    Your family&apos;s AI knowledge keeper. Ask anything —
+                  <h2 className="text-4xl font-bold mb-4 font-serif text-amber-50 tracking-tight">Ask the Griot</h2>
+                  <p className="text-stone-400 text-lg mb-12 leading-relaxed max-w-md mx-auto font-serif italic">
+                    Your family's AI knowledge keeper. Ask anything —
                     stories, recipes, skills, traditions — and the Griot will
-                    search your family&apos;s documented wisdom.
+                    search your family's documented wisdom.
                   </p>
-                  <div className="grid gap-2 max-w-sm mx-auto">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest mb-1">
+                  <div className="grid gap-3 max-w-md mx-auto">
+                    <p className="text-xs font-semibold text-stone-500 uppercase tracking-widest mb-2">
                       Try asking
                     </p>
                     {[
@@ -556,9 +558,9 @@ export default function GriotPage() {
                           setInput(suggestion);
                           textareaRef.current?.focus();
                         }}
-                        className="text-left text-sm px-4 py-2.5 rounded-xl bg-muted hover:bg-accent border border-border text-foreground transition-colors"
+                        className="text-left text-base px-6 py-4 rounded-2xl bg-[#1A221C]/60 hover:bg-[#232F26] border border-[#2C3B2F] text-stone-300 transition-all shadow-sm font-serif italic hover:shadow-md hover:-translate-y-0.5"
                       >
-                        {suggestion}
+                        "{suggestion}"
                       </button>
                     ))}
                   </div>
@@ -566,7 +568,7 @@ export default function GriotPage() {
               </div>
             ) : (
               /* ---- Messages ---- */
-              <div className="max-w-2xl mx-auto px-4 py-6 space-y-1">
+              <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-8">
                 {messages.map((message) => (
                   <ChatMessage
                     key={message.id}
@@ -583,15 +585,15 @@ export default function GriotPage() {
                 ))}
                 {isLoading && (
                   <div className="flex justify-start mb-4">
-                    <div className="max-w-[80%] space-y-2">
-                      <span className="text-xs font-medium text-muted-foreground ml-1">
-                        Griot
+                    <div className="max-w-[85%] space-y-2">
+                      <span className="text-xs font-serif font-medium text-stone-500 ml-2 uppercase tracking-wider">
+                        The Griot is thinking...
                       </span>
-                      <div className="rounded-2xl rounded-bl-md bg-muted px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <span className="size-1.5 rounded-full bg-primary animate-bounce [animation-delay:0ms]" />
-                          <span className="size-1.5 rounded-full bg-primary animate-bounce [animation-delay:150ms]" />
-                          <span className="size-1.5 rounded-full bg-primary animate-bounce [animation-delay:300ms]" />
+                      <div className="rounded-2xl rounded-bl-sm bg-[#1A221C] border border-[#2C3B2F] px-6 py-4 shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="size-2 rounded-full bg-amber-600/60 animate-bounce [animation-delay:0ms]" />
+                          <span className="size-2 rounded-full bg-amber-600/60 animate-bounce [animation-delay:150ms]" />
+                          <span className="size-2 rounded-full bg-amber-600/60 animate-bounce [animation-delay:300ms]" />
                         </div>
                       </div>
                     </div>
@@ -602,31 +604,29 @@ export default function GriotPage() {
           </div>
 
           {/* Input area */}
-          <div className="shrink-0 px-4 pb-4 pt-2 border-t bg-background">
-            <div className="max-w-2xl mx-auto">
-              <Card className="flex items-end gap-2 p-2.5">
+          <div className="shrink-0 px-4 sm:px-6 pb-6 pt-4 border-t border-[#2C3B2F] bg-gradient-to-t from-[#111512] via-[#111512] to-transparent relative z-20">
+            <div className="max-w-3xl mx-auto">
+              <Card className="flex items-end gap-2 p-1.5 bg-[#1A221C]/90 border border-[#3D5240] rounded-3xl shadow-xl backdrop-blur-md transition-all focus-within:ring-1 focus-within:ring-amber-500/50 focus-within:border-amber-500/50">
                 <Textarea
                   ref={textareaRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ask the Griot about your family's knowledge..."
-                  className="min-h-[40px] max-h-[120px] resize-none border-0 shadow-none focus-visible:ring-0 bg-transparent p-2 text-sm"
+                  className="min-h-[52px] max-h-[160px] resize-none border-0 shadow-none focus-visible:ring-0 bg-transparent px-5 py-4 text-lg text-stone-100 placeholder:text-stone-500 placeholder:font-serif placeholder:italic font-serif leading-relaxed"
                   rows={1}
                 />
                 <Button
                   size="icon"
                   onClick={handleSend}
                   disabled={!input.trim() || isLoading || isStreaming}
-                  className="shrink-0 size-8 rounded-lg"
+                  className="shrink-0 size-11 rounded-full bg-amber-700 hover:bg-amber-600 text-white m-1.5 shadow-md border-b-2 border-amber-900/50 disabled:opacity-50 disabled:bg-stone-700 disabled:border-stone-800 disabled:text-stone-400 transition-all"
                 >
-                  <SendHorizontalIcon className="size-4" />
+                  <SendHorizontalIcon className="size-5 ml-0.5" />
                 </Button>
               </Card>
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                The Griot draws from your family&apos;s documented entries to
-                answer questions. Responses are AI-generated and may not be
-                perfectly accurate — always verify important details with family members.
+              <p className="text-xs text-stone-500 text-center mt-4 font-serif italic px-4">
+                The Griot draws from your documented entries to answer questions. Responses are AI-generated — verify important details with family.
               </p>
             </div>
           </div>

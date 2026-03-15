@@ -153,63 +153,83 @@ export function EntryCard({
   const summary = getSummary(type, structured_data, content);
   const router = useRouter();
 
+  // Generate a pseudo-random brand color for the fallback cover
+  const colors = [
+    "bg-[#2C4835] text-white", // Forest Green
+    "bg-[#8B4513] text-white", // Terracotta
+    "bg-amber-700 text-white", // Warm Amber
+    "bg-stone-800 text-white"  // Slate/Charcoal
+  ];
+  const colorIndex = title.length % colors.length;
+  const coverColor = colors[colorIndex];
+
   return (
-    <Link href={`/entries/${id}`} className="group block">
-      <Card className="h-full transition-shadow hover:shadow-md">
-        <CardHeader className="pb-0">
-          <div className="flex items-start justify-between gap-2">
-            <CardTitle className="text-base leading-snug group-hover:text-primary/80 transition-colors">
-              {title}
-            </CardTitle>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  router.push(`/entries/${id}/edit`);
-                }}
-                className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors opacity-0 group-hover:opacity-100"
-                aria-label={`Edit ${title}`}
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-              <Badge
-                variant="secondary"
-                className={`text-xs ${config.color}`}
-              >
-                {config.emoji} {config.label}
-              </Badge>
-            </div>
+    <Link href={`/entries/${id}`} className="group flex flex-col sm:flex-row gap-6 border-b border-border/60 pb-8 mb-8 last:border-0 last:mb-0 transition-all hover:bg-muted/30 p-4 -mx-4 rounded-xl">
+      
+      {/* Fallback Cover */}
+      <div className={`w-full sm:w-56 h-48 sm:h-auto rounded-xl flex items-center justify-center p-6 text-center shrink-0 shadow-sm ${coverColor} relative overflow-hidden`}>
+        {/* Subtle noise/texture overlay for premium feel */}
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.05] mix-blend-multiply pointer-events-none" />
+        <h3 className="font-serif font-bold text-xl sm:text-2xl leading-tight opacity-95 line-clamp-4 relative z-10 w-full break-words">
+          {title}
+        </h3>
+      </div>
+
+      {/* Content */}
+      <div className="flex flex-col flex-1 py-1 min-w-0">
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <h2 className="text-2xl font-bold font-serif leading-snug group-hover:text-primary transition-colors line-clamp-2">
+            {title}
+          </h2>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                router.push(`/entries/${id}/edit`);
+              }}
+              className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors opacity-0 group-hover:opacity-100"
+              aria-label={`Edit ${title}`}
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+            <Badge variant="secondary" className={`text-xs px-2.5 py-0.5 rounded-full ${config.color}`}>
+              {config.emoji} {config.label}
+            </Badge>
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent className="pt-0">
-          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
-            {summary}
-          </p>
-        </CardContent>
+        <p className="text-base text-muted-foreground leading-relaxed line-clamp-3 mb-6 pr-4">
+          {summary}
+        </p>
 
-        <CardFooter className="flex flex-col items-start gap-3 pt-0">
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {tags.map((tag) => (
+        <div className="mt-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {tags.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {tags.slice(0, 3).map((tag) => (
                 <Badge
                   key={tag}
                   variant="outline"
-                  className="text-[11px] px-1.5 py-0"
+                  className="text-[11px] px-2 py-0.5 rounded-full bg-background"
                 >
                   {tag}
                 </Badge>
               ))}
+              {tags.length > 3 && (
+                <span className="text-xs text-muted-foreground self-center">+{tags.length - 3} more</span>
+              )}
             </div>
+          ) : (
+            <div />
           )}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground w-full">
-            <span className="font-medium">{authorName}</span>
-            <span aria-hidden="true">&middot;</span>
-            <span>{formatDate(date)}</span>
+          
+          <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider font-semibold shrink-0">
+            <span className="truncate max-w-[120px]">{authorName}</span>
+            <span aria-hidden="true" className="text-muted-foreground/40">&bull;</span>
+            <span className="whitespace-nowrap">{formatDate(date)}</span>
           </div>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </Link>
   );
 }

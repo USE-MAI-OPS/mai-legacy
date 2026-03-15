@@ -32,6 +32,12 @@ interface LessonFormProps {
   }) => Promise<void>;
   saving?: boolean;
   familyId?: string;
+  mode?: "create" | "edit";
+  cancelHref?: string;
+  initialTitle?: string;
+  initialTags?: string[];
+  initialImages?: string[];
+  initialData?: Partial<LessonData>;
 }
 
 // ---------------------------------------------------------------------------
@@ -80,17 +86,17 @@ function flattenLessonToContent(
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
-export default function LessonForm({ onSubmit, saving = false, familyId }: LessonFormProps) {
+export default function LessonForm({ onSubmit, saving = false, familyId, mode = "create", cancelHref = "/entries", initialTitle, initialTags, initialImages, initialData }: LessonFormProps) {
   // State
-  const [title, setTitle] = useState("");
-  const [taughtBy, setTaughtBy] = useState("");
-  const [whenLearned, setWhenLearned] = useState("");
-  const [context, setContext] = useState("");
-  const [lessonText, setLessonText] = useState("");
-  const [takeaways, setTakeaways] = useState<string[]>([""]);
+  const [title, setTitle] = useState(initialTitle ?? "");
+  const [taughtBy, setTaughtBy] = useState(initialData?.taught_by ?? "");
+  const [whenLearned, setWhenLearned] = useState(initialData?.when_learned ?? "");
+  const [context, setContext] = useState(initialData?.context ?? "");
+  const [lessonText, setLessonText] = useState(initialData?.lesson_text ?? "");
+  const [takeaways, setTakeaways] = useState<string[]>(initialData?.key_takeaways ?? [""]);
   const [tagInput, setTagInput] = useState("");
-  const [tags, setTags] = useState<string[]>([]);
-  const [images, setImages] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>(initialTags ?? []);
+  const [images, setImages] = useState<string[]>(initialImages ?? []);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // ---------------------------------------------------------------------------
@@ -187,10 +193,9 @@ export default function LessonForm({ onSubmit, saving = false, familyId }: Lesso
             <GraduationCap className="size-6" />
           </div>
           <div>
-            <CardTitle className="font-serif text-3xl text-primary">New Lesson</CardTitle>
+            <CardTitle className="font-serif text-3xl text-primary">{mode === "edit" ? "Edit Lesson" : "New Lesson"}</CardTitle>
             <CardDescription className="text-base">
-              Capture hard-earned wisdom so your family never has to learn it the
-              hard way again.
+              {mode === "edit" ? "Update this lesson's details." : "Capture hard-earned wisdom so your family never has to learn it the hard way again."}
             </CardDescription>
           </div>
         </div>
@@ -378,11 +383,11 @@ export default function LessonForm({ onSubmit, saving = false, familyId }: Lesso
 
       <CardFooter className="flex justify-end gap-4 p-6 bg-muted/10 rounded-b-2xl border-t border-border/50">
         <Button variant="ghost" size="lg" className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5" asChild>
-          <Link href="/entries">Cancel</Link>
+          <Link href={cancelHref}>Cancel</Link>
         </Button>
         <Button size="lg" className="rounded-xl px-8 shadow-md" onClick={handleSubmit} disabled={saving}>
           {saving && <Loader2 className="size-5 mr-2 animate-spin" />}
-          Save Lesson
+          {mode === "edit" ? "Save Changes" : "Save Lesson"}
         </Button>
       </CardFooter>
     </Card>

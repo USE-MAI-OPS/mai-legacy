@@ -11,6 +11,8 @@ import {
   History,
   Upload,
   TreePine,
+  CalendarDays,
+  Heart,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,16 +20,19 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { getFamilyContext } from "@/lib/get-family-context";
-import { TraditionsSection } from "@/components/traditions-section";
-import { LegacyBoard } from "@/components/legacy-board";
+import { LegacyCarousel } from "@/components/legacy-carousel";
+import { GriotWidget } from "@/components/griot-widget";
 
 // ---------------------------------------------------------------------------
 // Mock fallback data
 // ---------------------------------------------------------------------------
 const MOCK_STATS = [
-  { label: "Total Entries", value: 24, icon: BookOpen, href: "/entries" },
+  { label: "Family Members", value: 5, icon: Users, href: "/family/settings" },
   { label: "Griot Chats", value: 8, icon: MessageCircle, href: "/griot" },
-  { label: "Members", value: 5, icon: Users, href: "/family/settings" },
+  { label: "Entries", value: 24, icon: BookOpen, href: "/entries" },
+  { label: "Traditions", value: 3, icon: Heart, href: "/family" },
+  { label: "Goals", value: 2, icon: Target, href: "/goals" },
+  { label: "Events", value: 4, icon: CalendarDays, href: "/family" },
 ];
 
 const MOCK_RECENT_ENTRIES = [
@@ -68,31 +73,6 @@ const MOCK_FAMILY_MEMBERS = [
   { name: "Ray Powell", initials: "RP", role: "member" },
   { name: "Lisa Powell", initials: "LP", role: "member" },
 ];
-
-const MOCK_TRADITIONS = [
-  {
-    id: "1",
-    name: "Sunday Family Dinner",
-    frequency: "weekly",
-    description: "Everyone gathers at Grandma's house for a big family meal.",
-    created_by: "",
-  },
-  {
-    id: "2",
-    name: "Annual Family Reunion",
-    frequency: "annual",
-    description: "Third Saturday of July — potluck, games, and storytelling.",
-    created_by: "",
-  },
-  {
-    id: "3",
-    name: "Christmas Eve Stories",
-    frequency: "annual",
-    description: "Elders share family stories by the fireplace on Christmas Eve.",
-    created_by: "",
-  },
-];
-
 
 const typeColors: Record<string, string> = {
   story: "bg-blue-100 text-blue-800",
@@ -157,16 +137,22 @@ async function getDashboardData() {
       entriesCount,
       griotCount,
       membersCount,
+      eventsCount,
+      traditionsCount,
       recentEntriesResult,
       familyMembersResult,
       familyResult,
-      traditionsResult,
       entryTypesResult,
       goalsResult,
+      carouselRecipes,
+      carouselStories,
+      carouselSkills,
     ] = await Promise.all([
       sb.from("entries").select("id", { count: "exact", head: true }).eq("family_id", familyId).in("author_id", connectedUserIds),
       sb.from("griot_conversations").select("id", { count: "exact", head: true }).eq("family_id", familyId),
       sb.from("family_members").select("id", { count: "exact", head: true }).eq("family_id", familyId).in("user_id", connectedUserIds),
+      sb.from("family_events").select("id", { count: "exact", head: true }).eq("family_id", familyId),
+      sb.from("family_traditions").select("id", { count: "exact", head: true }).eq("family_id", familyId),
       sb
         .from("entries")
         .select("id, title, type, created_at, author_id")
@@ -175,17 +161,11 @@ async function getDashboardData() {
         .order("created_at", { ascending: false })
         .limit(4),
       sb
-        .from("family_members")
-        .select("display_name, role, user_id")
-        .eq("family_id", familyId)
-        .in("user_id", connectedUserIds)
-        .order("joined_at", { ascending: true }),
-      sb.from("families").select("name").eq("id", familyId).single(),
-      sb
-        .from("family_traditions")
-        .select("*")
+        .from("family_tree_members")
+        .select("id, display_name, relationship_label, avatar_url")
         .eq("family_id", familyId)
         .order("created_at", { ascending: true }),
+      sb.from("families").select("name").eq("id", familyId).single(),
       sb
         .from("entries")
         .select("type, author_id")
@@ -198,6 +178,31 @@ async function getDashboardData() {
         .eq("status", "active")
         .order("created_at", { ascending: false })
         .limit(3),
+      // Carousel: fetch recent entries by type with content + structured_data for images
+      sb
+        .from("entries")
+        .select("id, title, content, structured_data")
+        .eq("family_id", familyId)
+        .eq("type", "recipe")
+        .in("author_id", connectedUserIds)
+        .order("created_at", { ascending: false })
+        .limit(10),
+      sb
+        .from("entries")
+        .select("id, title, content, structured_data")
+        .eq("family_id", familyId)
+        .eq("type", "story")
+        .in("author_id", connectedUserIds)
+        .order("created_at", { ascending: false })
+        .limit(10),
+      sb
+        .from("entries")
+        .select("id, title, content, structured_data")
+        .eq("family_id", familyId)
+        .eq("type", "skill")
+        .in("author_id", connectedUserIds)
+        .order("created_at", { ascending: false })
+        .limit(10),
     ]);
 
     // Build author name map from connected family members
@@ -240,6 +245,23 @@ async function getDashboardData() {
       }
     }
 
+    // Build carousel entries — extract first image from structured_data
+    function toCarouselEntries(
+      rawEntries: Array<{
+        id: string;
+        title: string;
+        content: string;
+        structured_data?: { data?: { images?: string[] } } | null;
+      }>
+    ) {
+      return (rawEntries ?? []).map((e) => ({
+        id: e.id,
+        title: e.title,
+        content: e.content?.slice(0, 200) ?? "",
+        image: e.structured_data?.data?.images?.[0] ?? null,
+      }));
+    }
+
     return {
       userId,
       displayName,
@@ -248,10 +270,11 @@ async function getDashboardData() {
         entries: entriesCount.count ?? 0,
         griotChats: griotCount.count ?? 0,
         members: membersCount.count ?? 0,
+        events: eventsCount.count ?? 0,
+        traditions: traditionsCount.count ?? 0,
       },
       recentEntries: recentEntriesResult.data ?? [],
-      familyMembers: familyMembersResult.data ?? [],
-      traditions: traditionsResult.data ?? [],
+      treeMembers: familyMembersResult.data ?? [],
       goals: goalsResult.data ?? [],
       authorNameMap,
       entryTypeCounts: {
@@ -261,6 +284,11 @@ async function getDashboardData() {
         lesson: typeCounts["lesson"] ?? 0,
       },
       topContributor,
+      carousel: {
+        recipes: toCarouselEntries(carouselRecipes.data ?? []),
+        stories: toCarouselEntries(carouselStories.data ?? []),
+        skills: toCarouselEntries(carouselSkills.data ?? []),
+      },
     };
   } catch (err) {
     console.error("Dashboard data fetch failed:", err);
@@ -274,12 +302,15 @@ async function getDashboardData() {
 export default async function DashboardPage() {
   const data = await getDashboardData();
 
-  // Resolve stats
+  // Resolve 6 stats
   const stats = data
     ? [
-        { label: "Total Entries", value: data.stats.entries, icon: BookOpen, href: "/entries" },
+        { label: "Family Members", value: data.stats.members, icon: Users, href: "/family/settings" },
         { label: "Griot Chats", value: data.stats.griotChats, icon: MessageCircle, href: "/griot" },
-        { label: "Members", value: data.stats.members, icon: Users, href: "/family/settings" },
+        { label: "Entries", value: data.stats.entries, icon: BookOpen, href: "/entries" },
+        { label: "Traditions", value: data.stats.traditions, icon: Heart, href: "/family" },
+        { label: "Goals", value: (data.goals ?? []).length, icon: Target, href: "/goals" },
+        { label: "Events", value: data.stats.events, icon: CalendarDays, href: "/family" },
       ]
     : MOCK_STATS;
 
@@ -302,15 +333,29 @@ export default async function DashboardPage() {
       )
     : MOCK_RECENT_ENTRIES;
 
-  // Resolve family members
+  // Resolve tree members sorted by relationship priority
+  const RELATIONSHIP_ORDER: Record<string, number> = {
+    Mother: 1, Father: 2,
+    Brother: 3, Sister: 3,
+    Son: 4, Daughter: 4,
+    Grandmother: 5, Grandfather: 5,
+    Aunt: 6, Uncle: 6,
+    Cousin: 7,
+    Niece: 8, Nephew: 8,
+    Spouse: 9, Partner: 9,
+    Grandson: 10, Granddaughter: 10,
+    Other: 11,
+  };
+
   const familyMembers = data
-    ? data.familyMembers.map(
-        (m: { display_name: string; role: string }) => ({
+    ? (data.treeMembers as Array<{ id: string; display_name: string; relationship_label: string | null; avatar_url: string | null }>)
+        .map((m) => ({
           name: m.display_name,
           initials: getInitials(m.display_name),
-          role: m.role,
-        })
-      )
+          role: m.relationship_label ?? "",
+          sortOrder: RELATIONSHIP_ORDER[m.relationship_label ?? ""] ?? 99,
+        }))
+        .sort((a, b) => a.sortOrder - b.sortOrder)
     : MOCK_FAMILY_MEMBERS;
 
   // Resolve welcome name
@@ -323,96 +368,112 @@ export default async function DashboardPage() {
   // render as "The The Powells Legacy Board" when the stored name is "The Powells".
   const familyName = rawFamilyName.replace(/^The\s+/i, "");
 
-  // Resolve traditions
-  const traditions = data
-    ? data.traditions.map(
-        (t: {
-          id: string;
-          name: string;
-          description: string;
-          frequency: string;
-          created_by: string;
-        }) => ({
-          id: t.id,
-          name: t.name,
-          description: t.description ?? "",
-          frequency: t.frequency ?? "annual",
-          created_by: t.created_by,
-        })
-      )
-    : MOCK_TRADITIONS;
-
   const userId = data?.userId;
-
-  // Resolve goals (real data only, no mock fallback)
   const goals = data?.goals ?? [];
 
-  // Legacy board data
-  const legacyBoardStats = data
-    ? {
-        totalEntries: data.stats.entries,
-        totalMembers: data.stats.members,
-        totalRecipes: data.entryTypeCounts.recipe,
-        totalStories: data.entryTypeCounts.story,
-        totalSkills: data.entryTypeCounts.skill,
-        totalLessons: data.entryTypeCounts.lesson,
-      }
-    : {
-        totalEntries: 24,
-        totalMembers: 5,
-        totalRecipes: 8,
-        totalStories: 6,
-        totalSkills: 5,
-        totalLessons: 3,
-      };
-
-  const legacyBoardActivity = recentEntries.map(
-    (e: { id: string; title: string; type: string; date: string }) => ({
-      id: e.id,
-      title: e.title,
-      type: e.type,
-      date: e.date,
-    })
-  );
+  // Carousel data
+  const carouselData = data?.carousel ?? { recipes: [], stories: [], skills: [] };
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between" data-tour-step="dashboard-welcome">
-        <div>
-          <h1 className="text-3xl font-bold">Welcome back, {welcomeName}</h1>
-          <p className="text-muted-foreground mt-1">
-            The {familyName} knowledge base is growing.
-          </p>
+      {/* Compact Hero */}
+      <div className="relative rounded-2xl overflow-hidden mb-6 shadow-sm border" data-tour-step="dashboard-welcome">
+        <div className="absolute inset-0">
+          <img
+            src="https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=2070&auto=format&fit=crop"
+            alt="Family gathered"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-black/40 mix-blend-multiply" />
         </div>
-        <Button asChild>
-          <Link href="/entries/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Entry
-          </Link>
-        </Button>
+
+        <div className="relative z-10 p-6 md:p-10 min-h-[220px] md:min-h-[380px] flex items-end">
+          <div className="bg-background/95 backdrop-blur-md p-5 md:p-7 rounded-xl max-w-xl shadow-xl ml-0 md:ml-4 border border-border/50">
+            <h1 className="text-3xl md:text-4xl font-bold font-serif mb-3 text-foreground tracking-tight leading-tight">
+              Welcome back,<br />{welcomeName}.
+            </h1>
+            <p className="text-muted-foreground text-sm md:text-base mb-4 font-serif italic">
+              The {familyName} knowledge base is growing. What will you preserve today?
+            </p>
+            <Button size="lg" className="rounded-full shadow-lg h-11 px-7 font-serif text-sm" asChild>
+              <Link href="/entries/new">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Entry
+              </Link>
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-3 gap-4">
-        {stats.map((stat) => (
-          <Link key={stat.label} href={stat.href}>
-            <Card className="hover:shadow-md transition-shadow cursor-pointer">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-2xl font-bold">{stat.value}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {stat.label}
-                    </p>
+      {/* Goal Statement + 6-Stat Grid */}
+      <section className="grid grid-cols-1 lg:grid-cols-5 rounded-2xl overflow-hidden border bg-orange-50/50 dark:bg-orange-950/20">
+        {/* Left: Personal Family Goal */}
+        <div className="lg:col-span-2 p-10 md:p-14 flex flex-col justify-center lg:border-r border-orange-200/50 dark:border-orange-800/30">
+          <p className="text-sm uppercase tracking-widest text-orange-600 dark:text-orange-400 font-semibold mb-4">
+            Family Goal
+          </p>
+          {goals.length > 0 ? (
+            <>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-foreground leading-tight mb-6">
+                {goals[0].title}
+              </h2>
+              {goals[0].target_count > 0 && (
+                <div className="mb-6">
+                  <div className="w-full bg-orange-200/40 dark:bg-orange-900/30 rounded-full h-2 mb-2">
+                    <div
+                      className="bg-orange-500 h-2 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, Math.round((goals[0].current_count / goals[0].target_count) * 100))}%` }}
+                    />
                   </div>
-                  <stat.icon className="h-8 w-8 text-muted-foreground/50" />
+                  <p className="text-xs text-muted-foreground">
+                    {goals[0].current_count} / {goals[0].target_count} completed
+                  </p>
                 </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
+              )}
+              <Button variant="outline" className="w-fit rounded-full border-orange-300 dark:border-orange-700 hover:bg-orange-100 dark:hover:bg-orange-900/30" asChild>
+                <Link href="/goals">
+                  <Target className="mr-2 h-4 w-4" />
+                  View Goals
+                </Link>
+              </Button>
+            </>
+          ) : (
+            <>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif font-bold text-foreground leading-tight mb-4">
+                Set your family&apos;s first goal.
+              </h2>
+              <p className="text-base text-muted-foreground mb-6 font-serif italic">
+                What does your family want to accomplish together?
+              </p>
+              <Button variant="outline" className="w-fit rounded-full border-orange-300 dark:border-orange-700 hover:bg-orange-100 dark:hover:bg-orange-900/30" asChild>
+                <Link href="/goals">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Set a Goal
+                </Link>
+              </Button>
+            </>
+          )}
+        </div>
+
+        {/* Right: 3x2 Stat Grid */}
+        <div className="lg:col-span-3 grid grid-cols-2 sm:grid-cols-3">
+          {stats.map((stat, i) => (
+            <Link
+              key={stat.label}
+              href={stat.href}
+              className="group flex flex-col items-center justify-center text-center p-6 md:p-8 border-b border-r border-orange-200/30 dark:border-orange-800/20 last:border-r-0 hover:bg-orange-100/40 dark:hover:bg-orange-900/20 transition-colors"
+            >
+              <stat.icon className="h-7 w-7 text-orange-500/70 mb-2 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors" />
+              <p className="text-4xl md:text-5xl font-bold font-serif text-foreground tracking-tighter">
+                {stat.value}
+              </p>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mt-1">
+                {stat.label}
+              </p>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {/* Getting Started — shown when dashboard is empty */}
       {data && data.stats.entries === 0 && (
@@ -481,204 +542,129 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      {/* Legacy Board */}
-      <LegacyBoard
-        stats={legacyBoardStats}
-        recentActivity={legacyBoardActivity}
-        topContributor={data?.topContributor}
+      {/* Legacy Carousel */}
+      <LegacyCarousel
+        recipes={carouselData.recipes}
+        stories={carouselData.stories}
+        skills={carouselData.skills}
         familyName={familyName}
       />
 
-      {/* Family Traditions */}
-      <TraditionsSection traditions={traditions} userId={userId} />
+      {/* Griot Widget */}
+      <GriotWidget />
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      {/* Recent Entries + Family Members — side by side, equal height */}
+      <div className="grid lg:grid-cols-2 gap-6">
         {/* Recent Entries */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Recent Entries</CardTitle>
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/entries">
-                  View all
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {recentEntries.map(
-                (
-                  entry: {
-                    id: string;
-                    title: string;
-                    type: string;
-                    author: string;
-                    date: string;
-                  },
-                  i: number
-                ) => (
-                  <div key={entry.id}>
-                    <Link
-                      href={`/entries/${entry.id}`}
-                      className="flex items-center justify-between py-3 hover:bg-accent/50 rounded-md px-2 -mx-2 transition-colors"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <Badge
-                          variant="secondary"
-                          className={`${typeColors[entry.type] ?? typeColors.general} shrink-0 text-xs`}
-                        >
-                          {entry.type}
-                        </Badge>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {entry.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            by {entry.author}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-xs text-muted-foreground shrink-0 ml-2">
-                        {entry.date}
-                      </span>
-                    </Link>
-                    {i < recentEntries.length - 1 && <Separator />}
-                  </div>
-                )
-              )}
-              {recentEntries.length === 0 && (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  No entries yet. Start preserving your family&apos;s knowledge!
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Family Members + Quick Actions */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Family Members</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {familyMembers.map(
-                (member: { name: string; initials: string; role: string }) => (
-                  <div
-                    key={member.name}
-                    className="flex items-center gap-3"
-                  >
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="text-xs">
-                        {member.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {member.name}
-                      </p>
-                    </div>
-                    {member.role === "admin" && (
-                      <Badge variant="outline" className="text-xs">
-                        Admin
-                      </Badge>
-                    )}
-                  </div>
-                )
-              )}
-              {familyMembers.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center">
-                  No members found.
-                </p>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full mt-2"
-                asChild
-              >
-                <Link href="/family/invite">
-                  <Plus className="mr-2 h-3 w-3" />
-                  Invite Member
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Ask the Griot</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-3">
-                Ask your family&apos;s AI anything about your collective knowledge.
-              </p>
-              <Button className="w-full" asChild>
-                <Link href="/griot">
-                  <MessageCircle className="mr-2 h-4 w-4" />
-                  Start a Conversation
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Family Goals Preview */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-emerald-500" />
-            Family Goals
-          </CardTitle>
-          {goals.length > 0 ? (
+        <Card className="flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Recent Entries</CardTitle>
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/goals">
+              <Link href="/entries">
                 View all
                 <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
-          ) : (
+          </CardHeader>
+          <CardContent className="space-y-1 flex-1">
+            {recentEntries.map(
+              (
+                entry: {
+                  id: string;
+                  title: string;
+                  type: string;
+                  author: string;
+                  date: string;
+                },
+                i: number
+              ) => (
+                <div key={entry.id}>
+                  <Link
+                    href={`/entries/${entry.id}`}
+                    className="flex items-center justify-between py-3 hover:bg-accent/50 rounded-md px-2 -mx-2 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Badge
+                        variant="secondary"
+                        className={`${typeColors[entry.type] ?? typeColors.general} shrink-0 text-xs`}
+                      >
+                        {entry.type}
+                      </Badge>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {entry.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          by {entry.author}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground shrink-0 ml-2">
+                      {entry.date}
+                    </span>
+                  </Link>
+                  {i < recentEntries.length - 1 && <Separator />}
+                </div>
+              )
+            )}
+            {recentEntries.length === 0 && (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No entries yet. Start preserving your family&apos;s knowledge!
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Family Members — 3-column grid */}
+        <Card className="flex flex-col">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Family Members</CardTitle>
             <Button variant="outline" size="sm" asChild>
-              <Link href="/goals">
+              <Link href="/family/invite">
                 <Plus className="mr-1 h-3 w-3" />
-                Set a Goal
+                Invite
               </Link>
             </Button>
-          )}
-        </CardHeader>
-        <CardContent>
-          {goals.length > 0 ? (
-            <div className="grid sm:grid-cols-3 gap-4">
-              {goals.map((goal: { id: string; title: string; current_count: number; target_count: number }) => {
-                const pct = goal.target_count > 0 ? Math.round((goal.current_count / goal.target_count) * 100) : 0;
-                return (
-                  <div key={goal.id} className="space-y-2">
-                    <p className="text-sm font-medium leading-tight">
-                      {goal.title}
-                    </p>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div
-                        className="bg-emerald-500 h-2 rounded-full transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
+          </CardHeader>
+          <CardContent className="flex-1">
+            {familyMembers.length > 0 ? (
+              <div className="grid grid-cols-3 gap-4">
+                {familyMembers.slice(0, 15).map(
+                  (member: { name: string; initials: string; role: string }, idx: number) => (
+                    <div
+                      key={`${member.name}-${idx}`}
+                      className="flex flex-col items-center text-center gap-1.5 py-2"
+                    >
+                      <Avatar className="h-11 w-11">
+                        <AvatarFallback className="text-sm font-medium">
+                          {member.initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="w-full">
+                        <p className="text-xs font-medium truncate">
+                          {member.name.split(" ")[0]}
+                        </p>
+                        {member.role && (
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {member.role}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {goal.current_count} / {goal.target_count} ({pct}%)
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-4">
-              <p className="text-sm text-muted-foreground">
-                No goals yet. Set a family goal to track your legacy-building progress!
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  )
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Users className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  No members yet. Invite your family!
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

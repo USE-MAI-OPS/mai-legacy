@@ -145,9 +145,9 @@ export default function EntriesList({ entries }: EntriesListProps) {
         </Select>
       </div>
 
-      {/* Entries grid */}
+      {/* Entries list */}
       {filteredEntries.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="max-w-4xl mx-auto flex flex-col">
           {filteredEntries.map((entry) => (
             <EntryCard
               key={entry.id}
@@ -205,25 +205,21 @@ export function EntriesPageSkeleton() {
         <Skeleton className="h-10 flex-1 max-w-md" />
         <Skeleton className="h-10 w-[180px]" />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="rounded-xl border p-6 space-y-4">
-            <div className="flex justify-between items-start">
-              <Skeleton className="h-5 w-3/4" />
-              <Skeleton className="h-5 w-16 rounded-full" />
-            </div>
-            <div className="space-y-2">
+      <div className="max-w-4xl mx-auto flex flex-col gap-6">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex flex-col sm:flex-row gap-4 border-b pb-6">
+            <Skeleton className="w-full sm:w-48 h-40 sm:h-32 rounded-lg shrink-0" />
+            <div className="flex flex-col flex-1 space-y-3">
+              <div className="flex justify-between items-start">
+                <Skeleton className="h-6 w-3/4" />
+                <Skeleton className="h-5 w-16 rounded-full shrink-0" />
+              </div>
               <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-2/3" />
-            </div>
-            <div className="flex gap-2">
-              <Skeleton className="h-5 w-12 rounded-full" />
-              <Skeleton className="h-5 w-16 rounded-full" />
-            </div>
-            <div className="flex gap-2 items-center">
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-4 w-5/6" />
+              <div className="mt-auto pt-4 flex items-center gap-2">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-3 w-24" />
+              </div>
             </div>
           </div>
         ))}

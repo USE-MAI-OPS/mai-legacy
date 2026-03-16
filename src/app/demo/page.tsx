@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   BookOpen,
@@ -24,6 +24,7 @@ import {
   BarChart3,
   UserPlus,
   Pencil,
+  Play
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,37 +42,16 @@ const DEMO_STATS = [
 ];
 
 const DEMO_MEMBERS = [
-  {
-    name: "Kobe Powell",
-    initials: "KP",
-    role: "admin",
-    highlight: "Software Engineer",
-    location: "Atlanta, GA",
-    skills: ["Coding", "Woodworking", "Grilling", "Photography"],
-  },
-  {
-    name: "Grandma Rose",
-    initials: "GR",
-    role: "member",
-    highlight: "Retired Teacher",
-    location: "Memphis, TN",
-    skills: ["Cooking", "Gardening", "Sewing", "Quilting"],
-  },
-  {
-    name: "Uncle Ray",
-    initials: "UR",
-    role: "member",
-    highlight: "BBQ Pitmaster",
-    location: "Memphis, TN",
-    skills: ["BBQ", "Smoking Meats", "Guitar", "Fishing"],
-  },
+  { name: "Kobe Powell", initials: "KP", role: "admin", highlight: "Software Engineer", location: "Atlanta, GA", skills: ["Coding", "Woodworking", "Grilling"] },
+  { name: "Grandma Rose", initials: "GR", role: "elder", highlight: "Retired Teacher", location: "Memphis, TN", skills: ["Cooking", "Gardening", "Sewing"] },
+  { name: "Uncle Ray", initials: "UR", role: "member", highlight: "BBQ Pitmaster", location: "Memphis, TN", skills: ["BBQ", "Smoking Meats", "Guitar"] },
 ];
 
 const DEMO_TRADITIONS = [
-  { name: "Sunday Family Dinner", frequency: "Weekly", emoji: "🍽️" },
-  { name: "Annual Family Reunion", frequency: "Annual", emoji: "🎉" },
-  { name: "Christmas Eve Stories", frequency: "Annual", emoji: "📖" },
-  { name: "New Year's Cornbread", frequency: "Annual", emoji: "🌽" },
+  { name: "Sunday Dinner", frequency: "Weekly", emoji: "🍽️" },
+  { name: "Family Reunion", frequency: "Annual", emoji: "🎉" },
+  { name: "Xmas Stories", frequency: "Annual", emoji: "📖" },
+  { name: "NY Cornbread", frequency: "Annual", emoji: "🌽" },
 ];
 
 const DEMO_ENTRIES = [
@@ -79,650 +59,290 @@ const DEMO_ENTRIES = [
   { title: "How Dad Fixed Everything with WD-40", type: "skill", author: "Uncle Ray", date: "Yesterday" },
   { title: "The Summer We Drove to Mississippi", type: "story", author: "Kobe Powell", date: "2 days ago" },
   { title: "Always Finish What You Start", type: "lesson", author: "Grandma Rose", date: "3 days ago" },
-  { title: "Dr. Marcus Thompson — Family Doctor", type: "connection", author: "David Powell", date: "4 days ago" },
-  { title: "Notes from the Family Meeting", type: "general", author: "David Powell", date: "5 days ago" },
 ];
 
 const DEMO_GRIOT_PROMPTS = [
   {
     prompt: "What's Grandma Rose's sweet potato pie recipe?",
-    response:
-      "Based on your family's entries, Grandma Rose's Sweet Potato Pie calls for 3 large sweet potatoes (boiled and mashed), 1 cup sugar, ½ cup butter, 2 eggs, ½ cup milk, 1 tsp vanilla, ½ tsp cinnamon, and ½ tsp nutmeg. She always says the secret is letting the potatoes cool completely before mixing.",
+    response: "Based on your family's entries, Grandma Rose's Sweet Potato Pie calls for 3 large sweet potatoes (boiled and mashed), 1 cup sugar, ½ cup butter, 2 eggs, ½ cup milk, 1 tsp vanilla, ½ tsp cinnamon, and ½ tsp nutmeg. She always says the secret is letting the potatoes cool completely before mixing.",
     sources: ["Grandma Rose's Sweet Potato Pie", "Holiday Cooking Tips"],
   },
   {
     prompt: "What life lessons has the family documented?",
-    response:
-      "Your family has documented several key life lessons. Grandma Rose shared \"Always Finish What You Start\" — a value she learned from her own mother during hard times. Uncle Ray contributed \"Measure Twice, Cut Once\" which applies to both woodworking and life decisions. David Powell added \"Show Up For People\" about the importance of being present at family events.",
-    sources: ["Always Finish What You Start", "Uncle Ray's Workshop Wisdom", "Show Up For People"],
+    response: "Your family has documented several key life lessons. Grandma Rose shared \"Always Finish What You Start\" — a value she learned during hard times. Uncle Ray contributed \"Measure Twice, Cut Once\" which applies to both woodworking and life.",
+    sources: ["Always Finish What You Start", "Uncle Ray's Woodworking"],
   },
-  {
-    prompt: "Tell me about Uncle Ray's BBQ techniques",
-    response:
-      "Uncle Ray's BBQ mastery centers on low-and-slow smoking. His brisket method uses a 12-hour oak wood smoke at 225°F with a homemade dry rub (paprika, brown sugar, garlic powder, black pepper, cayenne). He wraps in butcher paper at the stall, never foil. His secret: he mops with apple cider vinegar every 90 minutes for the first 6 hours.",
-    sources: ["How to Smoke a Brisket", "Uncle Ray's Dry Rub Recipe"],
-  },
-];
-
-const DEMO_GOALS = [
-  { title: "Document 50 Family Recipes", progress: 68, current: 34, target: 50 },
-  { title: "Interview All Elders", progress: 40, current: 2, target: 5 },
-  { title: "Digitize Old Photo Albums", progress: 15, current: 3, target: 20 },
-];
-
-const DEMO_EVENTS = [
-  { title: "Sunday Dinner", date: "This Sunday", location: "Grandma's House", rsvps: 4 },
-  { title: "Family Reunion Planning", date: "Mar 22", location: "Zoom Call", rsvps: 3 },
-  { title: "Annual Family Reunion", date: "Jul 19", location: "Shelby Farms Park", rsvps: 12 },
 ];
 
 const typeColors: Record<string, string> = {
-  story: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
-  skill: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-  recipe: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300",
-  lesson: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
-  connection: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300",
-  general: "bg-gray-100 text-gray-800 dark:bg-gray-800/60 dark:text-gray-300",
+  story: "bg-blue-100 text-blue-800",
+  skill: "bg-green-100 text-green-800",
+  recipe: "bg-orange-100 text-orange-800",
+  lesson: "bg-purple-100 text-purple-800",
+  connection: "bg-pink-100 text-pink-800",
+  general: "bg-gray-100 text-gray-800",
 };
+
+const NAV_SECTIONS = [
+  { id: "dashboard", label: "The Hub", icon: BarChart3 },
+  { id: "family-tree", label: "The Lineage", icon: TreePine },
+  { id: "knowledge-entries", label: "The Archive", icon: BookOpen },
+  { id: "griot", label: "The Oracle", icon: MessageCircle },
+  { id: "import-interview", label: "The Bridge", icon: Mic },
+];
 
 // ---------------------------------------------------------------------------
 // Demo Page
 // ---------------------------------------------------------------------------
 export default function DemoPage() {
-  const [activePrompt, setActivePrompt] = React.useState(0);
-  const [phase, setPhase] = React.useState<"idle" | "fading" | "dots" | "streaming">("idle");
-  const [streamIndex, setStreamIndex] = React.useState(Infinity);
-  const timers = React.useRef<{
-    timeout: ReturnType<typeof setTimeout> | null;
-    interval: ReturnType<typeof setInterval> | null;
-  }>({ timeout: null, interval: null });
+  const [activeSection, setActiveSection] = useState("dashboard");
 
-  const cleanup = React.useCallback(() => {
-    if (timers.current.timeout) clearTimeout(timers.current.timeout);
-    if (timers.current.interval) clearInterval(timers.current.interval);
-    timers.current = { timeout: null, interval: null };
+  // Intersection Observer for sticky nav highlighting
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        });
+      },
+      { rootMargin: "-20% 0px -70% 0px" } // trigger when near top
+    );
+
+    NAV_SECTIONS.forEach(({ id }) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
   }, []);
 
-  React.useEffect(() => cleanup, [cleanup]);
-
-  const handlePromptClick = React.useCallback(
-    (index: number) => {
-      if (index === activePrompt || phase !== "idle") return;
-      cleanup();
-
-      // 1 — Fade out old conversation
-      setPhase("fading");
-
-      timers.current.timeout = setTimeout(() => {
-        // 2 — Switch prompt, show bouncing dots
-        setActivePrompt(index);
-        setStreamIndex(0);
-        setPhase("dots");
-
-        timers.current.timeout = setTimeout(() => {
-          // 3 — Stream the response word-by-word
-          setPhase("streaming");
-          const words = DEMO_GRIOT_PROMPTS[index].response.split(" ");
-          const tickMs = Math.max(20, Math.min(40, 1200 / words.length));
-          let i = 0;
-          timers.current.interval = setInterval(() => {
-            i += 1;
-            setStreamIndex(i);
-            if (i >= words.length) {
-              if (timers.current.interval) clearInterval(timers.current.interval);
-              timers.current.timeout = setTimeout(() => {
-                setStreamIndex(Infinity);
-                setPhase("idle");
-              }, 120);
-            }
-          }, tickMs);
-        }, 800);
-      }, 200);
-    },
-    [activePrompt, phase, cleanup]
-  );
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+      window.scrollTo({
+        top: el.offsetTop - 100,
+        behavior: "smooth"
+      });
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30">
+    <div className="min-h-screen bg-background">
       {/* Nav */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b">
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 max-w-6xl mx-auto">
-          <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-4 w-4" />
-            <span className="text-xl font-bold text-foreground">MAI Legacy</span>
+      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b">
+        <div className="flex items-center justify-between px-6 py-4 max-w-7xl mx-auto">
+          <Link href="/" className="flex items-center gap-3 text-muted-foreground hover:text-foreground transition-colors group">
+            <div className="p-2 rounded-full bg-muted group-hover:bg-primary/10 transition-colors">
+               <ArrowLeft className="h-4 w-4" />
+            </div>
+            <span className="text-xl font-serif font-bold text-foreground">MAI Legacy</span>
           </Link>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Badge variant="secondary" className="gap-1.5 text-xs">
-              <Sparkles className="h-3 w-3" />
-              <span className="hidden sm:inline">Demo Mode</span>
-              <span className="sm:hidden">Demo</span>
+          <div className="flex items-center gap-4">
+            <Badge variant="outline" className="gap-1.5 px-3 py-1 font-medium bg-primary/5 text-primary border-primary/20 hidden sm:flex">
+              <Play className="h-3.5 w-3.5 fill-primary" />
+              Interactive Tour
             </Badge>
-            <Button size="sm" asChild>
+            <Button className="rounded-full px-6 shadow-sm" asChild>
               <Link href="/signup">
-                <span className="hidden sm:inline">Start Your Legacy</span>
-                <span className="sm:hidden">Sign Up</span>
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                Start Your Legacy
               </Link>
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-16">
-        {/* Hero */}
-        <section className="text-center py-10 sm:py-14">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight">
-            See MAI Legacy in Action
-          </h1>
-          <p className="mt-3 sm:mt-4 text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
-            Explore how the Powell family uses MAI Legacy to preserve their
-            stories, recipes, skills, and traditions for future generations.
-          </p>
-        </section>
+      {/* Hero Intro */}
+      <section className="bg-primary hover:bg-primary/95 transition-colors border-b">
+         <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-10 text-primary-foreground">
+            <div className="max-w-2xl">
+               <Badge className="bg-white/20 hover:bg-white/30 text-white border-none mb-6">Interactive Demo</Badge>
+               <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4 drop-shadow-md">
+                 Meet the Powell Family
+               </h1>
+               <p className="text-lg sm:text-xl text-primary-foreground/90 leading-relaxed font-light">
+                 Take a guided tour through Grandma Rose's recipes, Uncle Ray's wisdom, and Kobe's mission to preserve their legacy for the next generation.
+               </p>
+            </div>
+            <div className="hidden md:flex flex-col items-center justify-center p-8 bg-white/10 backdrop-blur-md rounded-3xl border border-white/20 shadow-xl w-72">
+               <Avatar className="h-24 w-24 ring-4 ring-white/30 mb-4 shadow-lg">
+                  <AvatarFallback className="text-2xl font-serif font-bold bg-white text-primary">GR</AvatarFallback>
+               </Avatar>
+               <h3 className="text-xl font-semibold mb-1">Grandma Rose</h3>
+               <p className="text-sm text-primary-foreground/80 font-medium">Matriarch • 24 Entries</p>
+            </div>
+         </div>
+      </section>
 
-        {/* ---- SECTION 1: Dashboard Overview ---- */}
-        <DemoSection
-          id="dashboard"
-          icon={BarChart3}
-          title="Family Dashboard"
-          description="Your family hub — stats, members, traditions, and recent activity at a glance."
-        >
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
-            {DEMO_STATS.map((stat) => (
-              <Card key={stat.label} className="overflow-hidden">
-                <CardContent className="pt-5 pb-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-2xl sm:text-3xl font-bold">{stat.value}</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        {stat.label}
-                      </p>
-                    </div>
-                    <stat.icon className={`h-7 w-7 sm:h-8 sm:w-8 ${stat.color} opacity-60`} />
-                  </div>
-                </CardContent>
-              </Card>
+      {/* Main Layout: Sticky Nav + Content */}
+      <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col lg:flex-row gap-12 lg:gap-20">
+        
+        {/* Left Side: Sticky Tour Navigation */}
+        <div className="hidden lg:block w-72 shrink-0">
+          <nav className="sticky top-32 space-y-1 bg-muted/30 p-2 rounded-2xl border border-border/50">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest px-4 pt-3 pb-2">Tour Stops</p>
+            {NAV_SECTIONS.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => scrollToSection(item.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left rounded-xl transition-all font-medium ${
+                  activeSection === item.id 
+                    ? "bg-background text-primary shadow-sm border border-border/50" 
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                }`}
+              >
+                <item.icon className={`h-4 w-4 ${activeSection === item.id ? "text-primary" : "opacity-70"}`} />
+                {item.label}
+              </button>
             ))}
-          </div>
+          </nav>
+        </div>
 
-          {/* People cards */}
-          <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
-            <Heart className="h-4 w-4 text-primary" />
-            Family Members
-          </h3>
-          <div className="grid sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
-            {DEMO_MEMBERS.map((member) => (
-              <Card key={member.name} className="hover:shadow-md transition-shadow">
-                <CardContent className="pt-5 pb-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Avatar className="h-11 w-11 ring-2 ring-background">
-                      <AvatarFallback className="text-xs font-semibold text-white bg-primary">
-                        {member.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-semibold text-sm truncate">{member.name}</p>
-                        {member.role === "admin" && (
-                          <Badge variant="outline" className="text-[10px] shrink-0">Admin</Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{member.highlight}</p>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <MapPin className="h-2.5 w-2.5" />{member.location}
-                      </p>
-                    </div>
+        {/* Right Side: Tour Content */}
+        <div className="flex-1 space-y-24 md:space-y-32 pb-32">
+          
+          {/* ---- STOP 1: Dashboard ---- */}
+          <SectionContainer id="dashboard" title="The Hub: Family Dashboard" description="A bird's eye view of the family's overall activity, total knowledge collected, and upcoming traditions.">
+            <div className="bg-card rounded-3xl border border-border/60 shadow-sm p-6 sm:p-8">
+               {/* Stats Row */}
+               <div className="grid grid-cols-3 gap-4 mb-8">
+               {DEMO_STATS.map((stat) => (
+                  <div key={stat.label} className="bg-muted/30 rounded-2xl p-5 border border-transparent hover:border-border transition-colors">
+                     <div className="flex items-center justify-between mb-2">
+                        <stat.icon className={`h-5 w-5 ${stat.color} opacity-70`} />
+                     </div>
+                     <p className="text-3xl font-serif font-bold mb-1">{stat.value}</p>
+                     <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
                   </div>
-                  <div className="flex flex-wrap gap-1">
-                    {member.skills.map((skill) => (
-                      <Badge key={skill} variant="secondary" className="text-xs px-1.5 py-0">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Traditions */}
-          <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
-            <CalendarHeart className="h-4 w-4 text-primary" />
-            Family Traditions
-          </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-            {DEMO_TRADITIONS.map((t) => (
-              <Card key={t.name}>
-                <CardContent className="pt-4 pb-3 text-center">
-                  <span className="text-2xl block mb-1">{t.emoji}</span>
-                  <p className="text-sm font-medium leading-tight">{t.name}</p>
-                  <Badge variant="outline" className="text-xs mt-1.5">{t.frequency}</Badge>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </DemoSection>
-
-        {/* ---- SECTION 2: Family Tree ---- */}
-        <DemoSection
-          id="family-tree"
-          icon={TreePine}
-          title="Family Tree"
-          description="Visualize relationships across generations. Add members, spouses, and build your lineage."
-        >
-          <Card>
-            <CardContent className="pt-6 pb-6 overflow-x-auto">
-              <div className="flex flex-col items-center min-w-[500px]">
-                {/* Generation 1 - Grandparents */}
-                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Grandparents</p>
-                <div className="flex items-center gap-3 mb-2">
-                  <TreeNode name="Grandma Rose" label="Grandmother" initials="GR" year="1945" />
-                  <div className="w-6 h-0.5 bg-primary/40" />
-                  <TreeNode name="James Powell" label="Grandfather" initials="JP" year="1943" deceased />
-                </div>
-
-                {/* Connector down */}
-                <div className="w-0.5 h-5 bg-border" />
-                <div className="w-64 h-0.5 bg-border" />
-                <div className="flex gap-64">
-                  <div className="w-0.5 h-5 bg-border" />
-                  <div className="w-0.5 h-5 bg-border" />
-                </div>
-
-                {/* Generation 2 - Parents & Uncle */}
-                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Parents</p>
-                <div className="flex items-start gap-12 sm:gap-20 mb-2">
-                  {/* Dad + Mom */}
-                  <div className="flex items-center gap-3">
-                    <TreeNode name="David Powell" label="Dad" initials="DP" year="1968" />
-                    <div className="w-6 h-0.5 bg-primary/40" />
-                    <TreeNode name="Lisa Powell" label="Mom" initials="LP" year="1970" />
-                  </div>
-                  {/* Uncle Ray + Aunt Carol */}
-                  <div className="flex items-center gap-3">
-                    <TreeNode name="Uncle Ray" label="Uncle" initials="UR" year="1971" />
-                    <div className="w-6 h-0.5 bg-primary/40" />
-                    <TreeNode name="Aunt Carol" label="Aunt" initials="AC" year="1973" />
-                  </div>
-                </div>
-
-                {/* Connectors down */}
-                <div className="flex gap-12 sm:gap-20">
-                  <div className="flex flex-col items-center">
-                    <div className="w-0.5 h-5 bg-border" />
-                    <div className="w-28 h-0.5 bg-border" />
-                    <div className="flex gap-28">
-                      <div className="w-0.5 h-5 bg-border" />
-                      <div className="w-0.5 h-5 bg-border" />
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-center">
-                    <div className="w-0.5 h-5 bg-border" />
-                    <div className="w-28 h-0.5 bg-border" />
-                    <div className="flex gap-28">
-                      <div className="w-0.5 h-5 bg-border" />
-                      <div className="w-0.5 h-5 bg-border" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Generation 3 - Kids */}
-                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider">Children</p>
-                <div className="flex items-start gap-4 sm:gap-8">
-                  <TreeNode name="Kobe Powell" label="Son" initials="KP" year="1995" highlight />
-                  <TreeNode name="Maya Powell" label="Daughter" initials="MP" year="1998" />
-                  <div className="w-4 sm:w-10" />
-                  <TreeNode name="Jaylen Powell" label="Son" initials="JyP" year="2000" />
-                  <TreeNode name="Nia Powell" label="Daughter" initials="NP" year="2003" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </DemoSection>
-
-        {/* ---- SECTION 3: Entries ---- */}
-        <DemoSection
-          id="knowledge-entries"
-          icon={BookOpen}
-          title="Knowledge Entries"
-          description="Document recipes, stories, skills, and lessons — all searchable by the Griot."
-        >
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base">Recent Entries</CardTitle>
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">6 types supported</Badge>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" title="Edit entries">
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-0.5">
-              {DEMO_ENTRIES.map((entry, i) => (
-                <div key={entry.title}>
-                  <div className="flex items-center justify-between py-3 px-2 rounded-md hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Badge variant="secondary" className={`${typeColors[entry.type]} shrink-0 text-xs capitalize`}>
-                        {entry.type}
-                      </Badge>
-                      <div className="min-w-0">
-                        <p className="text-base font-medium truncate">{entry.title}</p>
-                        <p className="text-sm text-muted-foreground">by {entry.author}</p>
-                      </div>
-                    </div>
-                    <span className="text-sm text-muted-foreground shrink-0 ml-2">{entry.date}</span>
-                  </div>
-                  {i < DEMO_ENTRIES.length - 1 && <Separator />}
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </DemoSection>
-
-        {/* ---- SECTION 4: The Griot ---- */}
-        <DemoSection
-          id="griot"
-          icon={MessageCircle}
-          title="The Griot — Your Family's AI"
-          description="Ask the Griot anything and get answers drawn from your family's collective knowledge."
-        >
-          <Card>
-            <CardContent className="pt-6">
-              {/* Conversation */}
-              {(() => {
-                const active = DEMO_GRIOT_PROMPTS[activePrompt];
-                const isFading = phase === "fading";
-                const isDots = phase === "dots";
-                const isStreaming = phase === "streaming";
-                const isIdle = phase === "idle";
-                const words = active.response.split(" ");
-                const visibleText =
-                  streamIndex >= words.length
-                    ? active.response
-                    : words.slice(0, streamIndex).join(" ");
-                const showCursor = isStreaming && streamIndex < words.length;
-                const busy = phase !== "idle";
-
-                return (
-                  <>
-                    <div className="space-y-4 max-w-2xl mx-auto">
-                      {/* User message */}
-                      <div className="flex justify-end">
-                        <div
-                          className="rounded-2xl px-4 py-3 max-w-[85%] bg-primary text-primary-foreground transition-opacity duration-200"
-                          style={{ opacity: isFading ? 0 : 1 }}
-                        >
-                          <p className="text-base leading-relaxed">{active.prompt}</p>
+               ))}
+               </div>
+               
+               {/* Members Grid */}
+               <h3 className="text-lg font-semibold mb-4 border-b pb-2">Active Members</h3>
+               <div className="grid sm:grid-cols-3 gap-6">
+               {DEMO_MEMBERS.map((member) => (
+                  <div key={member.name} className="flex flex-col gap-3">
+                     <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                           <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">{member.initials}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                           <p className="font-semibold text-sm leading-tight">{member.name}</p>
+                           <p className="text-xs text-muted-foreground">{member.role === 'admin' ? 'Admin' : 'Member'}</p>
                         </div>
-                      </div>
+                     </div>
+                     <div className="flex gap-1 flex-wrap">
+                        {member.skills.slice(0,2).map(s => <Badge variant="secondary" className="text-[10px] bg-muted" key={s}>{s}</Badge>)}
+                     </div>
+                  </div>
+               ))}
+               </div>
+            </div>
+          </SectionContainer>
 
-                      {/* Griot response area */}
-                      {isDots ? (
-                        <div className="flex justify-start">
-                          <div className="rounded-2xl px-5 py-3 bg-muted">
-                            <div className="flex items-center gap-1.5 py-0.5">
-                              {[0, 1, 2].map((i) => (
-                                <span
-                                  key={i}
-                                  className="h-2.5 w-2.5 rounded-full bg-muted-foreground/40 animate-bounce"
-                                  style={{
-                                    animationDelay: `${i * 0.15}s`,
-                                    animationDuration: "0.7s",
-                                  }}
-                                />
-                              ))}
-                            </div>
-                          </div>
+          {/* ---- STOP 2: Family Tree ---- */}
+          <SectionContainer id="family-tree" title="The Lineage: Interactive Tree" description="Track the lineage in an elegant, infinite-canvas style view.">
+            <div className="bg-card rounded-3xl border border-border/60 shadow-sm p-8 overflow-hidden relative">
+               <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, black 1px, transparent 0)', backgroundSize: '16px 16px' }} />
+               <div className="relative z-10 flex flex-col items-center">
+                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">First Generation</p>
+                 <div className="flex items-center gap-4 mb-3">
+                   <TreeNode name="James Powell" label="Grandfather" initials="JP" year="1943-2018" deceased />
+                   <div className="w-8 h-px bg-border" />
+                   <TreeNode name="Rose Powell" label="Grandmother" initials="RP" year="1945" highlight />
+                 </div>
+                 <div className="w-px h-8 bg-border border-dashed border-l" />
+                 <div className="w-48 h-px bg-border border-dashed border-t" />
+                 <div className="flex gap-48">
+                   <div className="w-px h-8 bg-border border-dashed border-l" />
+                   <div className="w-px h-8 bg-border border-dashed border-l" />
+                 </div>
+                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4 mt-2">Second Generation</p>
+                 <div className="flex items-start gap-32">
+                   <TreeNode name="David Powell" label="Son" initials="DP" year="1968" />
+                   <TreeNode name="Ray Powell" label="Son" initials="RP" year="1971" />
+                 </div>
+               </div>
+            </div>
+          </SectionContainer>
+
+          {/* ---- STOP 3: Entries ---- */}
+          <SectionContainer id="knowledge-entries" title="The Archive: Knowledge Flow" description="A clean, structured feed of memories, grouped by taxonomy to ensure nothing is lost.">
+            <div className="bg-card rounded-3xl border border-border/60 shadow-sm overflow-hidden">
+               <div className="bg-muted/40 p-4 border-b border-border/60 flex items-center justify-between">
+                  <h3 className="font-medium text-sm">Latest Additions</h3>
+                  <Button variant="outline" size="sm" className="h-8 text-xs">Filter by Type</Button>
+               </div>
+               <div className="divide-y divide-border/40">
+               {DEMO_ENTRIES.map((entry) => (
+                  <div key={entry.title} className="p-5 hover:bg-muted/20 transition-colors flex items-start sm:items-center justify-between gap-4">
+                     <div className="flex items-start sm:items-center gap-4">
+                        <div className={`mt-0.5 sm:mt-0 px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider ${typeColors[entry.type]}`}>
+                           {entry.type}
                         </div>
-                      ) : (
-                        <div
-                          className="flex justify-start transition-opacity duration-200"
-                          style={{ opacity: isFading ? 0 : 1 }}
-                        >
-                          <div className="rounded-2xl px-4 py-3 max-w-[85%] bg-muted">
-                            <p className="text-base leading-relaxed">
-                              {visibleText}
-                              {showCursor && (
-                                <span className="inline-block w-[2px] h-[1.1em] ml-0.5 align-middle bg-foreground/40 animate-pulse" />
-                              )}
-                            </p>
-                            {isIdle && (
-                              <div className="mt-2 pt-2 border-t border-border/30 transition-opacity duration-300">
-                                <p className="text-xs font-medium opacity-70 mb-1">Sources</p>
-                                <div className="flex flex-wrap gap-1">
-                                  {active.sources.map((src) => (
-                                    <Badge key={src} variant="outline" className="text-xs opacity-70">
-                                      {src}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
+                        <div>
+                           <h4 className="font-semibold text-base mb-0.5">{entry.title}</h4>
+                           <p className="text-sm text-muted-foreground">Added by {entry.author}</p>
                         </div>
-                      )}
-                    </div>
-
-                    {/* Example prompts */}
-                    <div className="mt-6 max-w-2xl mx-auto">
-                      <p className="text-sm font-medium text-muted-foreground mb-3">Try asking:</p>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        {DEMO_GRIOT_PROMPTS.map((p, i) => (
-                          <button
-                            key={i}
-                            onClick={() => handlePromptClick(i)}
-                            disabled={busy}
-                            className={`text-left rounded-lg border px-3 py-2 text-sm transition-all ${
-                              activePrompt === i
-                                ? "border-primary bg-primary/5 text-primary font-medium"
-                                : "border-border bg-muted/30 text-muted-foreground hover:border-primary/50 hover:bg-muted/50"
-                            } ${busy ? "opacity-50 cursor-not-allowed" : ""}`}
-                          >
-                            &ldquo;{p.prompt}&rdquo;
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
-
-              <div className="mt-6 flex items-center gap-2 max-w-2xl mx-auto">
-                <div className="flex-1 rounded-full border px-4 py-2.5 text-base text-muted-foreground bg-muted/30">
-                  Ask about your family&apos;s knowledge...
-                </div>
-                <Button size="icon" className="rounded-full shrink-0 h-10 w-10" disabled>
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-              <p className="text-center text-sm text-muted-foreground mt-3">
-                Powered by RAG — the Griot searches your entries to find real answers.
-              </p>
-            </CardContent>
-          </Card>
-        </DemoSection>
-
-        {/* ---- SECTION 5: Import Interview ---- */}
-        <DemoSection
-          id="import-interview"
-          icon={Mic}
-          title="Import Interview"
-          description="Paste a conversation with a family elder and let AI extract entries, stories, and profile updates."
-        >
-          <Card>
-            <CardContent className="pt-6 pb-6">
-              <div className="grid sm:grid-cols-3 gap-4 sm:gap-6">
-                <InterviewStep
-                  step={1}
-                  title="Paste Transcript"
-                  description="Upload or paste a recorded interview conversation with a family member."
-                  icon={Upload}
-                />
-                <InterviewStep
-                  step={2}
-                  title="AI Extracts Entries"
-                  description="Our AI reads the interview and automatically identifies recipes, stories, skills, and more."
-                  icon={Sparkles}
-                />
-                <InterviewStep
-                  step={3}
-                  title="Review & Save"
-                  description="Review extracted entries, edit as needed, and save them to your family's knowledge base."
-                  icon={CheckCircle2}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </DemoSection>
-
-        {/* ---- SECTION 7: Family Events ---- */}
-        <DemoSection
-          id="family-events"
-          icon={Calendar}
-          title="Family Events"
-          description="Track upcoming gatherings, reunions, and celebrations with RSVP tracking."
-        >
-          <div className="grid sm:grid-cols-3 gap-3 sm:gap-4">
-            {DEMO_EVENTS.map((event) => (
-              <Card key={event.title} className="hover:shadow-md transition-shadow">
-                <CardContent className="pt-5 pb-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Calendar className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium text-primary">{event.date}</span>
+                     </div>
+                     <p className="hidden sm:block text-xs font-medium text-muted-foreground">{entry.date}</p>
                   </div>
-                  <p className="text-base font-semibold mb-1">{event.title}</p>
-                  <p className="text-sm text-muted-foreground flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />{event.location}
-                  </p>
-                  <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Users className="h-3.5 w-3.5" />
-                    {event.rsvps} attending
+               ))}
+               </div>
+            </div>
+          </SectionContainer>
+
+          {/* ---- STOP 4: Griot ---- */}
+          <SectionContainer id="griot" title="The Oracle: Meet The Griot" description="The Griot uses RAG to query the family's specific archive. No hallucinations. Only your own stories.">
+            <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-2 sm:p-8 shadow-2xl relative overflow-hidden">
+               {/* Background Glow */}
+               <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-primary/20 rounded-full blur-[80px]" />
+               <GriotDemo />
+            </div>
+          </SectionContainer>
+
+          {/* ---- STOP 5: Import ---- */}
+          <SectionContainer id="import-interview" title="The Bridge: Audio Import" description="Not everyone types well. The Import tool lets you upload an audio transcript of a family elder, and AI extracts the wisdom into structured cards automatically.">
+            <div className="bg-card rounded-3xl border border-border/60 shadow-sm p-8">
+               <div className="grid md:grid-cols-3 gap-8">
+                  <div className="text-center p-4">
+                     <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Upload className="h-5 w-5 text-primary" />
+                     </div>
+                     <h4 className="font-semibold mb-2">1. Paste Transcript</h4>
+                     <p className="text-sm text-muted-foreground">Upload the transcript from a long conversation with Grandma.</p>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </DemoSection>
-
-        {/* ---- SECTION 8: Family Goals ---- */}
-        <DemoSection
-          id="family-goals"
-          icon={Target}
-          title="Family Goals"
-          description="Set shared goals and track your family's progress together."
-        >
-          <div className="grid sm:grid-cols-3 gap-3 sm:gap-4">
-            {DEMO_GOALS.map((goal) => (
-              <Card key={goal.title}>
-                <CardContent className="pt-4 pb-3">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-sm font-semibold">{goal.title}</p>
-                    <span className="text-xs text-muted-foreground">{goal.current}/{goal.target}</span>
+                  <div className="text-center p-4 relative">
+                     <div className="hidden md:block absolute top-10 -left-6 w-12 h-px bg-border border-dashed border-t" />
+                     <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4 ring-4 ring-primary/20">
+                        <Sparkles className="h-5 w-5 text-primary" />
+                     </div>
+                     <h4 className="font-semibold mb-2">2. AI Extracts</h4>
+                     <p className="text-sm text-muted-foreground">The system automatically flags recipes, stories, and life lessons.</p>
+                     <div className="hidden md:block absolute top-10 -right-6 w-12 h-px bg-border border-dashed border-t" />
                   </div>
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all"
-                      style={{ width: `${goal.progress}%` }}
-                    />
+                  <div className="text-center p-4">
+                     <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckCircle2 className="h-5 w-5 text-primary" />
+                     </div>
+                     <h4 className="font-semibold mb-2">3. Approve & Save</h4>
+                     <p className="text-sm text-muted-foreground">Review the extracted cards and save them securely to the archive.</p>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">{goal.progress}% complete</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </DemoSection>
+               </div>
+            </div>
+          </SectionContainer>
 
-        {/* ---- SECTION 9: My Story (Life Resume) ---- */}
-        <DemoSection
-          id="life-resume"
-          icon={Heart}
-          title="My Story — Life Resume"
-          description="Every family member builds a personal life resume — career, places, skills, and milestones."
-        >
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4 mb-5">
-                <Avatar className="h-14 w-14 ring-2 ring-background">
-                  <AvatarFallback className="text-lg font-bold bg-primary text-white">KP</AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="text-lg font-bold">Kobe Powell</h3>
-                  <p className="text-base text-muted-foreground">Admin · Software Engineer</p>
-                </div>
-              </div>
+           {/* Final CTA Strip inside right rail */}
+           <div className="bg-primary text-primary-foreground rounded-3xl p-10 text-center shadow-xl">
+             <h2 className="font-serif text-3xl font-bold mb-4">Your family deserves an archive like this.</h2>
+             <p className="text-primary-foreground/90 mb-8 max-w-md mx-auto">Skip the generic group chats. Build a lasting interactive museum of your family.</p>
+             <Button variant="secondary" size="lg" className="rounded-full shadow-lg h-14 px-8" asChild>
+                <Link href="/signup">Create Your Family Free <ArrowRight className="ml-2 h-4 w-4" /></Link>
+             </Button>
+           </div>
 
-              <div className="grid sm:grid-cols-2 gap-3 sm:gap-4">
-                <StoryItem icon={MapPin} title="Places Lived" items={[
-                  "Atlanta, GA (2020 - Present)",
-                  "Memphis, TN (2010 - 2020)",
-                  "Jackson, MS (1995 - 2010)",
-                ]} />
-                <StoryItem icon={Briefcase} title="Career" items={[
-                  "Software Engineer @ Tech Solutions",
-                  "IT Specialist @ City of Memphis",
-                ]} />
-                <StoryItem icon={Wrench} title="Skills & Hobbies" items={[
-                  "Coding, Woodworking, Grilling",
-                  "Photography, Guitar, Fishing",
-                ]} />
-                <StoryItem icon={Flag} title="Life Milestones" items={[
-                  "First child born (2022)",
-                  "Bought first house (2019)",
-                  "Graduated college (2016)",
-                ]} />
-              </div>
-            </CardContent>
-          </Card>
-        </DemoSection>
-
-        {/* ---- SECTION 10: Onboarding ---- */}
-        <DemoSection
-          id="onboarding"
-          icon={UserPlus}
-          title="Easy Onboarding"
-          description="Get your family started in minutes with a guided setup flow."
-        >
-          <Card>
-            <CardContent className="pt-6 pb-6">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                {[
-                  { step: "1", label: "Create Family", desc: "Name your family" },
-                  { step: "2", label: "Your Profile", desc: "Add your story" },
-                  { step: "3", label: "Invite Members", desc: "Magic link invites" },
-                  { step: "4", label: "Start Adding", desc: "Entries & stories" },
-                ].map((s) => (
-                  <div key={s.step} className="text-center">
-                    <div className="mx-auto h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold mb-2">
-                      {s.step}
-                    </div>
-                    <p className="text-base font-semibold">{s.label}</p>
-                    <p className="text-sm text-muted-foreground mt-0.5">{s.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </DemoSection>
-
-        {/* CTA */}
-        <section className="text-center py-10 sm:py-14">
-          <div className="max-w-2xl mx-auto bg-primary text-primary-foreground rounded-2xl p-8 sm:p-12 shadow-lg">
-            <h2 className="text-2xl sm:text-3xl font-bold">
-              Ready to preserve your legacy?
-            </h2>
-            <p className="mt-3 text-primary-foreground/80 text-base">
-              Create your family in minutes. Document what matters.
-              Let the Griot keep it alive forever.
-            </p>
-            <Button size="lg" variant="secondary" className="mt-6" asChild>
-              <Link href="/signup">
-                Start Your Legacy
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </section>
+        </div>
       </div>
     </div>
   );
@@ -732,111 +352,117 @@ export default function DemoPage() {
 // Helper components
 // ---------------------------------------------------------------------------
 
-function DemoSection({
-  id,
-  icon: Icon,
-  title,
-  description,
-  children,
-}: {
-  id?: string;
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
+function SectionContainer({ id, title, description, children }: { id: string, title: string, description: string, children: React.ReactNode }) {
   return (
-    <section id={id} className="mb-10 sm:mb-14 scroll-mt-20">
-      <div className="mb-4">
-        <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 shrink-0">
-            <Icon className="h-4 w-4 text-primary" />
-          </div>
-          {title}
-        </h2>
-        <p className="text-base text-muted-foreground mt-1 ml-[42px]">{description}</p>
-      </div>
-      {children}
+    <section id={id} className="scroll-mt-32">
+       <div className="mb-8 max-w-lg">
+         <h2 className="font-serif text-3xl md:text-4xl font-bold tracking-tight mb-3 text-foreground">{title}</h2>
+         <p className="text-lg text-muted-foreground leading-relaxed">{description}</p>
+       </div>
+       {children}
     </section>
-  );
+  )
 }
 
-function TreeNode({
-  name,
-  label,
-  initials,
-  year,
-  deceased,
-  highlight,
-}: {
-  name: string;
-  label: string;
-  initials: string;
-  year: string;
-  deceased?: boolean;
-  highlight?: boolean;
-}) {
+function TreeNode({ name, label, initials, year, deceased, highlight }: { name: string, label: string, initials: string, year: string, deceased?: boolean, highlight?: boolean }) {
   return (
-    <div className={`flex flex-col items-center gap-1 ${highlight ? "scale-105" : ""}`}>
-      <Avatar className={`h-11 w-11 sm:h-12 sm:w-12 ${highlight ? "ring-2 ring-primary" : ""} ${deceased ? "opacity-60" : ""}`}>
-        <AvatarFallback className="text-xs font-semibold text-white bg-primary">
-          {initials}
-        </AvatarFallback>
+    <div className={`flex flex-col items-center gap-2 bg-background p-4 rounded-xl border ${highlight ? "border-primary shadow-md scale-105" : "border-border/60 shadow-sm"} ${deceased ? "opacity-75" : ""} transition-transform z-10 relative`}>
+      <Avatar className={`h-12 w-12 ${highlight ? "bg-primary text-white" : ""}`}>
+        <AvatarFallback className={`text-sm font-semibold ${highlight ? "bg-primary text-white" : "bg-muted text-foreground"}`}>{initials}</AvatarFallback>
       </Avatar>
       <div className="text-center">
-        <p className={`text-xs font-medium leading-tight ${deceased ? "text-muted-foreground" : ""}`}>{name}</p>
-        <p className="text-[10px] text-primary font-medium">{label}</p>
-        <p className="text-[10px] text-muted-foreground">
-          b. {year} {deceased && "· deceased"}
-        </p>
+        <p className={`text-sm font-bold ${deceased ? "text-muted-foreground" : "text-foreground"}`}>{name}</p>
+        <p className="text-xs text-primary font-medium mt-0.5">{label}</p>
+        <p className="text-[10px] text-muted-foreground font-mono mt-1">{year}</p>
       </div>
     </div>
-  );
+  )
 }
 
-function InterviewStep({
-  step,
-  title,
-  description,
-  icon: Icon,
-}: {
-  step: number;
-  title: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-}) {
-  return (
-    <div className="text-center sm:text-left">
-      <div className="mx-auto sm:mx-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-        <Icon className="h-5 w-5 text-primary" />
-      </div>
-      <p className="text-xs font-medium text-primary mb-1">Step {step}</p>
-      <p className="text-base font-semibold">{title}</p>
-      <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{description}</p>
-    </div>
-  );
-}
+function GriotDemo() {
+  const [activePrompt, setActivePrompt] = useState(0);
+  const [phase, setPhase] = useState<"idle" | "streaming">("idle");
+  const [streamIndex, setStreamIndex] = useState(Infinity);
+  
+  const prompts = DEMO_GRIOT_PROMPTS;
 
-function StoryItem({
-  icon: Icon,
-  title,
-  items,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  items: string[];
-}) {
+  const handlePrompt = (i: number) => {
+    if (phase !== "idle") return;
+    setActivePrompt(i);
+    setPhase("streaming");
+    setStreamIndex(0);
+
+    const words = prompts[i].response.split(" ");
+    let curr = 0;
+    const interval = setInterval(() => {
+      curr += 1;
+      setStreamIndex(curr);
+      if (curr >= words.length) {
+        clearInterval(interval);
+        setTimeout(() => {
+           setStreamIndex(Infinity);
+           setPhase("idle");
+        }, 100);
+      }
+    }, 40);
+  };
+
+  const active = prompts[activePrompt];
+  const isStreaming = phase === "streaming";
+  const words = active.response.split(" ");
+  const visible = isStreaming && streamIndex < words.length ? words.slice(0, streamIndex).join(" ") : active.response;
+
   return (
-    <div className="rounded-lg border p-3 bg-muted/20">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-sm font-medium text-muted-foreground">{title}</span>
+    <div className="relative z-10 rounded-2xl bg-zinc-900/50 backdrop-blur-md border border-zinc-800 p-6 flex flex-col md:flex-row gap-8 min-h-[400px]">
+      
+      {/* Left side: The Chat */}
+      <div className="flex-1 flex flex-col justify-between">
+         <div className="space-y-6">
+            <div className="flex justify-end">
+               <div className="bg-zinc-800 text-zinc-100 px-4 py-3 rounded-2xl rounded-tr-sm text-sm border border-zinc-700 max-w-[85%] shadow-sm">
+                  {active.prompt}
+               </div>
+            </div>
+            <div className="flex justify-start">
+               <div className="bg-zinc-900 border border-zinc-800 text-zinc-300 px-5 py-4 rounded-2xl rounded-tl-sm text-sm max-w-[95%] shadow-md leading-relaxed">
+                  {visible}
+                  {isStreaming && <span className="inline-block w-1.5 h-3.5 bg-zinc-400 ml-1 animate-pulse align-middle" />}
+                  
+                  {phase === "idle" && (
+                    <div className="mt-4 pt-3 border-t border-zinc-800/80 flex gap-2 flex-wrap">
+                      <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold flex items-center mr-1"><BookOpen className="h-3 w-3 mr-1"/>Sources</span>
+                      {active.sources.map(s => (
+                         <span key={s} className="text-[11px] px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/50">{s}</span>
+                      ))}
+                    </div>
+                  )}
+               </div>
+            </div>
+         </div>
+         <div className="mt-8 border border-zinc-700/50 bg-zinc-800/50 rounded-full px-4 py-3 flex items-center text-zinc-500 text-sm">
+            Ask the Griot a question...
+            <ArrowRight className="h-4 w-4 ml-auto" />
+         </div>
       </div>
-      <ul className="space-y-1">
-        {items.map((item) => (
-          <li key={item} className="text-base">{item}</li>
-        ))}
-      </ul>
+
+      {/* Right side: Interactive Prompts */}
+      <div className="w-full md:w-64 shrink-0 flex flex-col gap-3">
+         <p className="text-[10px] font-bold tracking-widest uppercase text-zinc-500 mb-1 pl-2">Try these queries</p>
+         {prompts.map((p, i) => (
+            <button
+               key={i}
+               onClick={() => handlePrompt(i)}
+               disabled={phase !== "idle"}
+               className={`text-left text-sm px-4 py-3 rounded-xl border transition-all ${
+                  activePrompt === i 
+                     ? "border-zinc-500 bg-zinc-800 text-zinc-100 shadow-md"
+                     : "border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:bg-zinc-800/80 hover:border-zinc-700 hover:text-zinc-200"
+               } ${phase !== "idle" ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+               "{p.prompt}"
+            </button>
+         ))}
+      </div>
     </div>
-  );
+  )
 }

@@ -629,7 +629,7 @@ export default async function DashboardPage() {
           <CardContent className="flex-1">
             {familyMembers.length > 0 ? (
               <div className="grid grid-cols-3 gap-4">
-                {familyMembers.slice(0, 15).map(
+                {familyMembers.slice(0, 9).map(
                   (member: { name: string; initials: string; role: string }, idx: number) => (
                     <div
                       key={`${member.name}-${idx}`}

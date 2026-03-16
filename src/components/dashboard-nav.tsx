@@ -53,6 +53,8 @@ export function DashboardNav() {
   const pathname = usePathname();
   const tour = useTourOptional();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [legacyOpen, setLegacyOpen] = useState(false);
+  const [familyOpen, setFamilyOpen] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo>({
     displayName: "",
     initials: "",
@@ -198,7 +200,7 @@ export function DashboardNav() {
             <DropdownMenuTrigger
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-base font-medium transition-colors outline-none whitespace-nowrap font-serif",
-                pathname.startsWith("/family")
+                pathname.startsWith("/family") || pathname.startsWith("/goals")
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
@@ -212,23 +214,13 @@ export function DashboardNav() {
               <DropdownMenuItem asChild>
                 <Link href="/family/tree" className="w-full cursor-pointer">Family Tree</Link>
               </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/goals" className="w-full cursor-pointer">Family Goals</Link>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Family Goals */}
-          <Link
-            href="/goals"
-            className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-md text-base font-medium transition-colors whitespace-nowrap font-serif",
-              pathname.startsWith("/goals")
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            )}
-          >
-            Family Goals
-          </Link>
-
-          {/* The Griot CTA */}
+          {/* The Griot */}
           <Link
             href="/griot"
             data-tour-step="nav-griot"
@@ -360,59 +352,73 @@ export function DashboardNav() {
             </Link>
 
             <Separator className="my-2" />
-            
-            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider font-serif">
-              Our Legacy
-            </div>
-            <Link href="/entries" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-              <BookOpen className="h-4 w-4" /> All Entries
-            </Link>
-            <Link href="/entries?type=recipe" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-              &bull; Recipes
-            </Link>
-            <Link href="/entries?type=skill" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-              &bull; Skills
-            </Link>
-            <Link href="/entries?type=story" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-              &bull; Stories
-            </Link>
-            <Link href="/entries?type=tradition" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-              &bull; Traditions
-            </Link>
 
-            <Separator className="my-2" />
-
-            <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider font-serif">
-              Our Family
-            </div>
-            <Link href="/family" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-              <Users className="h-4 w-4" /> Family Hub
-            </Link>
-            <Link href="/family/tree" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-              &bull; Family Tree
-            </Link>
-
-            <Separator className="my-2" />
-
-            <Link
-              href="/goals"
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors font-serif",
-                pathname.startsWith("/goals")
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
+            {/* Our Legacy — collapsible */}
+            <button
+              onClick={() => setLegacyOpen(!legacyOpen)}
+              className="flex items-center justify-between w-full px-3 py-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider font-serif hover:text-foreground transition-colors"
             >
-              <Target className="h-4 w-4" /> Family Goals
-            </Link>
+              <span className="flex items-center gap-3">
+                <BookOpen className="h-4 w-4" />
+                Our Legacy
+              </span>
+              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", legacyOpen && "rotate-180")} />
+            </button>
+            {legacyOpen && (
+              <div className="ml-4 space-y-0.5">
+                <Link href="/entries" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  All Entries
+                </Link>
+                <Link href="/entries?type=recipe" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  Recipes
+                </Link>
+                <Link href="/entries?type=skill" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  Skills
+                </Link>
+                <Link href="/entries?type=story" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  Stories
+                </Link>
+                <Link href="/entries?type=tradition" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  Traditions
+                </Link>
+              </div>
+            )}
+
+            <Separator className="my-2" />
+
+            {/* Our Family — collapsible */}
+            <button
+              onClick={() => setFamilyOpen(!familyOpen)}
+              className="flex items-center justify-between w-full px-3 py-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider font-serif hover:text-foreground transition-colors"
+            >
+              <span className="flex items-center gap-3">
+                <Users className="h-4 w-4" />
+                Our Family
+              </span>
+              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", familyOpen && "rotate-180")} />
+            </button>
+            {familyOpen && (
+              <div className="ml-4 space-y-0.5">
+                <Link href="/family" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  Family Hub
+                </Link>
+                <Link href="/family/tree" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  Family Tree
+                </Link>
+                <Link href="/goals" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  Family Goals
+                </Link>
+              </div>
+            )}
+
+            <Separator className="my-2" />
 
             <Link
               href="/griot"
               onClick={() => setMobileOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 mt-2 rounded-full text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 font-serif"
+              className="flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 font-serif"
             >
-              <Sparkles className="h-4 w-4" /> The Griot CTA
+              <Sparkles className="h-4 w-4" /> The Griot
             </Link>
 
             <Separator className="my-2" />

@@ -7,6 +7,7 @@ import { getFamilyContext } from "@/lib/get-family-context";
 import { UpcomingEvents } from "./components/upcoming-events";
 import { FeatureCards } from "./components/feature-cards";
 import { TraditionsSection } from "@/components/traditions-section";
+import { FamilyCoverPhoto } from "./components/family-cover-photo";
 import type { RsvpStatus } from "@/types/database";
 
 // ---------------------------------------------------------------------------
@@ -203,14 +204,8 @@ export default async function FamilyPage() {
       {/* Storytelling Header Block */}
       <section className="relative rounded-2xl overflow-hidden mb-12 shadow-sm border bg-[#2C4835] dark:bg-green-950">
         <div className="grid grid-cols-1 md:grid-cols-2">
-          {/* Left: Photo */}
-          <div className="relative h-64 md:h-[400px]">
-            <img 
-              src="https://images.unsplash.com/photo-1596707328607-4e5ff41d0172?q=80&w=2072&auto=format&fit=crop" 
-              alt="Our Family" 
-              className="w-full h-full object-cover"
-            />
-          </div>
+          {/* Left: Family Portrait */}
+          <FamilyCoverPhoto familyId={data.familyId} />
 
           {/* Right: Overlapping Box Content */}
           <div className="flex flex-col justify-center p-8 md:p-12 text-white relative">

@@ -71,6 +71,73 @@ export async function uploadAvatar(
 }
 
 /**
+ * Upload a family cover photo to Supabase Storage.
+ * Stores under covers/{familyId}/cover.{ext} (upserts so there's only one).
+ * Returns the public URL on success, or null on failure.
+ */
+export async function uploadFamilyCover(
+  file: File,
+  familyId: string
+): Promise<string | null> {
+  const supabase = createClient();
+
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `covers/${familyId}/cover.${ext}`;
+
+  // Remove any existing cover first (different extension)
+  const { data: existing } = await supabase.storage
+    .from(BUCKET_NAME)
+    .list(`covers/${familyId}`);
+  if (existing && existing.length > 0) {
+    await supabase.storage
+      .from(BUCKET_NAME)
+      .remove(existing.map((f) => `covers/${familyId}/${f.name}`));
+  }
+
+  const { error } = await supabase.storage
+    .from(BUCKET_NAME)
+    .upload(path, file, {
+      cacheControl: "3600",
+      upsert: true,
+    });
+
+  if (error) {
+    console.error("Cover upload error:", error);
+    return null;
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
+
+  return publicUrl;
+}
+
+/**
+ * Get the family cover photo URL if one exists.
+ * Returns the public URL or null.
+ */
+export async function getFamilyCoverUrl(
+  familyId: string
+): Promise<string | null> {
+  const supabase = createClient();
+
+  const { data: files } = await supabase.storage
+    .from(BUCKET_NAME)
+    .list(`covers/${familyId}`);
+
+  if (!files || files.length === 0) return null;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage
+    .from(BUCKET_NAME)
+    .getPublicUrl(`covers/${familyId}/${files[0].name}`);
+
+  return publicUrl;
+}
+
+/**
  * Delete an image from Supabase Storage by its public URL.
  */
 export async function deleteEntryImage(publicUrl: string): Promise<boolean> {

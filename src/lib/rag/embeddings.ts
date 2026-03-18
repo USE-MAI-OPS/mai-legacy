@@ -1,112 +1,97 @@
 /**
- * OpenAI embedding generation for the RAG pipeline.
+ * Google Gemini embedding generation for the RAG pipeline.
  *
- * Uses the text-embedding-3-small model (1536 dimensions) via direct fetch
+ * Uses the text-embedding-004 model (768 dimensions) via direct fetch
  * calls -- no SDK dependency required.
+ *
+ * Two task types are used:
+ *   - RETRIEVAL_DOCUMENT: when embedding entry content (stored in DB)
+ *   - RETRIEVAL_QUERY:    when embedding a user's search query
  */
 
-const OPENAI_EMBEDDING_MODEL = "text-embedding-3-small";
-const OPENAI_EMBEDDINGS_URL = "https://api.openai.com/v1/embeddings";
+const GEMINI_MODEL = "gemini-embedding-001";
+const GEMINI_DIMENSIONS = 768;
+
+function geminiUrl(model: string): string {
+  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  if (!apiKey) {
+    throw new Error("Missing GOOGLE_AI_API_KEY environment variable");
+  }
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:batchEmbedContents?key=${apiKey}`;
+}
 
 /**
  * Generate an embedding vector for a single text string.
  *
- * @param text - The input text to embed.
- * @returns A 1536-dimension float array.
+ * @param text     - The input text to embed.
+ * @param taskType - Gemini task type hint (default: RETRIEVAL_QUERY for search).
+ * @returns A 768-dimension float array.
  */
-export async function generateEmbedding(text: string): Promise<number[]> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("Missing OPENAI_API_KEY environment variable");
-  }
-
-  const response = await fetch(OPENAI_EMBEDDINGS_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      input: text,
-      model: OPENAI_EMBEDDING_MODEL,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`OpenAI embeddings API error (${response.status}): ${error}`);
-  }
-
-  const json = (await response.json()) as OpenAIEmbeddingResponse;
-  return json.data[0].embedding;
+export async function generateEmbedding(
+  text: string,
+  taskType: "RETRIEVAL_QUERY" | "RETRIEVAL_DOCUMENT" = "RETRIEVAL_QUERY"
+): Promise<number[]> {
+  const result = await generateEmbeddings([text], taskType);
+  return result[0];
 }
 
 /**
  * Generate embedding vectors for multiple texts in a single API call.
  *
- * OpenAI's embeddings endpoint accepts an array of inputs natively, which is
- * far more efficient than calling one-by-one.
+ * Gemini's batchEmbedContents endpoint accepts up to 100 requests per call.
  *
- * @param texts - Array of input texts to embed.
- * @returns Array of 1536-dimension float arrays, one per input text (same order).
+ * @param texts    - Array of input texts to embed.
+ * @param taskType - Gemini task type hint (default: RETRIEVAL_DOCUMENT for storage).
+ * @returns Array of 768-dimension float arrays, one per input text (same order).
  */
-export async function generateEmbeddings(texts: string[]): Promise<number[][]> {
+export async function generateEmbeddings(
+  texts: string[],
+  taskType: "RETRIEVAL_QUERY" | "RETRIEVAL_DOCUMENT" = "RETRIEVAL_DOCUMENT"
+): Promise<number[][]> {
   if (texts.length === 0) return [];
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("Missing OPENAI_API_KEY environment variable");
-  }
+  const url = geminiUrl(GEMINI_MODEL);
 
-  // OpenAI supports batches up to ~2048 inputs per call. For safety we batch
-  // in groups of 512 to stay well within limits and avoid timeouts.
-  const BATCH_SIZE = 512;
+  // Gemini batchEmbedContents supports up to 100 requests per call.
+  const BATCH_SIZE = 100;
   const allEmbeddings: number[][] = [];
 
   for (let i = 0; i < texts.length; i += BATCH_SIZE) {
     const batch = texts.slice(i, i + BATCH_SIZE);
 
-    const response = await fetch(OPENAI_EMBEDDINGS_URL, {
+    const response = await fetch(url, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        input: batch,
-        model: OPENAI_EMBEDDING_MODEL,
+        requests: batch.map((text) => ({
+          model: `models/${GEMINI_MODEL}`,
+          content: { parts: [{ text }] },
+          taskType,
+          outputDimensionality: GEMINI_DIMENSIONS,
+        })),
       }),
     });
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`OpenAI embeddings API error (${response.status}): ${error}`);
+      throw new Error(
+        `Gemini embeddings API error (${response.status}): ${error}`
+      );
     }
 
-    const json = (await response.json()) as OpenAIEmbeddingResponse;
-
-    // The API may return embeddings out of order; sort by index to be safe.
-    const sorted = json.data.sort((a, b) => a.index - b.index);
-    allEmbeddings.push(...sorted.map((item) => item.embedding));
+    const json = (await response.json()) as GeminiBatchEmbeddingResponse;
+    allEmbeddings.push(...json.embeddings.map((e) => e.values));
   }
 
   return allEmbeddings;
 }
 
 // ---------------------------------------------------------------------------
-// Types for the OpenAI embeddings response
+// Types for the Gemini embeddings response
 // ---------------------------------------------------------------------------
 
-interface OpenAIEmbeddingResponse {
-  object: "list";
-  data: {
-    object: "embedding";
-    index: number;
-    embedding: number[];
+interface GeminiBatchEmbeddingResponse {
+  embeddings: {
+    values: number[];
   }[];
-  model: string;
-  usage: {
-    prompt_tokens: number;
-    total_tokens: number;
-  };
 }

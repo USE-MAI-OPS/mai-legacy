@@ -13,6 +13,7 @@ interface TreeMemberRow {
   display_name: string;
   relationship_label: string | null;
   parent_id: string | null;
+  parent2_id: string | null;
   spouse_id: string | null;
   linked_member_id: string | null;
   birth_year: number | null;

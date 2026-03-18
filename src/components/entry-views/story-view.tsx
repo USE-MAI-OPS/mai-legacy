@@ -2,6 +2,7 @@ import { Calendar, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ImageGallery } from "@/components/image-gallery";
+import { StoryPaginator } from "./story-paginator";
 import type { EntryStructuredData } from "@/types/database";
 
 interface StoryViewProps {
@@ -72,17 +73,8 @@ export function StoryView({ entry }: StoryViewProps) {
         </>
       )}
 
-      {/* Narrative */}
-      <div className="max-w-none">
-        {story.narrative.split("\n\n").map((paragraph, i) => (
-          <p
-            key={i}
-            className="mb-6 text-lg leading-relaxed text-foreground/90 last:mb-0"
-          >
-            {paragraph}
-          </p>
-        ))}
-      </div>
+      {/* Narrative — paginated storybook */}
+      <StoryPaginator paragraphs={story.narrative.split("\n\n").filter(Boolean)} />
 
       {/* Photos */}
       {story.images && story.images.length > 0 && (

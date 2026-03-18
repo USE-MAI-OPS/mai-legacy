@@ -29,6 +29,7 @@ export interface EntryListItem {
   authorName: string;
   date: string;
   structured_data?: EntryStructuredData;
+  is_mature?: boolean;
 }
 
 interface EntriesListProps {
@@ -159,6 +160,7 @@ export default function EntriesList({ entries }: EntriesListProps) {
               authorName={entry.authorName}
               date={entry.date}
               structured_data={entry.structured_data}
+              is_mature={entry.is_mature}
             />
           ))}
         </div>

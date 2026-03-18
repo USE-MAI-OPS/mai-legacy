@@ -190,7 +190,7 @@ export function DashboardNav() {
                 <Link href="/entries?type=story" className="w-full cursor-pointer">Stories</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/entries?type=tradition" className="w-full cursor-pointer">Traditions</Link>
+                <Link href="/entries?type=lesson" className="w-full cursor-pointer">Lessons</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -216,6 +216,9 @@ export function DashboardNav() {
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/goals" className="w-full cursor-pointer">Family Goals</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/family#traditions" className="w-full cursor-pointer">Traditions</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -378,8 +381,8 @@ export function DashboardNav() {
                 <Link href="/entries?type=story" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
                   Stories
                 </Link>
-                <Link href="/entries?type=tradition" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                  Traditions
+                <Link href="/entries?type=lesson" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  Lessons
                 </Link>
               </div>
             )}
@@ -407,6 +410,9 @@ export function DashboardNav() {
                 </Link>
                 <Link href="/goals" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
                   Family Goals
+                </Link>
+                <Link href="/family#traditions" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  Traditions
                 </Link>
               </div>
             )}

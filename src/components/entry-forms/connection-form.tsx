@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MatureToggle } from "@/components/entry-forms/mature-toggle";
 import type { ConnectionData } from "@/types/database";
 
 // ---------------------------------------------------------------------------
@@ -35,6 +36,7 @@ interface ConnectionFormProps {
     type: "connection";
     tags: string[];
     structured_data: { type: "connection"; data: ConnectionData };
+    is_mature?: boolean;
   }) => Promise<void>;
   saving?: boolean;
   mode?: "create" | "edit";
@@ -118,6 +120,7 @@ export default function ConnectionForm({
   const [notes, setNotes] = useState(initialData?.notes ?? "");
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>(initialTags ?? []);
+  const [isMature, setIsMature] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // ---------------------------------------------------------------------------
@@ -191,6 +194,7 @@ export default function ConnectionForm({
       type: "connection",
       tags,
       structured_data: { type: "connection", data: structuredData },
+      is_mature: isMature,
     });
   }
 
@@ -373,6 +377,7 @@ export default function ConnectionForm({
       </CardContent>
 
       <CardFooter className="flex justify-end gap-4 p-6 bg-muted/10 rounded-b-2xl border-t border-border/50">
+        <MatureToggle checked={isMature} onCheckedChange={setIsMature} />
         <Button variant="ghost" size="lg" className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5" asChild>
           <Link href={cancelHref}>Cancel</Link>
         </Button>

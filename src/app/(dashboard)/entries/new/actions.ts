@@ -10,6 +10,7 @@ interface CreateEntryInput {
   type: EntryType;
   tags: string[];
   structured_data?: EntryStructuredData;
+  is_mature?: boolean;
 }
 
 export async function createEntry(input: CreateEntryInput) {
@@ -27,6 +28,7 @@ export async function createEntry(input: CreateEntryInput) {
       content: input.content,
       type: input.type,
       tags: input.tags,
+      is_mature: input.is_mature ?? false,
     };
     if (input.structured_data) {
       row.structured_data = input.structured_data;

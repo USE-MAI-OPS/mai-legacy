@@ -154,8 +154,17 @@ export default function DemoPage() {
       </header>
 
       {/* Hero Intro */}
-      <section className="bg-primary hover:bg-primary/95 transition-colors border-b">
-         <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-10 text-primary-foreground">
+      <section className="relative overflow-hidden border-b">
+         {/* Background Image */}
+         <div className="absolute inset-0 z-0">
+           <img
+             src="https://images.pexels.com/photos/5728209/pexels-photo-5728209.jpeg?auto=compress&cs=tinysrgb&w=1920"
+             alt="Happy Black family sitting together"
+             className="w-full h-full object-cover"
+           />
+           <div className="absolute inset-0 bg-primary/70" />
+         </div>
+         <div className="relative z-10 max-w-7xl mx-auto px-6 py-16 md:py-24 text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-10 text-primary-foreground">
             <div className="max-w-2xl">
                <Badge className="bg-white/20 hover:bg-white/30 text-white border-none mb-6">Interactive Demo</Badge>
                <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight mb-4 drop-shadow-md">
@@ -294,10 +303,8 @@ export default function DemoPage() {
           </SectionContainer>
 
           {/* ---- STOP 4: Griot ---- */}
-          <SectionContainer id="griot" title="The Oracle: Meet The Griot" description="The Griot uses RAG to query the family's specific archive. No hallucinations. Only your own stories.">
-            <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-2 sm:p-8 shadow-2xl relative overflow-hidden">
-               {/* Background Glow */}
-               <div className="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-primary/20 rounded-full blur-[80px]" />
+          <SectionContainer id="griot" title="The Oracle: Meet The Griot" description="The Griot searches exclusively through your family's documented knowledge. No made-up answers. Only your own stories.">
+            <div className="rounded-3xl border border-border bg-card p-2 sm:p-8 shadow-xl relative overflow-hidden">
                <GriotDemo />
             </div>
           </SectionContainer>
@@ -327,7 +334,7 @@ export default function DemoPage() {
                         <CheckCircle2 className="h-5 w-5 text-primary" />
                      </div>
                      <h4 className="font-semibold mb-2">3. Approve & Save</h4>
-                     <p className="text-sm text-muted-foreground">Review the extracted cards and save them securely to the archive.</p>
+                     <p className="text-sm text-muted-foreground">Review the extracted cards and save them securely to your family's knowledge base.</p>
                   </div>
                </div>
             </div>
@@ -335,7 +342,7 @@ export default function DemoPage() {
 
            {/* Final CTA Strip inside right rail */}
            <div className="bg-primary text-primary-foreground rounded-3xl p-10 text-center shadow-xl">
-             <h2 className="font-serif text-3xl font-bold mb-4">Your family deserves an archive like this.</h2>
+             <h2 className="font-serif text-3xl font-bold mb-4">Your family deserves a legacy like this.</h2>
              <p className="text-primary-foreground/90 mb-8 max-w-md mx-auto">Skip the generic group chats. Build a lasting interactive museum of your family.</p>
              <Button variant="secondary" size="lg" className="rounded-full shadow-lg h-14 px-8" asChild>
                 <Link href="/signup">Create Your Family Free <ArrowRight className="ml-2 h-4 w-4" /></Link>
@@ -413,53 +420,53 @@ function GriotDemo() {
   const visible = isStreaming && streamIndex < words.length ? words.slice(0, streamIndex).join(" ") : active.response;
 
   return (
-    <div className="relative z-10 rounded-2xl bg-zinc-900/50 backdrop-blur-md border border-zinc-800 p-6 flex flex-col md:flex-row gap-8 min-h-[400px]">
-      
+    <div className="relative z-10 rounded-2xl bg-muted/30 border border-border p-6 flex flex-col md:flex-row gap-6 min-h-[360px]">
+
       {/* Left side: The Chat */}
       <div className="flex-1 flex flex-col justify-between">
-         <div className="space-y-6">
+         <div className="space-y-4">
             <div className="flex justify-end">
-               <div className="bg-zinc-800 text-zinc-100 px-4 py-3 rounded-2xl rounded-tr-sm text-sm border border-zinc-700 max-w-[85%] shadow-sm">
+               <div className="bg-primary text-primary-foreground px-4 py-2.5 rounded-2xl rounded-tr-sm text-sm max-w-[85%] shadow-sm">
                   {active.prompt}
                </div>
             </div>
             <div className="flex justify-start">
-               <div className="bg-zinc-900 border border-zinc-800 text-zinc-300 px-5 py-4 rounded-2xl rounded-tl-sm text-sm max-w-[95%] shadow-md leading-relaxed">
+               <div className="bg-background border border-border text-foreground px-4 py-3 rounded-2xl rounded-tl-sm text-sm max-w-[95%] shadow-sm leading-relaxed">
                   {visible}
-                  {isStreaming && <span className="inline-block w-1.5 h-3.5 bg-zinc-400 ml-1 animate-pulse align-middle" />}
-                  
+                  {isStreaming && <span className="inline-block w-1.5 h-3.5 bg-primary/50 ml-1 animate-pulse align-middle" />}
+
                   {phase === "idle" && (
-                    <div className="mt-4 pt-3 border-t border-zinc-800/80 flex gap-2 flex-wrap">
-                      <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold flex items-center mr-1"><BookOpen className="h-3 w-3 mr-1"/>Sources</span>
+                    <div className="mt-3 pt-2.5 border-t border-border flex gap-2 flex-wrap">
+                      <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold flex items-center mr-1"><BookOpen className="h-3 w-3 mr-1"/>Sources</span>
                       {active.sources.map(s => (
-                         <span key={s} className="text-[11px] px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/50">{s}</span>
+                         <span key={s} className="text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border">{s}</span>
                       ))}
                     </div>
                   )}
                </div>
             </div>
          </div>
-         <div className="mt-8 border border-zinc-700/50 bg-zinc-800/50 rounded-full px-4 py-3 flex items-center text-zinc-500 text-sm">
+         <div className="mt-6 border border-border bg-background rounded-full px-4 py-2.5 flex items-center text-muted-foreground text-sm">
             Ask the Griot a question...
             <ArrowRight className="h-4 w-4 ml-auto" />
          </div>
       </div>
 
       {/* Right side: Interactive Prompts */}
-      <div className="w-full md:w-64 shrink-0 flex flex-col gap-3">
-         <p className="text-[10px] font-bold tracking-widest uppercase text-zinc-500 mb-1 pl-2">Try these queries</p>
+      <div className="w-full md:w-56 shrink-0 flex flex-col gap-2">
+         <p className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground mb-1 pl-2">Try these queries</p>
          {prompts.map((p, i) => (
             <button
                key={i}
                onClick={() => handlePrompt(i)}
                disabled={phase !== "idle"}
-               className={`text-left text-sm px-4 py-3 rounded-xl border transition-all ${
-                  activePrompt === i 
-                     ? "border-zinc-500 bg-zinc-800 text-zinc-100 shadow-md"
-                     : "border-zinc-800 bg-zinc-900/40 text-zinc-400 hover:bg-zinc-800/80 hover:border-zinc-700 hover:text-zinc-200"
+               className={`text-left text-sm px-3 py-2.5 rounded-xl border transition-all ${
+                  activePrompt === i
+                     ? "border-primary/30 bg-primary/5 text-foreground font-medium shadow-sm"
+                     : "border-border bg-background text-muted-foreground hover:bg-primary/5 hover:border-primary/20 hover:text-foreground"
                } ${phase !== "idle" ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-               "{p.prompt}"
+               &ldquo;{p.prompt}&rdquo;
             </button>
          ))}
       </div>

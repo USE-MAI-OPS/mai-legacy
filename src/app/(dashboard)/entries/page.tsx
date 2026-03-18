@@ -105,7 +105,7 @@ async function getEntries(): Promise<EntryListItem[]> {
     // Fetch entries from connected family members only
     const { data: entries, error: entriesError } = await sb
       .from("entries")
-      .select("id, title, content, type, tags, structured_data, created_at, author_id")
+      .select("id, title, content, type, tags, structured_data, is_mature, created_at, author_id")
       .eq("family_id", familyId)
       .in("author_id", connectedUserIds)
       .order("created_at", { ascending: false });
@@ -137,6 +137,7 @@ async function getEntries(): Promise<EntryListItem[]> {
       authorName: authorMap[entry.author_id] ?? "Unknown",
       date: entry.created_at,
       structured_data: entry.structured_data ?? undefined,
+      is_mature: entry.is_mature ?? false,
     }));
   } catch (err) {
     console.error("Failed to fetch entries:", err);

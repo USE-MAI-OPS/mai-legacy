@@ -82,7 +82,7 @@ function renderFormattedText(text: string) {
       elements.push(<br key={`br-${i}`} />);
     } else {
       elements.push(
-        <p key={`p-${i}`} className="my-3 leading-loose">
+        <p key={`p-${i}`} className="my-1.5 leading-relaxed">
           {formatInline(line)}
         </p>
       );
@@ -147,32 +147,32 @@ export function ChatMessage({
   return (
     <div
       className={cn(
-        "flex w-full mb-6 chat-message-appear",
+        "flex w-full mb-4 chat-message-appear",
         isUser ? "justify-end" : "justify-start"
       )}
     >
-      <div className={cn("flex flex-col gap-1.5 max-w-[85%]", isUser ? "items-end" : "items-start")}>
+      <div className={cn("flex flex-col gap-1 max-w-[80%]", isUser ? "items-end" : "items-start")}>
         {!isUser && (
-          <span className="text-xs font-serif font-medium text-stone-500 ml-2 uppercase tracking-wider">
+          <span className="text-[10px] font-serif font-medium text-muted-foreground ml-2 uppercase tracking-wider">
             The Griot
           </span>
         )}
         <div className="group relative">
           <div
             className={cn(
-              "px-5 sm:px-6 py-4 sm:py-5 shadow-sm transition-all",
+              "px-4 py-3 shadow-sm transition-all",
               isUser
-                ? "bg-amber-700/90 text-amber-50 rounded-3xl rounded-tr-md text-base"
-                : "bg-[#1A221C] text-stone-200 border border-[#2C3B2F] rounded-3xl rounded-tl-md font-serif text-lg leading-loose"
+                ? "bg-primary text-primary-foreground rounded-2xl rounded-tr-sm text-sm"
+                : "bg-muted border border-border rounded-2xl rounded-tl-sm font-serif text-sm leading-relaxed"
             )}
           >
             {isUser ? (
               <p className="leading-relaxed">{content}</p>
             ) : (
-              <div className="prose prose-invert prose-stone max-w-none prose-p:my-2 prose-p:leading-loose prose-li:my-1 prose-headings:font-serif">
+              <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-li:my-0.5 prose-headings:font-serif">
                 {renderFormattedText(content)}
                 {isStreaming && (
-                  <span className="inline-block w-2 h-5 bg-amber-500/60 ml-1 animate-pulse rounded-sm align-middle" />
+                  <span className="inline-block w-1.5 h-4 bg-primary/50 ml-1 animate-pulse rounded-sm align-middle" />
                 )}
               </div>
             )}
@@ -209,8 +209,8 @@ export function ChatMessage({
         </div>
 
         {sources && sources.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2 ml-2">
-            <span className="text-xs font-serif italic text-stone-500 self-center">
+          <div className="flex flex-wrap gap-1.5 mt-1.5 ml-2">
+            <span className="text-[10px] font-serif italic text-muted-foreground self-center">
               Sources:
             </span>
             {sources.map((source) => (
@@ -220,7 +220,7 @@ export function ChatMessage({
               >
                 <Badge
                   variant="outline"
-                  className="text-[11px] px-2 py-0.5 rounded-full cursor-pointer bg-[#1A221C] border-[#2C3B2F] text-stone-400 hover:text-stone-200 hover:bg-[#232F26] transition-colors shadow-sm"
+                  className="text-[10px] px-2 py-0.5 rounded-full cursor-pointer hover:bg-muted transition-colors"
                 >
                   {source.title}
                 </Badge>
@@ -231,8 +231,8 @@ export function ChatMessage({
 
         {timestamp && (
           <span className={cn(
-            "text-[10px] font-medium uppercase tracking-widest text-stone-600 mt-1 block",
-            isUser ? "text-right mr-3" : "ml-3"
+            "text-[10px] font-medium uppercase tracking-widest text-muted-foreground mt-0.5 block",
+            isUser ? "text-right mr-2" : "ml-2"
           )}>
             {timestamp.toLocaleTimeString([], {
               hour: "2-digit",

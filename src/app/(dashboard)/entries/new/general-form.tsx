@@ -16,6 +16,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { MatureToggle } from "@/components/entry-forms/mature-toggle";
 import type { EntryType } from "@/types/database";
 
 interface GeneralFormProps {
@@ -25,6 +26,7 @@ interface GeneralFormProps {
     type: EntryType;
     tags: string[];
     structured_data?: undefined;
+    is_mature?: boolean;
   }) => Promise<void>;
   saving?: boolean;
 }
@@ -34,6 +36,7 @@ export default function GeneralForm({ onSubmit, saving = false }: GeneralFormPro
   const [content, setContent] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [isMature, setIsMature] = useState(false);
   const [errors, setErrors] = useState<{ title?: string; content?: string }>({});
 
   // ---------------------------------------------------------------------------
@@ -85,6 +88,7 @@ export default function GeneralForm({ onSubmit, saving = false }: GeneralFormPro
       type: "general",
       tags,
       structured_data: undefined,
+      is_mature: isMature,
     });
   }
 
@@ -182,6 +186,7 @@ export default function GeneralForm({ onSubmit, saving = false }: GeneralFormPro
       </CardContent>
 
       <CardFooter className="flex justify-end gap-3">
+        <MatureToggle checked={isMature} onCheckedChange={setIsMature} />
         <Button variant="outline" asChild>
           <Link href="/entries">Cancel</Link>
         </Button>

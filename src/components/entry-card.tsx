@@ -31,6 +31,7 @@ export interface EntryCardProps {
   authorName: string;
   date: string;
   structured_data?: EntryStructuredData;
+  is_mature?: boolean;
 }
 
 function formatDate(dateString: string): string {
@@ -148,6 +149,7 @@ export function EntryCard({
   authorName,
   date,
   structured_data,
+  is_mature,
 }: EntryCardProps) {
   const config = typeConfig[type];
   const summary = getSummary(type, structured_data, content);
@@ -163,17 +165,28 @@ export function EntryCard({
   const colorIndex = title.length % colors.length;
   const coverColor = colors[colorIndex];
 
+  // Extract first image from structured_data if available
+  const firstImage = structured_data?.data && 'images' in structured_data.data
+    ? (structured_data.data as any).images?.[0] as string | undefined
+    : undefined;
+
   return (
     <Link href={`/entries/${id}`} className="group flex flex-col sm:flex-row gap-6 border-b border-border/60 pb-8 mb-8 last:border-0 last:mb-0 transition-all hover:bg-muted/30 p-4 -mx-4 rounded-xl">
-      
-      {/* Fallback Cover */}
-      <div className={`w-full sm:w-56 h-48 sm:h-auto rounded-xl flex items-center justify-center p-6 text-center shrink-0 shadow-sm ${coverColor} relative overflow-hidden`}>
-        {/* Subtle noise/texture overlay for premium feel */}
-        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.05] mix-blend-multiply pointer-events-none" />
-        <h3 className="font-serif font-bold text-xl sm:text-2xl leading-tight opacity-95 line-clamp-4 relative z-10 w-full break-words">
-          {title}
-        </h3>
-      </div>
+
+      {/* Cover: show entry image if available, otherwise colored fallback */}
+      {firstImage ? (
+        <div className="w-full sm:w-56 h-48 sm:h-auto rounded-xl shrink-0 shadow-sm relative overflow-hidden">
+          <img src={firstImage} alt={title} className="w-full h-full object-cover" />
+        </div>
+      ) : (
+        <div className={`w-full sm:w-56 h-48 sm:h-auto rounded-xl flex items-center justify-center p-6 text-center shrink-0 shadow-sm ${coverColor} relative overflow-hidden`}>
+          {/* Subtle noise/texture overlay for premium feel */}
+          <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.05] mix-blend-multiply pointer-events-none" />
+          <h3 className="font-serif font-bold text-xl sm:text-2xl leading-tight opacity-95 line-clamp-4 relative z-10 w-full break-words">
+            {title}
+          </h3>
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex flex-col flex-1 py-1 min-w-0">
@@ -193,6 +206,9 @@ export function EntryCard({
             >
               <Pencil className="h-4 w-4" />
             </button>
+            {is_mature && (
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">21+</Badge>
+            )}
             <Badge variant="secondary" className={`text-xs px-2.5 py-0.5 rounded-full ${config.color}`}>
               {config.emoji} {config.label}
             </Badge>

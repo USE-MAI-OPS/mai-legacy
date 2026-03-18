@@ -268,6 +268,7 @@ export interface Database {
           type: EntryType;
           tags: string[];
           structured_data: EntryStructuredData;
+          is_mature: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -280,6 +281,7 @@ export interface Database {
           type: EntryType;
           tags?: string[];
           structured_data?: EntryStructuredData;
+          is_mature?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -292,6 +294,7 @@ export interface Database {
           type?: EntryType;
           tags?: string[];
           structured_data?: EntryStructuredData;
+          is_mature?: boolean;
           created_at?: string;
           updated_at?: string;
         };

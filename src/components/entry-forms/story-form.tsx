@@ -17,6 +17,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { ImageUpload } from "@/components/image-upload";
+import { MatureToggle } from "@/components/entry-forms/mature-toggle";
 import type { StoryData } from "@/types/database";
 
 // ---------------------------------------------------------------------------
@@ -29,6 +30,7 @@ interface StoryFormProps {
     type: "story";
     tags: string[];
     structured_data: { type: "story"; data: StoryData };
+    is_mature?: boolean;
   }) => Promise<void>;
   saving?: boolean;
   familyId?: string;
@@ -88,6 +90,7 @@ export default function StoryForm({ onSubmit, saving = false, familyId, mode = "
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>(initialTags ?? []);
   const [images, setImages] = useState<string[]>(initialImages ?? []);
+  const [isMature, setIsMature] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   // ---------------------------------------------------------------------------
@@ -176,6 +179,7 @@ export default function StoryForm({ onSubmit, saving = false, familyId, mode = "
       type: "story",
       tags,
       structured_data: { type: "story", data: structuredData },
+      is_mature: isMature,
     });
   }
 
@@ -364,6 +368,7 @@ export default function StoryForm({ onSubmit, saving = false, familyId, mode = "
       </CardContent>
 
       <CardFooter className="flex justify-end gap-4 p-6 bg-muted/10 rounded-b-2xl border-t border-border/50">
+        <MatureToggle checked={isMature} onCheckedChange={setIsMature} />
         <Button variant="ghost" size="lg" className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5" asChild>
           <Link href={cancelHref}>Cancel</Link>
         </Button>

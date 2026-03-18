@@ -150,7 +150,7 @@ async function getDashboardData() {
     ] = await Promise.all([
       sb.from("entries").select("id", { count: "exact", head: true }).eq("family_id", familyId).in("author_id", connectedUserIds),
       sb.from("griot_conversations").select("id", { count: "exact", head: true }).eq("family_id", familyId),
-      sb.from("family_members").select("id", { count: "exact", head: true }).eq("family_id", familyId).in("user_id", connectedUserIds),
+      sb.from("family_tree_members").select("id", { count: "exact", head: true }).eq("family_id", familyId),
       sb.from("family_events").select("id", { count: "exact", head: true }).eq("family_id", familyId),
       sb.from("family_traditions").select("id", { count: "exact", head: true }).eq("family_id", familyId),
       sb
@@ -380,8 +380,8 @@ export default async function DashboardPage() {
       <div className="relative rounded-2xl overflow-hidden mb-6 shadow-sm border" data-tour-step="dashboard-welcome">
         <div className="absolute inset-0">
           <img
-            src="https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=2070&auto=format&fit=crop"
-            alt="Family gathered"
+            src="https://images.pexels.com/photos/5727909/pexels-photo-5727909.jpeg?auto=compress&cs=tinysrgb&w=1920"
+            alt="Happy Black family together at home"
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-black/40 mix-blend-multiply" />

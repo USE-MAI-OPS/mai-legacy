@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import FormSelector from "@/components/entry-forms/form-selector";
 import RecipeForm from "@/components/entry-forms/recipe-form";
@@ -20,6 +20,7 @@ export default function NewEntryPage() {
   const router = useRouter();
   const [selectedType, setSelectedType] = useState<EntryType | null>(null);
   const [saving, setSaving] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   const [familyId, setFamilyId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export default function NewEntryPage() {
     type: EntryType;
     tags: string[];
     structured_data?: { type: string; data: any };
+    is_mature?: boolean;
   }) {
     setSaving(true);
     try {
@@ -41,8 +43,10 @@ export default function NewEntryPage() {
         type: data.type,
         tags: data.tags,
         structured_data: data.structured_data as EntryStructuredData,
+        is_mature: data.is_mature,
       });
 
+      setNavigating(true);
       if (result?.data?.id) {
         router.push(`/entries/${result.data.id}`);
       } else {
@@ -56,6 +60,13 @@ export default function NewEntryPage() {
   }
 
   return (
+    <>
+    {navigating && (
+      <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-lg font-medium">Saving your entry...</p>
+      </div>
+    )}
     <div className="container mx-auto py-8 px-4 max-w-2xl">
       <Button variant="ghost" size="sm" className="mb-6 -ml-2" asChild>
         <Link href="/entries">
@@ -108,5 +119,6 @@ export default function NewEntryPage() {
         </div>
       )}
     </div>
+    </>
   );
 }

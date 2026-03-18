@@ -75,7 +75,8 @@ export async function POST(request: NextRequest) {
     // 3. Generate embeddings in a single batch call.
     // -----------------------------------------------------------------------
     const chunkTexts = chunks.map((c) => c.text);
-    const embeddings = await generateEmbeddings(chunkTexts);
+    // Use RETRIEVAL_DOCUMENT task type for stored entry content
+    const embeddings = await generateEmbeddings(chunkTexts, "RETRIEVAL_DOCUMENT");
 
     // -----------------------------------------------------------------------
     // 4. Delete existing embeddings for this entry (idempotent re-embed).

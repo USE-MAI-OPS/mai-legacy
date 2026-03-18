@@ -29,8 +29,8 @@ export async function searchFamilyKnowledge(
   matchCount: number = 8,
   allowedAuthorIds?: string[]
 ): Promise<SearchResult[]> {
-  // 1. Embed the query using the same model used for entry chunks.
-  const queryEmbedding = await generateEmbedding(query);
+  // 1. Embed the query using RETRIEVAL_QUERY task type for search.
+  const queryEmbedding = await generateEmbedding(query, "RETRIEVAL_QUERY");
 
   // 2. Call the Supabase RPC for vector similarity search.
   const supabase = await createClient();

@@ -23,11 +23,14 @@ import { AddTreeMemberDialog } from "./add-tree-member-dialog";
 import { InviteMemberDialog } from "./invite-member-dialog";
 import { addTreeMember, deleteTreeMember } from "../actions";
 import { toast } from "sonner";
-import { useFamilyForceLayout, type SimNode } from "./use-family-force-layout";
+import {
+  useFamilyForceLayout,
+  type SimNode,
+} from "./use-family-force-layout";
 import { FamilyTreeConnectors } from "./family-tree-connectors";
 
 // ---------------------------------------------------------------------------
-// Draggable node wrapper — positioned absolutely at sim coordinates
+// Draggable node — rendered at simulation coordinates
 // ---------------------------------------------------------------------------
 const DraggableNode = memo(function DraggableNode({
   node,
@@ -37,6 +40,9 @@ const DraggableNode = memo(function DraggableNode({
   onDelete,
   onInvite,
   onDragStart,
+  onDrag,
+  onDragEnd,
+  scale,
 }: {
   node: SimNode;
   currentUserId: string;
@@ -44,39 +50,59 @@ const DraggableNode = memo(function DraggableNode({
   onEdit: (n: TreeNodeData) => void;
   onDelete: (id: string) => void;
   onInvite: (memberName: string) => void;
-  onDragStart: (nodeId: string, x: number, y: number) => void;
+  onDragStart: (id: string, x: number, y: number) => void;
+  onDrag: (x: number, y: number) => void;
+  onDragEnd: () => void;
+  scale: number;
 }) {
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      // Don't hijack clicks on buttons/links/inputs
-      const target = e.target as HTMLElement;
-      if (
-        target.closest(
-          "button, a, input, [role='button'], [role='menuitem'], [role='menu']"
-        )
-      )
-        return;
+  if (!node.data) return null;
 
-      e.stopPropagation();
-      onDragStart(node.id, node.x ?? 0, node.y ?? 0);
-    },
-    [node.id, node.x, node.y, onDragStart]
-  );
+  const x = node.x ?? 0;
+  const y = node.y ?? 0;
 
   return (
     <div
-      data-draggable="true"
-      data-node-id={node.id}
       className="absolute cursor-grab active:cursor-grabbing"
       style={{
-        transform: `translate(${(node.x ?? 0) - 55}px, ${(node.y ?? 0) - 55}px)`,
+        transform: `translate(${x - 55}px, ${y - 55}px)`,
         width: 110,
-        willChange: "transform",
       }}
-      onPointerDown={handlePointerDown}
+      onPointerDown={(e) => {
+        // Don't drag when clicking buttons/menus
+        const target = e.target as HTMLElement;
+        if (
+          target.closest(
+            "button, a, input, [role='button'], [role='menuitem'], [role='menu']"
+          )
+        )
+          return;
+
+        e.stopPropagation();
+        const rect = (
+          e.currentTarget.parentElement?.parentElement as HTMLElement
+        )?.getBoundingClientRect();
+        if (!rect) return;
+
+        const nodeX = (e.clientX - rect.left) / scale;
+        const nodeY = (e.clientY - rect.top) / scale;
+        onDragStart(node.id, nodeX, nodeY);
+
+        const onMove = (ev: PointerEvent) => {
+          const mx = (ev.clientX - rect.left) / scale;
+          const my = (ev.clientY - rect.top) / scale;
+          onDrag(mx, my);
+        };
+        const onUp = () => {
+          onDragEnd();
+          window.removeEventListener("pointermove", onMove);
+          window.removeEventListener("pointerup", onUp);
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+      }}
     >
       <FamilyTreeNode
-        node={node.data!}
+        node={node.data}
         currentUserId={currentUserId}
         currentUserMemberId={currentUserMemberId}
         onEdit={onEdit}
@@ -88,7 +114,7 @@ const DraggableNode = memo(function DraggableNode({
 });
 
 // ---------------------------------------------------------------------------
-// Force-directed tree viewport with pan & zoom
+// Tree viewport with pan & zoom + force-directed layout
 // ---------------------------------------------------------------------------
 function ForceDirectedTree({
   members,
@@ -108,11 +134,9 @@ function ForceDirectedTree({
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
-  // Measure container
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-
     const ro = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) {
@@ -128,35 +152,21 @@ function ForceDirectedTree({
 
   const {
     nodes,
-    unionNodes,
     spousePairs,
     parentChildLinks,
     dragHandlers,
-    settled,
-  } = useFamilyForceLayout(members, containerSize);
+  } = useFamilyForceLayout(members, containerSize, currentUserMemberId);
 
-  // Pan & zoom state
+  // Pan & zoom
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const dragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const panStart = useRef({ x: 0, y: 0 });
-  const nodeDragging = useRef(false);
-  const nodeDragStartPos = useRef({ x: 0, y: 0 });
-
-  // Node drag → convert screen coords to simulation coords
-  const handleNodeDragStart = useCallback(
-    (nodeId: string, _simX: number, _simY: number) => {
-      nodeDragging.current = true;
-      dragHandlers.onDragStart(nodeId, _simX, _simY);
-    },
-    [dragHandlers]
-  );
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       const target = e.target as HTMLElement;
-      // Skip interactive elements
       if (
         target.closest(
           "button, a, input, [role='button'], [role='menuitem'], [role='menu']"
@@ -164,15 +174,6 @@ function ForceDirectedTree({
       )
         return;
 
-      // Check if it's a node drag (handled by DraggableNode)
-      if (target.closest("[data-draggable]")) {
-        // Node dragging is managed by node's own handler
-        nodeDragStartPos.current = { x: e.clientX, y: e.clientY };
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-        return;
-      }
-
-      // Viewport pan
       dragging.current = true;
       dragStart.current = { x: e.clientX, y: e.clientY };
       panStart.current = { ...pan };
@@ -181,59 +182,33 @@ function ForceDirectedTree({
     [pan]
   );
 
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (nodeDragging.current) {
-        // Convert screen delta to simulation coordinates
-        const rect = containerRef.current?.getBoundingClientRect();
-        if (!rect) return;
-        const simX = (e.clientX - rect.left - pan.x) / scale;
-        const simY = (e.clientY - rect.top - pan.y) / scale;
-        dragHandlers.onDrag(simX, simY);
-        return;
-      }
-
-      if (!dragging.current) return;
-      const dx = e.clientX - dragStart.current.x;
-      const dy = e.clientY - dragStart.current.y;
-      setPan({ x: panStart.current.x + dx, y: panStart.current.y + dy });
-    },
-    [pan, scale, dragHandlers]
-  );
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragging.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    setPan({ x: panStart.current.x + dx, y: panStart.current.y + dy });
+  }, []);
 
   const handlePointerUp = useCallback(() => {
-    if (nodeDragging.current) {
-      nodeDragging.current = false;
-      dragHandlers.onDragEnd();
-      return;
-    }
     dragging.current = false;
-  }, [dragHandlers]);
+  }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.05 : 0.05;
-    setScale((s) => Math.min(2, Math.max(0.3, s + delta)));
+    setScale((s) => Math.min(2, Math.max(0.2, s + delta)));
   }, []);
 
   const zoomIn = useCallback(() => setScale((s) => Math.min(2, s + 0.15)), []);
   const zoomOut = useCallback(
-    () => setScale((s) => Math.max(0.3, s - 0.15)),
+    () => setScale((s) => Math.max(0.2, s - 0.15)),
     []
   );
 
-  // Fit-to-view: compute bounding box of all nodes and center
   const fitToView = useCallback(() => {
-    if (nodes.length === 0) {
-      setPan({ x: 0, y: 0 });
-      setScale(1);
-      return;
-    }
+    if (nodes.length === 0 || containerSize.width === 0) return;
 
-    let minX = Infinity,
-      maxX = -Infinity,
-      minY = Infinity,
-      maxY = -Infinity;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     for (const n of nodes) {
       const x = n.x ?? 0;
       const y = n.y ?? 0;
@@ -243,12 +218,12 @@ function ForceDirectedTree({
       if (y > maxY) maxY = y;
     }
 
-    const treeWidth = maxX - minX + 200;
-    const treeHeight = maxY - minY + 200;
+    const treeWidth = maxX - minX + 300;
+    const treeHeight = maxY - minY + 300;
     const newScale = Math.min(
       1.2,
       Math.max(
-        0.3,
+        0.2,
         Math.min(
           containerSize.width / treeWidth,
           containerSize.height / treeHeight
@@ -266,18 +241,21 @@ function ForceDirectedTree({
     setScale(newScale);
   }, [nodes, containerSize]);
 
-  // Auto-fit on first settle
+  // Auto-fit once simulation has some data
   const hasFitted = useRef(false);
   useEffect(() => {
-    if (settled && !hasFitted.current && nodes.length > 0) {
-      hasFitted.current = true;
-      fitToView();
+    if (!hasFitted.current && nodes.length > 0 && containerSize.width > 0) {
+      // Wait a bit for simulation to settle
+      const timer = setTimeout(() => {
+        hasFitted.current = true;
+        fitToView();
+      }, 1500);
+      return () => clearTimeout(timer);
     }
-  }, [settled, nodes.length, fitToView]);
+  }, [nodes.length, containerSize.width, fitToView]);
 
-  // Compute the canvas size needed (large enough for all nodes)
-  const canvasWidth = Math.max(containerSize.width * 3, 3000);
-  const canvasHeight = Math.max(containerSize.height * 3, 3000);
+  const canvasWidth = Math.max(containerSize.width * 3, 4000);
+  const canvasHeight = Math.max(containerSize.height * 3, 4000);
 
   return (
     <div className="relative w-full h-full">
@@ -321,30 +299,24 @@ function ForceDirectedTree({
         style={{ touchAction: "none" }}
       >
         <div
-          className={`relative transition-opacity duration-500 ${
-            nodes.length > 0 ? "opacity-100" : "opacity-0"
-          }`}
+          className="relative"
           style={{
             width: canvasWidth,
             height: canvasHeight,
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
             transformOrigin: "0 0",
-            transition:
-              dragging.current || nodeDragging.current
-                ? "none"
-                : "transform 0.1s ease-out",
+            transition: dragging.current
+              ? "none"
+              : "transform 0.15s ease-out",
           }}
         >
-          {/* Layer 1: SVG connectors (behind) */}
           <FamilyTreeConnectors
             spousePairs={spousePairs}
             parentChildLinks={parentChildLinks}
-            unionNodes={unionNodes}
             width={canvasWidth}
             height={canvasHeight}
           />
 
-          {/* Layer 2: HTML nodes (on top) */}
           {nodes.map((node) => (
             <DraggableNode
               key={node.id}
@@ -354,7 +326,10 @@ function ForceDirectedTree({
               onEdit={onEdit}
               onDelete={onDelete}
               onInvite={onInvite}
-              onDragStart={handleNodeDragStart}
+              onDragStart={dragHandlers.onDragStart}
+              onDrag={dragHandlers.onDrag}
+              onDragEnd={dragHandlers.onDragEnd}
+              scale={scale}
             />
           ))}
         </div>
@@ -395,7 +370,6 @@ export function FamilyTree({
   const [addingSelf, setAddingSelf] = useState(false);
   const [, startTransition] = useTransition();
 
-  // Check if current user already exists in the tree
   const userInTree = currentUserMemberId
     ? treeMembers.some((m) => m.linked_member_id === currentUserMemberId)
     : false;
@@ -460,7 +434,6 @@ export function FamilyTree({
     });
   }, [familyId, currentUserMemberId, currentUserDisplayName]);
 
-  // Empty state
   if (treeMembers.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4">
@@ -507,7 +480,6 @@ export function FamilyTree({
 
   return (
     <div className="flex flex-col gap-5 h-full">
-      {/* Header */}
       <div className="flex items-center justify-between pb-2">
         <div className="flex items-center gap-2">
           <TreePine className="h-5 w-5 text-primary" />
@@ -528,7 +500,6 @@ export function FamilyTree({
         </div>
       </div>
 
-      {/* "Add Yourself" prompt when user isn't in the tree yet */}
       {!userInTree && currentUserMemberId && currentUserDisplayName && (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
           <div className="flex items-center gap-2 min-w-0">
@@ -548,7 +519,6 @@ export function FamilyTree({
         </div>
       )}
 
-      {/* Force-directed tree area */}
       <div className="flex-1 min-h-0">
         <ForceDirectedTree
           members={treeMembers}
@@ -560,7 +530,6 @@ export function FamilyTree({
         />
       </div>
 
-      {/* Dialogs */}
       <AddTreeMemberDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}

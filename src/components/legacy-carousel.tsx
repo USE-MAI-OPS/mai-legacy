@@ -119,7 +119,7 @@ function CarouselColumn({
   const entry = entries[currentIndex];
 
   return (
-    <div className="relative rounded-2xl overflow-hidden border bg-card shadow-sm group h-[420px] flex flex-col">
+    <Link href={`/entries/${entry.id}`} className="block relative rounded-2xl overflow-hidden border bg-card shadow-sm group h-[420px] flex flex-col hover:shadow-md transition-shadow">
       {/* Image / gradient area */}
       <div className="relative h-56 overflow-hidden">
         {entry.image ? (
@@ -156,14 +156,14 @@ function CarouselColumn({
         {count > 1 && (
           <>
             <button
-              onClick={() => goTo("prev")}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); goTo("prev"); }}
               className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
               aria-label="Previous"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
             <button
-              onClick={() => goTo("next")}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); goTo("next"); }}
               className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
               aria-label="Next"
             >
@@ -178,7 +178,9 @@ function CarouselColumn({
             {entries.map((_, i) => (
               <button
                 key={i}
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   if (!isTransitioning) {
                     setIsTransitioning(true);
                     setCurrentIndex(i);
@@ -204,11 +206,9 @@ function CarouselColumn({
             isTransitioning ? "opacity-0" : "opacity-100"
           }`}
         >
-          <Link href={`/entries/${entry.id}`} className="group/link">
-            <h3 className="font-semibold text-xl leading-tight mb-2 group-hover/link:text-primary transition-colors line-clamp-2">
-              {entry.title}
-            </h3>
-          </Link>
+          <h3 className="font-semibold text-xl leading-tight mb-2 group-hover:text-primary transition-colors line-clamp-2">
+            {entry.title}
+          </h3>
           <p className="text-base text-muted-foreground line-clamp-3 leading-relaxed">
             {entry.content}
           </p>
@@ -216,15 +216,15 @@ function CarouselColumn({
 
         {/* Footer: view all link */}
         <div className="pt-3 mt-auto">
-          <Link
-            href={category.href}
-            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+          <span
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.location.href = category.href; }}
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             View all {category.label} →
-          </Link>
+          </span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 

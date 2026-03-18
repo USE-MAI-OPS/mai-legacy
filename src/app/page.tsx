@@ -133,7 +133,7 @@ export default function HomePage() {
             priority
           />
           {/* Gradients to ensure text readability and blend into the next section */}
-          <div className="absolute inset-0 bg-black/40" />
+          <div className="absolute inset-0 bg-black/55" />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
         </div>
         
@@ -142,11 +142,11 @@ export default function HomePage() {
           <Badge variant="outline" className="text-white border-white/20 bg-black/20 backdrop-blur-md mb-8 py-1.5 px-4 font-medium tracking-wide">
             The Interactive Museum of Your Family
           </Badge>
-          <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-[1.1] text-white mb-6 drop-shadow-xl">
+          <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-[1.1] text-white mb-6 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
             Your family&apos;s wisdom, <br className="hidden md:block"/>
-            <span className="text-white/80 italic font-medium">preserved forever.</span>
+            <span className="text-white italic font-medium">preserved forever.</span>
           </h1>
-          <p className="mt-4 text-xl sm:text-2xl text-white/90 max-w-2xl mx-auto font-light leading-relaxed drop-shadow-md">
+          <p className="mt-4 text-xl sm:text-2xl text-white/90 max-w-2xl mx-auto font-light leading-relaxed drop-shadow-lg">
             Document your stories, skills, recipes, and lessons in a private sanctuary. Then ask the Griot — your family&apos;s AI — anything.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mt-10 justify-center w-full sm:w-auto">
@@ -156,7 +156,7 @@ export default function HomePage() {
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-semibold rounded-full bg-white/10 text-white border-white/30 hover:bg-white/20 backdrop-blur-md transition-all shadow-lg" asChild>
+            <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-semibold rounded-full bg-white text-primary border-white hover:bg-white/90 transition-all shadow-lg" asChild>
               <Link href="/demo">Explore the Demo</Link>
             </Button>
           </div>
@@ -296,46 +296,94 @@ export default function HomePage() {
       </section>
 
       {/* ----------------------------------------------------------------- */}
-      {/* The Griot Section - Dark Mode Immersion                           */}
+      {/* How It Works                                                      */}
       {/* ----------------------------------------------------------------- */}
-      <section className="bg-zinc-950 text-zinc-50 py-24 px-6 border-y border-zinc-800">
+      <section className="px-6 py-24 max-w-5xl mx-auto">
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
+            How it works
+          </h2>
+          <p className="text-lg text-muted-foreground leading-relaxed">
+            Three simple steps to preserve your family&apos;s legacy.
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-10">
+          {[
+            {
+              step: "1",
+              icon: UserPlus,
+              title: "Create Your Family",
+              description: "Sign up, name your family, and invite members with a magic link. Everyone gets their own profile instantly.",
+            },
+            {
+              step: "2",
+              icon: BookOpen,
+              title: "Document Your Knowledge",
+              description: "Add stories, recipes, skills, and life lessons. Each entry is saved, searchable, and preserved for future generations.",
+            },
+            {
+              step: "3",
+              icon: MessageCircle,
+              title: "Ask the Griot Anything",
+              description: "Your family\u2019s AI searches everything you\u2019ve documented and answers questions with cited sources. Like having a family historian on call.",
+            },
+          ].map((item) => (
+            <div key={item.step} className="flex flex-col items-center text-center">
+              <div className="relative mb-6">
+                <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <item.icon className="h-7 w-7 text-primary" />
+                </div>
+                <span className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center shadow-sm">
+                  {item.step}
+                </span>
+              </div>
+              <h3 className="font-serif text-xl font-semibold mb-2">{item.title}</h3>
+              <p className="text-muted-foreground leading-relaxed text-sm">{item.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ----------------------------------------------------------------- */}
+      {/* The Griot Section                                                 */}
+      {/* ----------------------------------------------------------------- */}
+      <section className="bg-muted/30 py-24 px-6 border-y border-border/50">
         <div className="max-w-6xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             {/* Text Content */}
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-800/50 border border-zinc-700 text-zinc-300 text-sm font-medium mb-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/5 border border-primary/20 text-primary text-sm font-medium mb-6">
                 <Search className="h-4 w-4" /> Powered by AI
               </div>
-              <h2 className="font-serif text-4xl sm:text-5xl font-bold mb-6 text-zinc-100">
-                Meet The Griot. <br/> Your family's brain.
+              <h2 className="font-serif text-4xl sm:text-5xl font-bold mb-6 text-foreground">
+                Meet The Griot. <br/> Your family&apos;s brain.
               </h2>
-              <p className="text-lg text-zinc-400 leading-relaxed mb-8">
+              <p className="text-lg text-muted-foreground leading-relaxed mb-8">
                 Stop losing recipes in group chats. The Griot uses the latest AI to search exclusively through the stories, recipes, and lessons your family has documented, providing direct answers with cited sources.
               </p>
-              
+
               <ul className="space-y-4 mb-10">
                 {[
                   "Answers instantly from your private vault",
                   "Always cites sources (e.g., 'Grandma Rose's Pie')",
                   "Never accesses public internet or other families' data"
                 ].map((feature, idx) => (
-                  <li key={idx} className="flex items-start gap-3 text-zinc-300">
-                    <CheckCircle2 className="h-6 w-6 text-zinc-500 shrink-0" />
+                  <li key={idx} className="flex items-start gap-3 text-foreground">
+                    <CheckCircle2 className="h-6 w-6 text-primary shrink-0" />
                     <span>{feature}</span>
                   </li>
                 ))}
               </ul>
 
-              <Button size="lg" className="bg-zinc-100 text-zinc-900 hover:bg-white rounded-full font-semibold px-8" asChild>
+              <Button size="lg" className="rounded-full font-semibold px-8" asChild>
                 <Link href="/demo#griot">Try the Chatbot Demo</Link>
               </Button>
             </div>
 
-            {/* Dark Mode Interactive Preview */}
+            {/* Interactive Preview */}
             <div className="w-full relative">
-               {/* Aesthetic glow behind the chat */}
-               <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full" />
-               <div className="relative w-full rounded-2xl border border-zinc-800 bg-zinc-900/80 backdrop-blur-xl shadow-2xl p-1 md:p-6 overflow-hidden">
+               <div className="relative w-full rounded-2xl border border-border bg-card shadow-xl p-1 md:p-6 overflow-hidden">
                   <DarkGriotPreview />
                </div>
             </div>
@@ -445,12 +493,17 @@ export default function HomePage() {
              <p className="text-xl text-primary-foreground/90 max-w-2xl mx-auto mb-10 font-light">
                Start documenting your family&apos;s legacy today. Free to start, no credit card required.
              </p>
-             <Button size="lg" variant="secondary" className="h-14 px-10 text-lg font-semibold rounded-full shadow-lg hover:scale-105 transition-transform" asChild>
-               <Link href="/signup">
-                 Create Your Free Account
-                 <ArrowRight className="ml-2 h-5 w-5" />
-               </Link>
-             </Button>
+             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+               <Button size="lg" variant="secondary" className="h-14 px-10 text-lg font-semibold rounded-full shadow-lg hover:scale-105 transition-transform" asChild>
+                 <Link href="/signup">
+                   Create Your Free Account
+                   <ArrowRight className="ml-2 h-5 w-5" />
+                 </Link>
+               </Button>
+               <Button size="lg" variant="outline" className="h-14 px-10 text-lg font-semibold rounded-full bg-white text-primary border-white hover:bg-white/90 transition-all shadow-lg" asChild>
+                 <Link href="/demo">Explore the Demo</Link>
+               </Button>
+             </div>
           </div>
         </div>
       </section>
@@ -571,13 +624,13 @@ function DarkGriotPreview() {
   }
 
   return (
-    <div className="flex flex-col h-full rounded-xl bg-zinc-950/50 p-4">
+    <div className="flex flex-col h-full rounded-xl bg-muted/30 p-4">
        {/* Chat Area */}
-       <div className="flex-grow space-y-6 min-h-[220px]">
+       <div className="flex-grow space-y-4 min-h-[220px]">
          {/* User message */}
          <div className="flex justify-end">
            <div
-             className="rounded-2xl px-4 py-3 bg-zinc-800 text-zinc-100 text-sm md:text-base max-w-[85%] border border-zinc-700/50 shadow-sm transition-opacity duration-200"
+             className="rounded-2xl px-4 py-2.5 bg-primary text-primary-foreground text-sm max-w-[85%] shadow-sm transition-opacity duration-200"
              style={{ opacity: isFading ? 0 : 1 }}
            >
              {active.prompt}
@@ -587,12 +640,12 @@ function DarkGriotPreview() {
          {/* AI Response area */}
          {isDots ? (
            <div className="flex justify-start">
-             <div className="rounded-2xl px-5 py-4 bg-zinc-900 border border-zinc-800">
+             <div className="rounded-2xl px-4 py-3 bg-background border border-border">
                <div className="flex items-center gap-1.5 py-0.5">
                  {[0, 1, 2].map((i) => (
                    <span
                      key={i}
-                     className="h-2 w-2 rounded-full bg-zinc-500 animate-bounce"
+                     className="h-1.5 w-1.5 rounded-full bg-primary/50 animate-bounce"
                      style={{ animationDelay: `${i * 0.15}s`, animationDuration: "0.7s" }}
                    />
                  ))}
@@ -601,18 +654,18 @@ function DarkGriotPreview() {
            </div>
          ) : (
            <div className="flex justify-start transition-opacity duration-200" style={{ opacity: isFading ? 0 : 1 }}>
-             <div className="rounded-2xl px-5 py-4 bg-zinc-900 border border-zinc-800 text-zinc-300 text-sm md:text-base max-w-[95%] shadow-sm leading-relaxed">
+             <div className="rounded-2xl px-4 py-3 bg-background border border-border text-foreground text-sm max-w-[95%] shadow-sm leading-relaxed">
                <span>{displayText}</span>
                {showCursor && (
-                 <span className="inline-block w-[2px] h-[1.1em] ml-0.5 align-middle bg-zinc-400 animate-pulse" />
+                 <span className="inline-block w-[2px] h-[1.1em] ml-0.5 align-middle bg-primary/50 animate-pulse" />
                )}
                {isIdle && (
-                 <div className="mt-4 pt-3 border-t border-zinc-800/80 flex gap-2 flex-wrap transition-opacity duration-300">
-                   <div className="text-xs text-zinc-500 flex items-center mr-1">
+                 <div className="mt-3 pt-2.5 border-t border-border flex gap-2 flex-wrap transition-opacity duration-300">
+                   <div className="text-[10px] text-muted-foreground flex items-center mr-1">
                       <BookOpen className="h-3 w-3 mr-1" /> Sources:
                    </div>
                    {active.sources.map((src) => (
-                     <span key={src} className="text-[11px] px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700/50 flex items-center gap-1">
+                     <span key={src} className="text-[10px] px-2 py-0.5 rounded bg-muted text-muted-foreground border border-border flex items-center gap-1">
                         <Quote className="h-2.5 w-2.5" /> {src}
                      </span>
                    ))}
@@ -624,18 +677,18 @@ function DarkGriotPreview() {
        </div>
 
        {/* Interactive Prompt Buttons */}
-       <div className="mt-8">
-          <p className="text-xs font-medium text-zinc-500 mb-3 uppercase tracking-wider pl-1">Interactive Demo: Try asking</p>
-          <div className="flex flex-col gap-2">
+       <div className="mt-6">
+          <p className="text-[10px] font-medium text-muted-foreground mb-2 uppercase tracking-wider pl-1">Interactive Demo: Try asking</p>
+          <div className="flex flex-col gap-1.5">
             {GRIOT_PREVIEW_PROMPTS.map((p, i) => (
               <button
                 key={i}
                 onClick={() => handlePromptClick(i)}
                 disabled={!isIdle}
-                className={`text-left rounded-xl border px-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-zinc-600 ${
+                className={`text-left rounded-xl border px-3 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/30 ${
                   activePrompt === i
-                    ? "border-zinc-500 bg-zinc-800 text-zinc-100 font-medium shadow-sm"
-                    : "border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700 hover:bg-zinc-800/80 hover:text-zinc-200"
+                    ? "border-primary/30 bg-primary/5 text-foreground font-medium shadow-sm"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/20 hover:bg-primary/5 hover:text-foreground"
                 } ${!isIdle ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}
               >
                 &ldquo;{p.prompt}&rdquo;

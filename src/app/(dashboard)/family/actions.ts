@@ -114,6 +114,7 @@ export async function updateTreeMember(
     birthYear: number | null;
     isDeceased: boolean;
     linkedMemberId: string | null;
+    connectionType: string | null;
   }>
 ) {
   const supabase = await createClient();
@@ -131,6 +132,8 @@ export async function updateTreeMember(
   if (data.isDeceased !== undefined) update.is_deceased = data.isDeceased;
   if (data.linkedMemberId !== undefined)
     update.linked_member_id = clean(data.linkedMemberId);
+  if (data.connectionType !== undefined)
+    update.connection_type = data.connectionType;
 
   // Update the member
   const { error } = await sb

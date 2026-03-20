@@ -144,5 +144,30 @@ export function convertTreeData(
     }
   });
 
+  // ── Friend fallback links ──
+  // Friends often have no parent/spouse relationship set — connect them
+  // to the ego node so they actually show a visible link on the canvas.
+  const linkedNodeIds = new Set(
+    links.flatMap((l) => [l.sourceId, l.targetId])
+  );
+  const egoNode = nodes.find((n) => n.isMe);
+
+  if (egoNode) {
+    for (const node of nodes) {
+      if (
+        node.connectionType === "friend" &&
+        !linkedNodeIds.has(node.id) &&
+        node.id !== egoNode.id
+      ) {
+        links.push({
+          id: `friend:${egoNode.id}<>${node.id}`,
+          sourceId: egoNode.id,
+          targetId: node.id,
+          type: "friend",
+        });
+      }
+    }
+  }
+
   return { nodes, links };
 }

@@ -9,7 +9,7 @@ import {
   memo,
 } from "react";
 import { Button } from "@/components/ui/button";
-import { ZoomIn, ZoomOut, Maximize, Plus } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize, Plus, MousePointer } from "lucide-react";
 import type { HubNode, HubLink } from "./legacy-hub-types";
 import { convertTreeData, type TreeNodeData } from "./legacy-hub-types";
 import { LegacyHubNode } from "./legacy-hub-node";
@@ -17,7 +17,7 @@ import { LegacyHubLinks } from "./legacy-hub-links";
 import { saveNodePosition } from "../actions";
 
 // ---------------------------------------------------------------------------
-// Draggable Node Wrapper — user places nodes wherever they want
+// Draggable Node Wrapper — supports single + group drag
 // ---------------------------------------------------------------------------
 const DraggableHubNode = memo(function DraggableHubNode({
   node,
@@ -26,8 +26,12 @@ const DraggableHubNode = memo(function DraggableHubNode({
   onDelete,
   onInvite,
   onPositionChange,
+  onGroupDrag,
+  onGroupDragEnd,
   scale,
-  panRef,
+  isSelected,
+  selectedCount,
+  onSelect,
 }: {
   node: HubNode;
   currentUserMemberId: string | null;
@@ -35,23 +39,49 @@ const DraggableHubNode = memo(function DraggableHubNode({
   onDelete: (id: string) => void;
   onInvite: (name: string) => void;
   onPositionChange: (id: string, x: number, y: number) => void;
+  onGroupDrag: (dx: number, dy: number) => void;
+  onGroupDragEnd: () => void;
   scale: number;
-  panRef: React.RefObject<{ x: number; y: number }>;
+  isSelected: boolean;
+  selectedCount: number;
+  onSelect: (id: string, shiftKey: boolean) => void;
 }) {
   return (
     <div
-      className="absolute cursor-grab active:cursor-grabbing"
+      className={`absolute cursor-grab active:cursor-grabbing ${
+        isSelected
+          ? "outline outline-2 outline-primary/60 outline-offset-4 rounded-2xl"
+          : ""
+      }`}
       style={{
         transform: `translate(${node.x - 60}px, ${node.y - 60}px)`,
         width: 120,
+        zIndex: isSelected ? 5 : 1,
       }}
       onPointerDown={(e) => {
         const target = e.target as HTMLElement;
-        if (target.closest("button, a, input, [role='button'], [role='menuitem'], [role='menu']"))
+        if (
+          target.closest(
+            "button, a, input, [role='button'], [role='menuitem'], [role='menu']"
+          )
+        )
           return;
 
         e.stopPropagation();
         e.preventDefault();
+
+        // Handle selection
+        if (e.shiftKey) {
+          onSelect(node.id, true);
+          return; // shift+click = toggle selection only, no drag
+        }
+
+        // If this node isn't selected and we're not shift-clicking,
+        // select only this node
+        const draggingGroup = isSelected && selectedCount > 1;
+        if (!isSelected) {
+          onSelect(node.id, false);
+        }
 
         const startClientX = e.clientX;
         const startClientY = e.clientY;
@@ -59,20 +89,32 @@ const DraggableHubNode = memo(function DraggableHubNode({
         const startNodeY = node.y;
         let lastX = startNodeX;
         let lastY = startNodeY;
+        let didMove = false;
 
         const onMove = (ev: PointerEvent) => {
           const dx = (ev.clientX - startClientX) / scale;
           const dy = (ev.clientY - startClientY) / scale;
-          lastX = startNodeX + dx;
-          lastY = startNodeY + dy;
-          onPositionChange(node.id, lastX, lastY);
+          didMove = true;
+
+          if (draggingGroup) {
+            // Move the whole group by the delta
+            onGroupDrag(dx, dy);
+          } else {
+            lastX = startNodeX + dx;
+            lastY = startNodeY + dy;
+            onPositionChange(node.id, lastX, lastY);
+          }
         };
 
         const onUp = () => {
           window.removeEventListener("pointermove", onMove);
           window.removeEventListener("pointerup", onUp);
-          // Save final position to DB
-          saveNodePosition(node.id, lastX, lastY);
+
+          if (draggingGroup && didMove) {
+            onGroupDragEnd();
+          } else if (!draggingGroup) {
+            saveNodePosition(node.id, lastX, lastY);
+          }
         };
 
         window.addEventListener("pointermove", onMove);
@@ -91,7 +133,33 @@ const DraggableHubNode = memo(function DraggableHubNode({
 });
 
 // ---------------------------------------------------------------------------
-// Canvas — pan, zoom, fit-to-view + manual node placement
+// Marquee selection rectangle
+// ---------------------------------------------------------------------------
+function MarqueeRect({
+  rect,
+  pan,
+  scale,
+}: {
+  rect: { x1: number; y1: number; x2: number; y2: number };
+  pan: { x: number; y: number };
+  scale: number;
+}) {
+  // rect is in screen coordinates — render as fixed overlay on the container
+  const left = Math.min(rect.x1, rect.x2);
+  const top = Math.min(rect.y1, rect.y2);
+  const width = Math.abs(rect.x2 - rect.x1);
+  const height = Math.abs(rect.y2 - rect.y1);
+
+  return (
+    <div
+      className="absolute pointer-events-none z-30 border-2 border-primary/50 bg-primary/8 rounded-sm"
+      style={{ left, top, width, height }}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Canvas — pan, zoom, fit-to-view, marquee select, group drag
 // ---------------------------------------------------------------------------
 export function LegacyHubCanvas({
   members,
@@ -135,11 +203,11 @@ export function LegacyHubCanvas({
   );
 
   // Mutable node positions (local state for real-time dragging)
-  const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(
-    () => new Map(initialNodes.map((n) => [n.id, { x: n.x, y: n.y }]))
-  );
+  const [nodePositions, setNodePositions] = useState<
+    Map<string, { x: number; y: number }>
+  >(() => new Map(initialNodes.map((n) => [n.id, { x: n.x, y: n.y }])));
 
-  // Sync when members change (new members added, etc)
+  // Sync when members change
   useEffect(() => {
     setNodePositions((prev) => {
       const next = new Map(prev);
@@ -148,7 +216,6 @@ export function LegacyHubCanvas({
           next.set(n.id, { x: n.x, y: n.y });
         }
       }
-      // Remove deleted nodes
       for (const id of next.keys()) {
         if (!initialNodes.find((n) => n.id === id)) {
           next.delete(id);
@@ -166,9 +233,8 @@ export function LegacyHubCanvas({
     });
   }, [initialNodes, nodePositions]);
 
-  // Build links with resolved positions — offset endpoints so lines
-  // start/end at the edge of the node card instead of cutting through it
-  const NODE_RADIUS = 70; // approximate radius of the circular node card
+  // Build links with resolved positions + endpoint offset
+  const NODE_RADIUS = 70;
   const links = useMemo(() => {
     return initialLinks.map((link) => {
       const src = nodePositions.get(link.sourceId);
@@ -178,14 +244,12 @@ export function LegacyHubCanvas({
       const tx0 = tgt?.x ?? 0;
       const ty0 = tgt?.y ?? 0;
 
-      // Vector from source → target
       const dx = tx0 - sx0;
       const dy = ty0 - sy0;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      // Only offset if nodes are far enough apart (avoid collapsing short links)
       if (dist > NODE_RADIUS * 2.5) {
-        const ux = dx / dist; // unit vector
+        const ux = dx / dist;
         const uy = dy / dist;
         return {
           ...link,
@@ -196,38 +260,100 @@ export function LegacyHubCanvas({
         };
       }
 
-      return {
-        ...link,
-        sx: sx0,
-        sy: sy0,
-        tx: tx0,
-        ty: ty0,
-      };
+      return { ...link, sx: sx0, sy: sy0, tx: tx0, ty: ty0 };
     });
   }, [initialLinks, nodePositions]);
 
-  // Handle node drag
-  const handlePositionChange = useCallback((id: string, x: number, y: number) => {
-    setNodePositions((prev) => {
-      const next = new Map(prev);
-      next.set(id, { x, y });
-      return next;
+  // ─── Selection state ───
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [marquee, setMarquee] = useState<{
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+  } | null>(null);
+
+  // Store group drag start positions so we can apply deltas
+  const groupDragStart = useRef<Map<string, { x: number; y: number }> | null>(
+    null
+  );
+
+  const handleSelect = useCallback((id: string, shiftKey: boolean) => {
+    setSelectedIds((prev) => {
+      if (shiftKey) {
+        const next = new Set(prev);
+        if (next.has(id)) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+        return next;
+      }
+      // Non-shift click: select only this node
+      return new Set([id]);
     });
   }, []);
 
-  // Debounced save (saves the latest position after drag ends)
-  const savePosRef = useRef<{ id: string; x: number; y: number } | null>(null);
-  useEffect(() => {
-    if (!savePosRef.current) return;
-    const { id, x, y } = savePosRef.current;
-    saveNodePosition(id, x, y);
-    savePosRef.current = null;
+  const clearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  // Handle single node drag
+  const handlePositionChange = useCallback(
+    (id: string, x: number, y: number) => {
+      setNodePositions((prev) => {
+        const next = new Map(prev);
+        next.set(id, { x, y });
+        return next;
+      });
+    },
+    []
+  );
+
+  // Handle group drag — apply delta to all selected nodes
+  const handleGroupDrag = useCallback(
+    (dx: number, dy: number) => {
+      if (!groupDragStart.current) {
+        // Capture start positions on first drag move
+        groupDragStart.current = new Map();
+        for (const id of selectedIds) {
+          const pos = nodePositions.get(id);
+          if (pos) {
+            groupDragStart.current.set(id, { x: pos.x, y: pos.y });
+          }
+        }
+      }
+
+      setNodePositions((prev) => {
+        const next = new Map(prev);
+        for (const [id, start] of groupDragStart.current!) {
+          next.set(id, { x: start.x + dx, y: start.y + dy });
+        }
+        return next;
+      });
+    },
+    [selectedIds, nodePositions]
+  );
+
+  // Save all group positions on drag end
+  const handleGroupDragEnd = useCallback(() => {
+    if (groupDragStart.current) {
+      // Save each node's final position
+      for (const id of groupDragStart.current.keys()) {
+        const pos = nodePositions.get(id);
+        if (pos) {
+          saveNodePosition(id, pos.x, pos.y);
+        }
+      }
+      groupDragStart.current = null;
+    }
   }, [nodePositions]);
 
   // ─── Pan & Zoom state ───
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   const dragging = useRef(false);
+  const marqueeActive = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const panStart = useRef({ x: 0, y: 0 });
   const panRef = useRef(pan);
@@ -236,36 +362,110 @@ export function LegacyHubCanvas({
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
       const target = e.target as HTMLElement;
-      if (target.closest("button, a, input, [role='button'], [role='menuitem'], [role='menu']"))
+      if (
+        target.closest(
+          "button, a, input, [role='button'], [role='menuitem'], [role='menu']"
+        )
+      )
         return;
+
+      const rect = containerRef.current?.getBoundingClientRect();
+      const mx = rect ? e.clientX - rect.left : e.clientX;
+      const my = rect ? e.clientY - rect.top : e.clientY;
+
+      if (e.shiftKey) {
+        // Shift + drag on empty space = marquee selection
+        marqueeActive.current = true;
+        setMarquee({ x1: mx, y1: my, x2: mx, y2: my });
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        return;
+      }
+
+      // Regular drag = pan
+      // Also clear selection if clicking empty space
+      clearSelection();
       dragging.current = true;
       dragStart.current = { x: e.clientX, y: e.clientY };
       panStart.current = { ...pan };
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     },
-    [pan]
+    [pan, clearSelection]
   );
 
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragging.current) return;
-    setPan({
-      x: panStart.current.x + (e.clientX - dragStart.current.x),
-      y: panStart.current.y + (e.clientY - dragStart.current.y),
-    });
-  }, []);
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (marqueeActive.current) {
+        const rect = containerRef.current?.getBoundingClientRect();
+        const mx = rect ? e.clientX - rect.left : e.clientX;
+        const my = rect ? e.clientY - rect.top : e.clientY;
+        setMarquee((prev) => (prev ? { ...prev, x2: mx, y2: my } : null));
+        return;
+      }
 
-  const handlePointerUp = useCallback(() => {
-    dragging.current = false;
-  }, []);
+      if (!dragging.current) return;
+      setPan({
+        x: panStart.current.x + (e.clientX - dragStart.current.x),
+        y: panStart.current.y + (e.clientY - dragStart.current.y),
+      });
+    },
+    []
+  );
 
-  // Zoom toward cursor — keep the point under the mouse fixed
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (marqueeActive.current && marquee) {
+        marqueeActive.current = false;
+
+        // Convert marquee screen coords → canvas world coords
+        const rect = containerRef.current?.getBoundingClientRect();
+        const offsetX = rect ? pan.x : 0;
+        const offsetY = rect ? pan.y : 0;
+
+        const worldX1 = (Math.min(marquee.x1, marquee.x2) - offsetX) / scale;
+        const worldY1 = (Math.min(marquee.y1, marquee.y2) - offsetY) / scale;
+        const worldX2 = (Math.max(marquee.x1, marquee.x2) - offsetX) / scale;
+        const worldY2 = (Math.max(marquee.y1, marquee.y2) - offsetY) / scale;
+
+        // Find all nodes inside the marquee rectangle
+        const newSelected = new Set<string>();
+        for (const node of nodes) {
+          if (
+            node.x >= worldX1 &&
+            node.x <= worldX2 &&
+            node.y >= worldY1 &&
+            node.y <= worldY2
+          ) {
+            newSelected.add(node.id);
+          }
+        }
+
+        // If shift was held, merge with existing selection
+        if (e.shiftKey) {
+          setSelectedIds((prev) => {
+            const merged = new Set(prev);
+            for (const id of newSelected) merged.add(id);
+            return merged;
+          });
+        } else {
+          setSelectedIds(newSelected);
+        }
+
+        setMarquee(null);
+        return;
+      }
+
+      dragging.current = false;
+    },
+    [marquee, nodes, pan, scale]
+  );
+
+  // Zoom toward cursor
   const handleWheel = useCallback(
     (e: React.WheelEvent) => {
       e.preventDefault();
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
 
-      // Mouse position relative to the container
       const mx = e.clientX - rect.left;
       const my = e.clientY - rect.top;
 
@@ -273,10 +473,6 @@ export function LegacyHubCanvas({
       const delta = e.deltaY > 0 ? -0.06 : 0.06;
       const newScale = Math.min(2.5, Math.max(0.15, oldScale + delta));
 
-      // Adjust pan so the world-point under the cursor stays put
-      // worldPoint = (mx - pan.x) / oldScale
-      // After zoom: mx - newPan.x = worldPoint * newScale
-      // => newPan.x = mx - worldPoint * newScale
       const wx = (mx - pan.x) / oldScale;
       const wy = (my - pan.y) / oldScale;
 
@@ -289,7 +485,7 @@ export function LegacyHubCanvas({
     [scale, pan]
   );
 
-  // Button zoom — zoom toward center of viewport
+  // Button zoom toward center
   const zoomTowardCenter = useCallback(
     (delta: number) => {
       const el = containerRef.current;
@@ -309,13 +505,22 @@ export function LegacyHubCanvas({
     [scale, pan]
   );
 
-  const zoomIn = useCallback(() => zoomTowardCenter(0.2), [zoomTowardCenter]);
-  const zoomOut = useCallback(() => zoomTowardCenter(-0.2), [zoomTowardCenter]);
+  const zoomIn = useCallback(
+    () => zoomTowardCenter(0.2),
+    [zoomTowardCenter]
+  );
+  const zoomOut = useCallback(
+    () => zoomTowardCenter(-0.2),
+    [zoomTowardCenter]
+  );
 
   // ─── Fit to view ───
   const fitToView = useCallback(() => {
     if (nodes.length === 0 || containerSize.width === 0) return;
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      maxX = -Infinity,
+      minY = Infinity,
+      maxY = -Infinity;
     for (const n of nodes) {
       if (n.x < minX) minX = n.x;
       if (n.x > maxX) maxX = n.x;
@@ -324,10 +529,10 @@ export function LegacyHubCanvas({
     }
     const treeW = maxX - minX + 300;
     const treeH = maxY - minY + 300;
-    const newScale = Math.min(1.5, Math.max(0.2, Math.min(
-      containerSize.width / treeW,
-      containerSize.height / treeH
-    )));
+    const newScale = Math.min(
+      1.5,
+      Math.max(0.2, Math.min(containerSize.width / treeW, containerSize.height / treeH))
+    );
     setPan({
       x: containerSize.width / 2 - ((minX + maxX) / 2) * newScale,
       y: containerSize.height / 2 - ((minY + maxY) / 2) * newScale,
@@ -344,6 +549,21 @@ export function LegacyHubCanvas({
     }
   }, [nodes.length, containerSize.width, fitToView]);
 
+  // Keyboard: Escape to deselect, Ctrl+A to select all
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        clearSelection();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "a") {
+        e.preventDefault();
+        setSelectedIds(new Set(nodes.map((n) => n.id)));
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [nodes, clearSelection]);
+
   const canvasW = 5000;
   const canvasH = 5000;
 
@@ -351,20 +571,64 @@ export function LegacyHubCanvas({
     <div className="relative w-full h-full">
       {/* ─── Controls ─── */}
       <div className="absolute top-3 right-3 z-20 flex flex-col gap-1">
-        <Button variant="outline" size="icon" className="h-8 w-8 bg-card/80 backdrop-blur-sm" onClick={zoomIn}>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 bg-card/80 backdrop-blur-sm"
+          onClick={zoomIn}
+        >
           <ZoomIn className="h-4 w-4" />
         </Button>
-        <Button variant="outline" size="icon" className="h-8 w-8 bg-card/80 backdrop-blur-sm" onClick={zoomOut}>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 bg-card/80 backdrop-blur-sm"
+          onClick={zoomOut}
+        >
           <ZoomOut className="h-4 w-4" />
         </Button>
-        <Button variant="outline" size="icon" className="h-8 w-8 bg-card/80 backdrop-blur-sm" onClick={fitToView}>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 bg-card/80 backdrop-blur-sm"
+          onClick={fitToView}
+        >
           <Maximize className="h-3.5 w-3.5" />
         </Button>
       </div>
 
+      {/* ─── Selection hint ─── */}
+      {selectedIds.size > 0 && (
+        <div className="absolute top-3 left-3 z-20 flex items-center gap-2 bg-card/90 backdrop-blur-sm border rounded-full px-3 py-1.5 shadow-sm">
+          <MousePointer className="h-3.5 w-3.5 text-primary" />
+          <span className="text-xs font-medium">
+            {selectedIds.size} selected
+          </span>
+          <button
+            onClick={clearSelection}
+            className="text-xs text-muted-foreground hover:text-foreground ml-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* ─── Selection tip (when nothing selected) ─── */}
+      {selectedIds.size === 0 && (
+        <div className="absolute bottom-4 left-4 z-20">
+          <span className="text-[10px] text-muted-foreground/60 bg-card/60 backdrop-blur-sm rounded px-2 py-1">
+            Shift+drag to select multiple
+          </span>
+        </div>
+      )}
+
       {/* ─── FAB: Add Connection ─── */}
       <div className="absolute bottom-4 right-4 z-20">
-        <Button onClick={onAddNew} size="sm" className="rounded-full shadow-lg gap-1.5">
+        <Button
+          onClick={onAddNew}
+          size="sm"
+          className="rounded-full shadow-lg gap-1.5"
+        >
           <Plus className="h-4 w-4" />
           Add Connection
         </Button>
@@ -404,11 +668,18 @@ export function LegacyHubCanvas({
               onDelete={onDelete}
               onInvite={onInvite}
               onPositionChange={handlePositionChange}
+              onGroupDrag={handleGroupDrag}
+              onGroupDragEnd={handleGroupDragEnd}
               scale={scale}
-              panRef={panRef}
+              isSelected={selectedIds.has(node.id)}
+              selectedCount={selectedIds.size}
+              onSelect={handleSelect}
             />
           ))}
         </div>
+
+        {/* Marquee selection rectangle overlay */}
+        {marquee && <MarqueeRect rect={marquee} pan={pan} scale={scale} />}
       </div>
     </div>
   );

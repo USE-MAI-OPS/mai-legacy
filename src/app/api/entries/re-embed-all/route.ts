@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { chunkText } from "@/lib/rag/chunker";
 import { generateEmbeddings } from "@/lib/rag/embeddings";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 /**
  * POST /api/entries/re-embed-all
@@ -24,6 +25,10 @@ export async function POST() {
     if (authError || !user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Rate limit: 2 requests per minute per user (expensive operation)
+    const rl = rateLimit(`reembed:${user.id}`, 2);
+    if (rl.limited) return rateLimitResponse(rl.retryAfterMs) as unknown as ReturnType<typeof NextResponse.json>;
 
     // Get the user's family
     const { data: membership } = await supabase

@@ -28,6 +28,11 @@ function capitalizeName(name: string): string {
 export async function saveNodePosition(id: string, x: number, y: number) {
   try {
     const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
 
@@ -182,6 +187,11 @@ export async function updateTreeMember(
 
 export async function deleteTreeMember(id: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Not authenticated" };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;
 
@@ -261,6 +271,11 @@ export async function respondToEvent(
 
 export async function deleteEvent(eventId: string) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Not authenticated" };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;
 

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { searchFamilyKnowledge } from "@/lib/rag/search";
 import { getConnectionChain } from "@/lib/connection-chain";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import type { ConversationMessage } from "@/types/database";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -58,6 +59,10 @@ export async function POST(request: NextRequest) {
         headers: { "Content-Type": "application/json" },
       });
     }
+
+    // Rate limit: 20 requests per minute per user
+    const rl = rateLimit(`griot:${user.id}`, 20);
+    if (rl.limited) return rateLimitResponse(rl.retryAfterMs);
 
     // ------------------------------------------------------------------
     // 0. Resolve connection chain for filtering

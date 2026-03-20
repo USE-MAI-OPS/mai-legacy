@@ -50,8 +50,14 @@ export async function signup(formData: FormData) {
     redirect(`/signup?error=Passwords+do+not+match${rp}`);
   }
 
-  if (password.length < 6) {
-    redirect(`/signup?error=Password+must+be+at+least+6+characters${rp}`);
+  if (password.length < 8) {
+    redirect(`/signup?error=Password+must+be+at+least+8+characters${rp}`);
+  }
+
+  if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+    redirect(
+      `/signup?error=Password+must+include+uppercase,+lowercase,+and+a+number${rp}`
+    );
   }
 
   // Sign up — with email confirmation disabled in Supabase,
@@ -339,8 +345,14 @@ export async function resetPassword(formData: FormData) {
     redirect("/reset-password?error=Passwords+do+not+match");
   }
 
-  if (password.length < 6) {
-    redirect("/reset-password?error=Password+must+be+at+least+6+characters");
+  if (password.length < 8) {
+    redirect("/reset-password?error=Password+must+be+at+least+8+characters");
+  }
+
+  if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+    redirect(
+      "/reset-password?error=Password+must+include+uppercase,+lowercase,+and+a+number"
+    );
   }
 
   const { error } = await supabase.auth.updateUser({ password });

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { extractFromTranscript } from "@/lib/interview/extract";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import type { ExtractionRequest } from "@/lib/interview/types";
 
 /**
@@ -23,6 +24,10 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Rate limit: 5 requests per minute per user
+    const rl = rateLimit(`interview:${user.id}`, 5);
+    if (rl.limited) return rateLimitResponse(rl.retryAfterMs);
 
     const body = (await request.json()) as ExtractionRequest;
 

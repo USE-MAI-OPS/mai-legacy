@@ -79,7 +79,7 @@ export async function addTreeMember(data: {
   }
 
   revalidatePath("/family");
-  return { success: true };
+  return { success: true, id: (inserted?.id as string) ?? undefined };
 }
 
 export async function updateTreeMember(

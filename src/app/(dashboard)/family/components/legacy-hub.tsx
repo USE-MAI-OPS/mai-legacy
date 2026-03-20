@@ -57,18 +57,22 @@ const DraggableHubNode = memo(function DraggableHubNode({
         const startClientY = e.clientY;
         const startNodeX = node.x;
         const startNodeY = node.y;
+        let lastX = startNodeX;
+        let lastY = startNodeY;
 
         const onMove = (ev: PointerEvent) => {
           const dx = (ev.clientX - startClientX) / scale;
           const dy = (ev.clientY - startClientY) / scale;
-          onPositionChange(node.id, startNodeX + dx, startNodeY + dy);
+          lastX = startNodeX + dx;
+          lastY = startNodeY + dy;
+          onPositionChange(node.id, lastX, lastY);
         };
 
         const onUp = () => {
           window.removeEventListener("pointermove", onMove);
           window.removeEventListener("pointerup", onUp);
-          // Save position to DB (fire-and-forget)
-          saveNodePosition(node.id, node.x, node.y);
+          // Save final position to DB
+          saveNodePosition(node.id, lastX, lastY);
         };
 
         window.addEventListener("pointermove", onMove);
@@ -162,17 +166,42 @@ export function LegacyHubCanvas({
     });
   }, [initialNodes, nodePositions]);
 
-  // Build links with resolved positions
+  // Build links with resolved positions — offset endpoints so lines
+  // start/end at the edge of the node card instead of cutting through it
+  const NODE_RADIUS = 70; // approximate radius of the circular node card
   const links = useMemo(() => {
     return initialLinks.map((link) => {
       const src = nodePositions.get(link.sourceId);
       const tgt = nodePositions.get(link.targetId);
+      const sx0 = src?.x ?? 0;
+      const sy0 = src?.y ?? 0;
+      const tx0 = tgt?.x ?? 0;
+      const ty0 = tgt?.y ?? 0;
+
+      // Vector from source → target
+      const dx = tx0 - sx0;
+      const dy = ty0 - sy0;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      // Only offset if nodes are far enough apart (avoid collapsing short links)
+      if (dist > NODE_RADIUS * 2.5) {
+        const ux = dx / dist; // unit vector
+        const uy = dy / dist;
+        return {
+          ...link,
+          sx: sx0 + ux * NODE_RADIUS,
+          sy: sy0 + uy * NODE_RADIUS,
+          tx: tx0 - ux * NODE_RADIUS,
+          ty: ty0 - uy * NODE_RADIUS,
+        };
+      }
+
       return {
         ...link,
-        sx: src?.x ?? 0,
-        sy: src?.y ?? 0,
-        tx: tgt?.x ?? 0,
-        ty: tgt?.y ?? 0,
+        sx: sx0,
+        sy: sy0,
+        tx: tx0,
+        ty: ty0,
       };
     });
   }, [initialLinks, nodePositions]);

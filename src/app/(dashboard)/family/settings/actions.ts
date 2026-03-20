@@ -59,6 +59,7 @@ export async function sendInvite(
         .from("family_members")
         .select("display_name")
         .eq("user_id", user.id)
+        .eq("family_id", familyId)
         .limit(1)
         .single(),
     ]);

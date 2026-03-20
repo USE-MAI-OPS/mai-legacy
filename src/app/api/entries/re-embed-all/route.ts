@@ -28,7 +28,7 @@ export async function POST() {
 
     // Rate limit: 2 requests per minute per user (expensive operation)
     const rl = rateLimit(`reembed:${user.id}`, 2);
-    if (rl.limited) return rateLimitResponse(rl.retryAfterMs) as unknown as ReturnType<typeof NextResponse.json>;
+    if (rl.limited) return rateLimitResponse(rl.retryAfterMs);
 
     // Get the user's family
     const { data: membership } = await supabase

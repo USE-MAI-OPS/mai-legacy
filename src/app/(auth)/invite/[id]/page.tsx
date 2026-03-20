@@ -83,6 +83,7 @@ export default function AcceptInvitePage() {
           .from("family_members")
           .select("display_name")
           .eq("user_id", inviteData.invited_by)
+          .eq("family_id", inviteData.family_id)
           .limit(1)
           .single();
 

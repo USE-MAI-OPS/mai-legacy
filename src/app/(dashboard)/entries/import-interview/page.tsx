@@ -126,7 +126,10 @@ function ImportInterviewContent() {
     try {
       // Save transcript record
       const saveResult = await saveTranscriptRecord(transcript, memberId);
-      const tId = saveResult.data?.id || null;
+      if (saveResult.error || !saveResult.data) {
+        throw new Error(saveResult.error || "Failed to save transcript record");
+      }
+      const tId = saveResult.data.id;
       setTranscriptId(tId);
 
       // Get member's existing profile

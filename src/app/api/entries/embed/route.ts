@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     // Rate limit: 10 requests per minute per user
     const rl = rateLimit(`embed:${user.id}`, 10);
-    if (rl.limited) return rateLimitResponse(rl.retryAfterMs) as unknown as ReturnType<typeof NextResponse.json>;
+    if (rl.limited) return rateLimitResponse(rl.retryAfterMs);
 
     // -----------------------------------------------------------------------
     // 1. Fetch the entry (RLS ensures the caller has access).

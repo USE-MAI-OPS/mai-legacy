@@ -258,13 +258,59 @@ export function LegacyHubCanvas({
     dragging.current = false;
   }, []);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    setScale((s) => Math.min(2.5, Math.max(0.15, s + (e.deltaY > 0 ? -0.06 : 0.06))));
-  }, []);
+  // Zoom toward cursor — keep the point under the mouse fixed
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      e.preventDefault();
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
 
-  const zoomIn = useCallback(() => setScale((s) => Math.min(2.5, s + 0.2)), []);
-  const zoomOut = useCallback(() => setScale((s) => Math.max(0.15, s - 0.2)), []);
+      // Mouse position relative to the container
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      const oldScale = scale;
+      const delta = e.deltaY > 0 ? -0.06 : 0.06;
+      const newScale = Math.min(2.5, Math.max(0.15, oldScale + delta));
+
+      // Adjust pan so the world-point under the cursor stays put
+      // worldPoint = (mx - pan.x) / oldScale
+      // After zoom: mx - newPan.x = worldPoint * newScale
+      // => newPan.x = mx - worldPoint * newScale
+      const wx = (mx - pan.x) / oldScale;
+      const wy = (my - pan.y) / oldScale;
+
+      setPan({
+        x: mx - wx * newScale,
+        y: my - wy * newScale,
+      });
+      setScale(newScale);
+    },
+    [scale, pan]
+  );
+
+  // Button zoom — zoom toward center of viewport
+  const zoomTowardCenter = useCallback(
+    (delta: number) => {
+      const el = containerRef.current;
+      if (!el) {
+        setScale((s) => Math.min(2.5, Math.max(0.15, s + delta)));
+        return;
+      }
+      const cx = el.clientWidth / 2;
+      const cy = el.clientHeight / 2;
+      const oldScale = scale;
+      const newScale = Math.min(2.5, Math.max(0.15, oldScale + delta));
+      const wx = (cx - pan.x) / oldScale;
+      const wy = (cy - pan.y) / oldScale;
+      setPan({ x: cx - wx * newScale, y: cy - wy * newScale });
+      setScale(newScale);
+    },
+    [scale, pan]
+  );
+
+  const zoomIn = useCallback(() => zoomTowardCenter(0.2), [zoomTowardCenter]);
+  const zoomOut = useCallback(() => zoomTowardCenter(-0.2), [zoomTowardCenter]);
 
   // ─── Fit to view ───
   const fitToView = useCallback(() => {

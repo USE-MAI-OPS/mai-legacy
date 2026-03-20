@@ -1,54 +1,34 @@
 // ============================================================================
 // Legacy Hub — Type Definitions
-// The data model for the center-out radial network graph
+// Free-form canvas with manual node placement
 // ============================================================================
 
 // ---------------------------------------------------------------------------
-// Node Types (Roles) — determines visual styling of the card
+// Connection Types — determines the SVG line style
 // ---------------------------------------------------------------------------
-export type NodeRole =
-  | "me"
-  | "mom"
-  | "dad"
-  | "sibling"
-  | "child"
-  | "grandparent"
-  | "uncle"
-  | "aunt"
-  | "cousin"
-  | "friend"
-  | "spouse"
-  | "other";
-
-// ---------------------------------------------------------------------------
-// Link Types (Connections) — determines the SVG line style
-// ---------------------------------------------------------------------------
-export type LinkType =
+export type ConnectionType =
   | "dna"      // Blood relatives → DNA helix wavy line
   | "friend"   // Non-blood → chain-link dashed style
   | "spouse";  // Marriage/partnership → solid thick line
 
 // ---------------------------------------------------------------------------
-// Hub Node — a person in the network
+// Hub Node — a person on the canvas
 // ---------------------------------------------------------------------------
 export interface HubNode {
   id: string;
   displayName: string;
-  role: NodeRole;
+  connectionType: ConnectionType;
   avatarUrl: string | null;
   birthYear: number | null;
   isDeceased: boolean;
-  isClaimed: boolean;            // linked to an auth user
-  linkedMemberId: string | null;  // family_members row id
-  // D3 simulation fields (mutable, set by d3-force)
-  x?: number;
-  y?: number;
-  fx?: number | null;  // fixed X (pinned node)
-  fy?: number | null;  // fixed Y (pinned node)
-  vx?: number;
-  vy?: number;
-  // Layout hint: distance ring from center (0 = ego, 1 = parents, 2 = grandparents, etc.)
-  ring: number;
+  isClaimed: boolean;
+  linkedMemberId: string | null;
+  relationshipLabel: string | null;
+  // Canvas position (persisted to DB)
+  x: number;
+  y: number;
+  // Is this the current user?
+  isMe: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -56,48 +36,13 @@ export interface HubNode {
 // ---------------------------------------------------------------------------
 export interface HubLink {
   id: string;
-  source: string | HubNode;  // D3 mutates these to node refs
-  target: string | HubNode;
-  type: LinkType;
+  sourceId: string;
+  targetId: string;
+  type: ConnectionType;
 }
 
 // ---------------------------------------------------------------------------
-// Helpers — derive link type from relationship role
-// ---------------------------------------------------------------------------
-const DNA_ROLES = new Set<NodeRole>([
-  "mom", "dad", "sibling", "child", "grandparent", "uncle", "aunt", "cousin",
-] as const);
-
-export function linkTypeFromRole(role: NodeRole): LinkType {
-  if (role === "spouse") return "spouse";
-  if (role === "friend") return "friend";
-  if (DNA_ROLES.has(role)) return "dna";
-  return "dna"; // default to blood for "other"
-}
-
-// ---------------------------------------------------------------------------
-// Helper — derive ring (distance from ego) from role
-// ---------------------------------------------------------------------------
-export function ringFromRole(role: NodeRole): number {
-  switch (role) {
-    case "me": return 0;
-    case "mom":
-    case "dad":
-    case "spouse": return 1;
-    case "sibling":
-    case "child": return 1;
-    case "grandparent": return 2;
-    case "uncle":
-    case "aunt": return 2;
-    case "cousin":
-    case "friend": return 3;
-    default: return 3;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Convert existing TreeNodeData → HubNode + HubLink[]
-// Bridge from the old data model to the new one
+// Tree data from the database
 // ---------------------------------------------------------------------------
 export interface TreeNodeData {
   id: string;
@@ -110,23 +55,16 @@ export interface TreeNodeData {
   birth_year: number | null;
   is_deceased: boolean;
   avatar_url: string | null;
+  position_x?: number | null;
+  position_y?: number | null;
+  connection_type?: string | null;
 }
 
-export function roleFromLabel(label: string | null): NodeRole {
-  if (!label) return "other";
-  const l = label.toLowerCase().trim();
-  if (l === "mother" || l === "mom") return "mom";
-  if (l === "father" || l === "dad") return "dad";
-  if (l === "brother" || l === "sister" || l === "sibling") return "sibling";
-  if (l === "son" || l === "daughter" || l === "child") return "child";
-  if (l.includes("grand")) return "grandparent";
-  if (l === "uncle") return "uncle";
-  if (l === "aunt") return "aunt";
-  if (l === "cousin") return "cousin";
-  if (l === "friend") return "friend";
-  if (l === "wife" || l === "husband" || l === "spouse" || l === "partner") return "spouse";
-  return "other";
-}
+// ---------------------------------------------------------------------------
+// Convert DB data → HubNode[] + HubLink[]
+// ---------------------------------------------------------------------------
+const DEFAULT_CENTER_X = 2500;
+const DEFAULT_CENTER_Y = 2500;
 
 export function convertTreeData(
   members: TreeNodeData[],
@@ -136,50 +74,75 @@ export function convertTreeData(
   const links: HubLink[] = [];
   const byId = new Map(members.map((m) => [m.id, m]));
 
-  for (const m of members) {
-    const isSelf = m.linked_member_id === currentUserMemberId;
-    const role: NodeRole = isSelf ? "me" : roleFromLabel(m.relationship_label);
+  // Find ego node index for default positioning
+  const egoIdx = members.findIndex(
+    (m) => m.linked_member_id === currentUserMemberId
+  );
+
+  members.forEach((m, idx) => {
+    const isMe = m.linked_member_id === currentUserMemberId;
+    const connType = (m.connection_type as ConnectionType) || "dna";
+
+    // Default position: ego at center, others spread around
+    let x = m.position_x ?? null;
+    let y = m.position_y ?? null;
+
+    if (x === null || y === null) {
+      if (isMe) {
+        x = DEFAULT_CENTER_X;
+        y = DEFAULT_CENTER_Y;
+      } else {
+        // Spread unpositioned nodes in a circle around center
+        const angle = ((idx - (egoIdx >= 0 ? egoIdx : 0)) / members.length) * Math.PI * 2;
+        const radius = 200 + Math.random() * 100;
+        x = DEFAULT_CENTER_X + Math.cos(angle) * radius;
+        y = DEFAULT_CENTER_Y + Math.sin(angle) * radius;
+      }
+    }
 
     nodes.push({
       id: m.id,
       displayName: m.display_name,
-      role,
+      connectionType: connType,
       avatarUrl: m.avatar_url,
       birthYear: m.birth_year,
       isDeceased: m.is_deceased,
       isClaimed: !!m.linked_member_id,
       linkedMemberId: m.linked_member_id,
-      ring: ringFromRole(role),
+      relationshipLabel: m.relationship_label,
+      x,
+      y,
+      isMe,
     });
 
-    // Parent → child links (DNA)
+    // Parent → child links
     if (m.parent_id && byId.has(m.parent_id)) {
       links.push({
         id: `${m.parent_id}->${m.id}`,
-        source: m.parent_id,
-        target: m.id,
-        type: "dna",
+        sourceId: m.parent_id,
+        targetId: m.id,
+        type: connType === "friend" ? "friend" : "dna",
       });
     }
     if (m.parent2_id && byId.has(m.parent2_id)) {
       links.push({
         id: `${m.parent2_id}->${m.id}`,
-        source: m.parent2_id,
-        target: m.id,
-        type: "dna",
+        sourceId: m.parent2_id,
+        targetId: m.id,
+        type: connType === "friend" ? "friend" : "dna",
       });
     }
 
-    // Spouse link (only one direction to avoid duplicates)
+    // Spouse link (one direction only)
     if (m.spouse_id && byId.has(m.spouse_id) && m.id < m.spouse_id) {
       links.push({
         id: `spouse:${m.id}<>${m.spouse_id}`,
-        source: m.id,
-        target: m.spouse_id,
+        sourceId: m.id,
+        targetId: m.spouse_id,
         type: "spouse",
       });
     }
-  }
+  });
 
   return { nodes, links };
 }

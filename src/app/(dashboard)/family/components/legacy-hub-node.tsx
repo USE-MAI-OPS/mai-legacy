@@ -24,34 +24,17 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
-function roleLabel(role: HubNode["role"]): string {
-  switch (role) {
-    case "me": return "Me";
-    case "mom": return "Mom";
-    case "dad": return "Dad";
-    case "sibling": return "Sibling";
-    case "child": return "Child";
-    case "grandparent": return "Grandparent";
-    case "uncle": return "Uncle";
-    case "aunt": return "Aunt";
-    case "cousin": return "Cousin";
-    case "friend": return "Friend";
-    case "spouse": return "Spouse";
-    default: return "Family";
-  }
-}
-
 // ---------------------------------------------------------------------------
-// Ring color by role
+// Ring color by connection type & self
 // ---------------------------------------------------------------------------
 function ringStyle(node: HubNode): string {
-  if (node.role === "me") {
+  if (node.isMe) {
     return "ring-[3px] ring-primary ring-offset-2 ring-offset-background shadow-lg shadow-primary/25";
   }
-  if (node.role === "spouse") {
+  if (node.connectionType === "spouse") {
     return "ring-2 ring-amber-400/70 ring-offset-2 ring-offset-background";
   }
-  if (node.role === "friend") {
+  if (node.connectionType === "friend") {
     return "ring-2 ring-sky-400/50 ring-offset-2 ring-offset-background";
   }
   if (node.isClaimed) {
@@ -61,11 +44,36 @@ function ringStyle(node: HubNode): string {
 }
 
 function fallbackStyle(node: HubNode): string {
-  if (node.role === "me") return "bg-primary text-primary-foreground text-base font-bold";
-  if (node.role === "spouse") return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 text-sm font-semibold";
-  if (node.role === "friend") return "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 text-sm font-semibold";
+  if (node.isMe) return "bg-primary text-primary-foreground text-base font-bold";
+  if (node.connectionType === "spouse") return "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 text-sm font-semibold";
+  if (node.connectionType === "friend") return "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 text-sm font-semibold";
   if (node.isClaimed) return "bg-primary/90 text-primary-foreground text-sm font-semibold";
   return "bg-muted text-muted-foreground text-sm font-semibold";
+}
+
+// ---------------------------------------------------------------------------
+// Connection type badge
+// ---------------------------------------------------------------------------
+function connectionBadge(node: HubNode): { label: string; className: string } | null {
+  if (node.isMe) return null;
+
+  if (node.relationshipLabel) {
+    return {
+      label: node.relationshipLabel,
+      className: "text-[9px] font-medium text-muted-foreground bg-muted/60 px-2 py-[1px] rounded-full",
+    };
+  }
+
+  switch (node.connectionType) {
+    case "dna":
+      return { label: "Family", className: "text-[9px] font-medium text-muted-foreground bg-muted/60 px-2 py-[1px] rounded-full" };
+    case "friend":
+      return { label: "Friend", className: "text-[9px] font-medium text-sky-600 bg-sky-100/60 dark:text-sky-300 dark:bg-sky-900/30 px-2 py-[1px] rounded-full" };
+    case "spouse":
+      return { label: "Spouse", className: "text-[9px] font-medium text-amber-600 bg-amber-100/60 dark:text-amber-300 dark:bg-amber-900/30 px-2 py-[1px] rounded-full" };
+    default:
+      return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -89,13 +97,13 @@ export const LegacyHubNode = memo(function LegacyHubNode({
   onDelete,
   onInvite,
 }: LegacyHubNodeProps) {
-  const isSelf = node.role === "me";
-
-  const profileHref = isSelf
+  const profileHref = node.isMe
     ? "/profile"
     : node.isClaimed && node.linkedMemberId
     ? `/family/member/${node.linkedMemberId}`
     : undefined;
+
+  const badge = connectionBadge(node);
 
   const cardContent = (
     <div className="flex flex-col items-center gap-1 min-w-0 select-none">
@@ -115,7 +123,7 @@ export const LegacyHubNode = memo(function LegacyHubNode({
         </Avatar>
 
         {/* "Me" chip */}
-        {isSelf && (
+        {node.isMe && (
           <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 px-2 py-[1px] rounded-full bg-primary text-primary-foreground text-[9px] font-bold tracking-wide shadow-sm">
             Me
           </span>
@@ -134,10 +142,10 @@ export const LegacyHubNode = memo(function LegacyHubNode({
         {node.displayName}
       </p>
 
-      {/* ─── Role badge ─── */}
-      {!isSelf && (
-        <span className="text-[9px] font-medium text-muted-foreground bg-muted/60 px-2 py-[1px] rounded-full">
-          {roleLabel(node.role)}
+      {/* ─── Connection badge ─── */}
+      {badge && (
+        <span className={badge.className}>
+          {badge.label}
         </span>
       )}
 
@@ -149,7 +157,7 @@ export const LegacyHubNode = memo(function LegacyHubNode({
       )}
 
       {/* ─── Claim status ─── */}
-      {!node.isClaimed && !isSelf && (
+      {!node.isClaimed && !node.isMe && (
         <span className="text-[8px] text-muted-foreground/50 italic">
           Not yet claimed
         </span>

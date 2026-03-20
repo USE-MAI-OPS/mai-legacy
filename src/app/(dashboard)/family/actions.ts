@@ -25,6 +25,21 @@ function capitalizeName(name: string): string {
 // Tree Member Actions
 // ---------------------------------------------------------------------------
 
+export async function saveNodePosition(id: string, x: number, y: number) {
+  try {
+    const supabase = await createClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sb = supabase as any;
+
+    await sb
+      .from("family_tree_members")
+      .update({ position_x: x, position_y: y })
+      .eq("id", id);
+  } catch {
+    // Columns may not exist yet — silently ignore
+  }
+}
+
 export async function addTreeMember(data: {
   familyId: string;
   displayName: string;
@@ -35,6 +50,7 @@ export async function addTreeMember(data: {
   birthYear: number | null;
   isDeceased: boolean;
   linkedMemberId?: string | null;
+  connectionType?: string | null;
 }) {
   const supabase = await createClient();
   const {
@@ -56,6 +72,11 @@ export async function addTreeMember(data: {
     is_deceased: data.isDeceased,
     added_by: user.id,
   };
+
+  // Add connection_type if provided (column may not exist yet)
+  if (data.connectionType) {
+    insertPayload.connection_type = data.connectionType;
+  }
 
   // Optionally link to a signed-up family_members row (used by "Add Yourself")
   const linkedId = clean(data.linkedMemberId ?? null);

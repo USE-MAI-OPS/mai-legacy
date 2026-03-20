@@ -19,6 +19,9 @@ interface TreeMemberRow {
   birth_year: number | null;
   is_deceased: boolean;
   avatar_url: string | null;
+  position_x: number | null;
+  position_y: number | null;
+  connection_type: string | null;
 }
 
 interface RealMemberRow {
@@ -39,12 +42,13 @@ async function getTreeData() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
 
-    // Build tree query — filter to connected members if connection chain is active
+    // Build tree query — try with position columns, fall back without
+    const fullSelect = "id, display_name, relationship_label, parent_id, parent2_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url, position_x, position_y, connection_type";
+    const basicSelect = "id, display_name, relationship_label, parent_id, parent2_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url";
+
     let treeQuery = sb
       .from("family_tree_members")
-      .select(
-        "id, display_name, relationship_label, parent_id, parent2_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url"
-      )
+      .select(fullSelect)
       .eq("family_id", familyId)
       .order("created_at", { ascending: true });
 
@@ -62,6 +66,21 @@ async function getTreeData() {
           .eq("family_id", familyId)
           .order("joined_at", { ascending: true }),
       ]);
+
+    // If position columns don't exist yet, retry without them
+    if (treeMembersResult.error?.message?.includes("does not exist")) {
+      let fallbackQuery = sb
+        .from("family_tree_members")
+        .select(basicSelect)
+        .eq("family_id", familyId)
+        .order("created_at", { ascending: true });
+      if (connectedTreeMemberIds.length > 0) {
+        fallbackQuery = fallbackQuery.in("id", connectedTreeMemberIds);
+      }
+      const fallback = await fallbackQuery;
+      treeMembersResult.data = fallback.data;
+      treeMembersResult.error = fallback.error;
+    }
 
     const realMembers = (realMembersResult.data as RealMemberRow[]) ?? [];
     const currentUserMember = realMembers.find((m) => m.user_id === userId);

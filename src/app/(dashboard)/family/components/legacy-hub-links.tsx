@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import type { HubNode, HubLink } from "./legacy-hub-types";
+import type { ConnectionType } from "./legacy-hub-types";
 
 // ============================================================================
 // Color Palette — MAI Legacy warm earthy tones
@@ -13,8 +13,21 @@ const FRIEND_COLOR = "oklch(0.65 0.03 240 / 0.40)";   // cool grey-blue
 const SPOUSE_COLOR = "oklch(0.72 0.07 55 / 0.60)";    // warm amber
 
 // ============================================================================
-// DNA Helix Line — double-stranded wavy sine wave with crossbar rungs
-// Used for all blood-relative connections
+// Resolved link — positions already computed by the canvas
+// ============================================================================
+export interface ResolvedLink {
+  id: string;
+  sourceId: string;
+  targetId: string;
+  type: ConnectionType;
+  sx: number;
+  sy: number;
+  tx: number;
+  ty: number;
+}
+
+// ============================================================================
+// DNA Helix Line
 // ============================================================================
 function generateDnaHelix(
   sx: number, sy: number, tx: number, ty: number
@@ -52,7 +65,6 @@ function generateDnaHelix(
     p1.push(`${cmd}${(bx + ox).toFixed(1)} ${(by + oy).toFixed(1)}`);
     p2.push(`${cmd}${(bx - ox).toFixed(1)} ${(by - oy).toFixed(1)}`);
 
-    // Rungs at zero-crossings
     if (i > 0 && i < steps) {
       const prevWave = Math.sin(((i - 1) / steps) * numWaves * Math.PI * 2);
       if ((prevWave >= 0 && wave < 0) || (prevWave < 0 && wave >= 0)) {
@@ -61,61 +73,32 @@ function generateDnaHelix(
     }
   }
 
-  return {
-    strand1: p1.join(" "),
-    strand2: p2.join(" "),
-    rungs,
-  };
+  return { strand1: p1.join(" "), strand2: p2.join(" "), rungs };
 }
 
 // ============================================================================
-// Chain-Link Line — repeating dash pattern for friend connections
-// Rendered as a dashed path with circle "links" along it
+// Chain-Link Line (friend connections)
 // ============================================================================
 function generateChainPath(sx: number, sy: number, tx: number, ty: number): string {
-  // Gentle curve instead of straight line for visual distinction
   const mx = (sx + tx) / 2;
   const my = (sy + ty) / 2;
   const dx = tx - sx;
   const dy = ty - sy;
-  // Perpendicular offset for a slight arc
   const arcOffset = Math.min(20, Math.sqrt(dx * dx + dy * dy) * 0.08);
   const perpX = -dy / Math.sqrt(dx * dx + dy * dy || 1) * arcOffset;
   const perpY = dx / Math.sqrt(dx * dx + dy * dy || 1) * arcOffset;
-
   return `M ${sx} ${sy} Q ${mx + perpX} ${my + perpY}, ${tx} ${ty}`;
-}
-
-// ============================================================================
-// Spouse Line — solid thick straight line
-// ============================================================================
-function generateSpousePath(sx: number, sy: number, tx: number, ty: number): string {
-  return `M ${sx} ${sy} L ${tx} ${ty}`;
-}
-
-// ============================================================================
-// Resolve link endpoints — D3 mutates source/target to node refs
-// ============================================================================
-function getEndpoints(link: HubLink): { sx: number; sy: number; tx: number; ty: number } | null {
-  const src = link.source as HubNode;
-  const tgt = link.target as HubNode;
-  if (src?.x == null || src?.y == null || tgt?.x == null || tgt?.y == null) return null;
-  return { sx: src.x, sy: src.y, tx: tgt.x, ty: tgt.y };
 }
 
 // ============================================================================
 // SVG Components
 // ============================================================================
 
-/** DNA blood-relative links */
-const DnaLinks = memo(function DnaLinks({ links }: { links: HubLink[] }) {
+const DnaLinks = memo(function DnaLinks({ links }: { links: ResolvedLink[] }) {
   return (
     <>
       {links.map((link) => {
-        const pts = getEndpoints(link);
-        if (!pts) return null;
-        const helix = generateDnaHelix(pts.sx, pts.sy, pts.tx, pts.ty);
-
+        const helix = generateDnaHelix(link.sx, link.sy, link.tx, link.ty);
         return (
           <g key={link.id}>
             <path d={helix.strand1} fill="none" stroke={DNA_STRAND_A} strokeWidth={1.4} strokeLinecap="round" />
@@ -131,21 +114,15 @@ const DnaLinks = memo(function DnaLinks({ links }: { links: HubLink[] }) {
   );
 });
 
-/** Friend chain-link connections */
-const FriendLinks = memo(function FriendLinks({ links }: { links: HubLink[] }) {
+const FriendLinks = memo(function FriendLinks({ links }: { links: ResolvedLink[] }) {
   return (
     <>
       {links.map((link) => {
-        const pts = getEndpoints(link);
-        if (!pts) return null;
-        const d = generateChainPath(pts.sx, pts.sy, pts.tx, pts.ty);
-
+        const d = generateChainPath(link.sx, link.sy, link.tx, link.ty);
         return (
           <g key={link.id}>
-            {/* Background path (wider, for chain look) */}
             <path d={d} fill="none" stroke={FRIEND_COLOR} strokeWidth={3}
               strokeDasharray="2 8" strokeLinecap="round" opacity={0.4} />
-            {/* Foreground path */}
             <path d={d} fill="none" stroke={FRIEND_COLOR} strokeWidth={1.5}
               strokeDasharray="8 6" strokeLinecap="round" />
           </g>
@@ -155,33 +132,27 @@ const FriendLinks = memo(function FriendLinks({ links }: { links: HubLink[] }) {
   );
 });
 
-/** Spouse/partner solid links */
-const SpouseLinks = memo(function SpouseLinks({ links }: { links: HubLink[] }) {
+const SpouseLinks = memo(function SpouseLinks({ links }: { links: ResolvedLink[] }) {
   return (
     <>
-      {links.map((link) => {
-        const pts = getEndpoints(link);
-        if (!pts) return null;
-        const d = generateSpousePath(pts.sx, pts.sy, pts.tx, pts.ty);
-
-        return (
-          <path key={link.id} d={d} fill="none"
-            stroke={SPOUSE_COLOR} strokeWidth={2.5} strokeLinecap="round" />
-        );
-      })}
+      {links.map((link) => (
+        <path key={link.id}
+          d={`M ${link.sx} ${link.sy} L ${link.tx} ${link.ty}`}
+          fill="none" stroke={SPOUSE_COLOR} strokeWidth={2.5} strokeLinecap="round" />
+      ))}
     </>
   );
 });
 
 // ============================================================================
-// Main export — renders ALL links as a single SVG layer
+// Main export
 // ============================================================================
 export const LegacyHubLinks = memo(function LegacyHubLinks({
   links,
   width,
   height,
 }: {
-  links: HubLink[];
+  links: ResolvedLink[];
   width: number;
   height: number;
 }) {

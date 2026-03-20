@@ -12,12 +12,12 @@ import { Button } from "@/components/ui/button";
 import { ZoomIn, ZoomOut, Maximize, Plus } from "lucide-react";
 import type { HubNode, HubLink } from "./legacy-hub-types";
 import { convertTreeData, type TreeNodeData } from "./legacy-hub-types";
-import { useLegacyHubSimulation } from "./use-legacy-hub-simulation";
 import { LegacyHubNode } from "./legacy-hub-node";
 import { LegacyHubLinks } from "./legacy-hub-links";
+import { saveNodePosition } from "../actions";
 
 // ---------------------------------------------------------------------------
-// Draggable Node Wrapper — positioned at simulation coordinates
+// Draggable Node Wrapper — user places nodes wherever they want
 // ---------------------------------------------------------------------------
 const DraggableHubNode = memo(function DraggableHubNode({
   node,
@@ -25,29 +25,24 @@ const DraggableHubNode = memo(function DraggableHubNode({
   onEdit,
   onDelete,
   onInvite,
-  onDragStart,
-  onDrag,
-  onDragEnd,
+  onPositionChange,
   scale,
+  panRef,
 }: {
   node: HubNode;
   currentUserMemberId: string | null;
   onEdit: (n: HubNode) => void;
   onDelete: (id: string) => void;
   onInvite: (name: string) => void;
-  onDragStart: (id: string, x: number, y: number) => void;
-  onDrag: (x: number, y: number) => void;
-  onDragEnd: () => void;
+  onPositionChange: (id: string, x: number, y: number) => void;
   scale: number;
+  panRef: React.RefObject<{ x: number; y: number }>;
 }) {
-  const x = node.x ?? 0;
-  const y = node.y ?? 0;
-
   return (
     <div
       className="absolute cursor-grab active:cursor-grabbing"
       style={{
-        transform: `translate(${x - 60}px, ${y - 60}px)`,
+        transform: `translate(${node.x - 60}px, ${node.y - 60}px)`,
         width: 120,
       }}
       onPointerDown={(e) => {
@@ -56,21 +51,26 @@ const DraggableHubNode = memo(function DraggableHubNode({
           return;
 
         e.stopPropagation();
-        const rect = (e.currentTarget.parentElement?.parentElement as HTMLElement)?.getBoundingClientRect();
-        if (!rect) return;
+        e.preventDefault();
 
-        const nx = (e.clientX - rect.left) / scale;
-        const ny = (e.clientY - rect.top) / scale;
-        onDragStart(node.id, nx, ny);
+        const startClientX = e.clientX;
+        const startClientY = e.clientY;
+        const startNodeX = node.x;
+        const startNodeY = node.y;
 
         const onMove = (ev: PointerEvent) => {
-          onDrag((ev.clientX - rect.left) / scale, (ev.clientY - rect.top) / scale);
+          const dx = (ev.clientX - startClientX) / scale;
+          const dy = (ev.clientY - startClientY) / scale;
+          onPositionChange(node.id, startNodeX + dx, startNodeY + dy);
         };
+
         const onUp = () => {
-          onDragEnd();
           window.removeEventListener("pointermove", onMove);
           window.removeEventListener("pointerup", onUp);
+          // Save position to DB (fire-and-forget)
+          saveNodePosition(node.id, node.x, node.y);
         };
+
         window.addEventListener("pointermove", onMove);
         window.addEventListener("pointerup", onUp);
       }}
@@ -87,7 +87,7 @@ const DraggableHubNode = memo(function DraggableHubNode({
 });
 
 // ---------------------------------------------------------------------------
-// Canvas — pan, zoom, fit-to-view + renders simulation
+// Canvas — pan, zoom, fit-to-view + manual node placement
 // ---------------------------------------------------------------------------
 export function LegacyHubCanvas({
   members,
@@ -125,17 +125,75 @@ export function LegacyHubCanvas({
   }, []);
 
   // Convert tree data → hub format
-  const { nodes: inputNodes, links: inputLinks } = useMemo(
+  const { nodes: initialNodes, links: initialLinks } = useMemo(
     () => convertTreeData(members, currentUserMemberId),
     [members, currentUserMemberId]
   );
 
-  // Run D3 force simulation
-  const { nodes, links, dragHandlers } = useLegacyHubSimulation(
-    inputNodes,
-    inputLinks,
-    containerSize
+  // Mutable node positions (local state for real-time dragging)
+  const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(
+    () => new Map(initialNodes.map((n) => [n.id, { x: n.x, y: n.y }]))
   );
+
+  // Sync when members change (new members added, etc)
+  useEffect(() => {
+    setNodePositions((prev) => {
+      const next = new Map(prev);
+      for (const n of initialNodes) {
+        if (!next.has(n.id)) {
+          next.set(n.id, { x: n.x, y: n.y });
+        }
+      }
+      // Remove deleted nodes
+      for (const id of next.keys()) {
+        if (!initialNodes.find((n) => n.id === id)) {
+          next.delete(id);
+        }
+      }
+      return next;
+    });
+  }, [initialNodes]);
+
+  // Build nodes with current positions
+  const nodes = useMemo(() => {
+    return initialNodes.map((n) => {
+      const pos = nodePositions.get(n.id);
+      return pos ? { ...n, x: pos.x, y: pos.y } : n;
+    });
+  }, [initialNodes, nodePositions]);
+
+  // Build links with resolved positions
+  const links = useMemo(() => {
+    return initialLinks.map((link) => {
+      const src = nodePositions.get(link.sourceId);
+      const tgt = nodePositions.get(link.targetId);
+      return {
+        ...link,
+        sx: src?.x ?? 0,
+        sy: src?.y ?? 0,
+        tx: tgt?.x ?? 0,
+        ty: tgt?.y ?? 0,
+      };
+    });
+  }, [initialLinks, nodePositions]);
+
+  // Handle node drag
+  const handlePositionChange = useCallback((id: string, x: number, y: number) => {
+    setNodePositions((prev) => {
+      const next = new Map(prev);
+      next.set(id, { x, y });
+      return next;
+    });
+  }, []);
+
+  // Debounced save (saves the latest position after drag ends)
+  const savePosRef = useRef<{ id: string; x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (!savePosRef.current) return;
+    const { id, x, y } = savePosRef.current;
+    saveNodePosition(id, x, y);
+    savePosRef.current = null;
+  }, [nodePositions]);
 
   // ─── Pan & Zoom state ───
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -143,6 +201,8 @@ export function LegacyHubCanvas({
   const dragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const panStart = useRef({ x: 0, y: 0 });
+  const panRef = useRef(pan);
+  panRef.current = pan;
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -182,12 +242,10 @@ export function LegacyHubCanvas({
     if (nodes.length === 0 || containerSize.width === 0) return;
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     for (const n of nodes) {
-      const x = n.x ?? 0;
-      const y = n.y ?? 0;
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
+      if (n.x < minX) minX = n.x;
+      if (n.x > maxX) maxX = n.x;
+      if (n.y < minY) minY = n.y;
+      if (n.y > maxY) maxY = n.y;
     }
     const treeW = maxX - minX + 300;
     const treeH = maxY - minY + 300;
@@ -206,16 +264,13 @@ export function LegacyHubCanvas({
   const hasFitted = useRef(false);
   useEffect(() => {
     if (!hasFitted.current && nodes.length > 0 && containerSize.width > 0) {
-      const timer = setTimeout(() => {
-        hasFitted.current = true;
-        fitToView();
-      }, 600); // wait for simulation to settle a bit
-      return () => clearTimeout(timer);
+      hasFitted.current = true;
+      fitToView();
     }
   }, [nodes.length, containerSize.width, fitToView]);
 
-  const canvasW = Math.max(containerSize.width * 3, 5000);
-  const canvasH = Math.max(containerSize.height * 3, 5000);
+  const canvasW = 5000;
+  const canvasH = 5000;
 
   return (
     <div className="relative w-full h-full">
@@ -273,10 +328,9 @@ export function LegacyHubCanvas({
               onEdit={onEdit}
               onDelete={onDelete}
               onInvite={onInvite}
-              onDragStart={dragHandlers.onDragStart}
-              onDrag={dragHandlers.onDrag}
-              onDragEnd={dragHandlers.onDragEnd}
+              onPositionChange={handlePositionChange}
               scale={scale}
+              panRef={panRef}
             />
           ))}
         </div>

@@ -104,6 +104,7 @@ export function AddTreeMemberDialog({
 
   // ─── Main member fields ───
   const [displayName, setDisplayName] = useState("");
+  const [connectionType, setConnectionType] = useState("dna");
   const [relationshipLabel, setRelationshipLabel] = useState("none");
   const [parentId, setParentId] = useState("none");
   const [parent2Id, setParent2Id] = useState("none");
@@ -124,6 +125,7 @@ export function AddTreeMemberDialog({
   useEffect(() => {
     if (open) {
       setDisplayName(editNode?.display_name ?? "");
+      setConnectionType(editNode?.connection_type ?? "dna");
       setRelationshipLabel(editNode?.relationship_label ?? "none");
       setParentId(editNode?.parent_id ?? "none");
       setParent2Id(editNode?.parent2_id ?? "none");
@@ -238,6 +240,7 @@ export function AddTreeMemberDialog({
             spouseId: uuidOrNull(spouseId),
             birthYear: birthYear ? parseInt(birthYear, 10) : null,
             isDeceased,
+            connectionType,
           });
           if (!result.success) {
             toast.error(result.error ?? "Failed to add member");
@@ -308,9 +311,39 @@ export function AddTreeMemberDialog({
             />
           </div>
 
+          {/* Connection Type */}
+          <div className="space-y-1.5">
+            <Label>Connection Type</Label>
+            <div className="flex gap-2">
+              {[
+                { value: "dna", label: "Family (DNA)", desc: "Blood relative" },
+                { value: "friend", label: "Friend", desc: "Non-family" },
+                { value: "spouse", label: "Spouse", desc: "Partner" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setConnectionType(opt.value)}
+                  className={`flex-1 rounded-lg border-2 p-2 text-center transition-colors ${
+                    connectionType === opt.value
+                      ? opt.value === "dna"
+                        ? "border-primary bg-primary/5"
+                        : opt.value === "friend"
+                        ? "border-sky-400 bg-sky-50 dark:bg-sky-950/30"
+                        : "border-amber-400 bg-amber-50 dark:bg-amber-950/30"
+                      : "border-muted hover:border-muted-foreground/30"
+                  }`}
+                >
+                  <span className="text-xs font-semibold block">{opt.label}</span>
+                  <span className="text-[10px] text-muted-foreground">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Relationship */}
           <div className="space-y-1.5">
-            <Label>Relationship (to you)</Label>
+            <Label>Relationship Label</Label>
             <Select
               value={relationshipLabel}
               onValueChange={setRelationshipLabel}

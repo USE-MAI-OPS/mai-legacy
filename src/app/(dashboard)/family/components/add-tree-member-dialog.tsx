@@ -28,6 +28,7 @@ import type { TreeNodeData } from "./family-tree-node";
 const RELATIONSHIP_OPTIONS = [
   "Mother", "Father", "Son", "Daughter", "Brother", "Sister",
   "Grandmother", "Grandfather", "Grandson", "Granddaughter",
+  "Great-Grandmother", "Great-Grandfather",
   "Aunt", "Uncle", "Cousin", "Niece", "Nephew",
   "Spouse", "Partner", "Step-Mother", "Step-Father",
   "Step-Son", "Step-Daughter", "Half-Brother", "Half-Sister",
@@ -36,17 +37,22 @@ const RELATIONSHIP_OPTIONS = [
 
 const PARENT_RELATIONSHIP_OPTIONS = [
   "Mother", "Father", "Grandmother", "Grandfather",
+  "Great-Grandmother", "Great-Grandfather",
   "Step-Mother", "Step-Father", "Godparent",
 ] as const;
 
 const CHILD_RELATIONSHIP_OPTIONS = [
-  "Son", "Daughter", "Grandson", "Granddaughter",
+  "Son", "Daughter", "Brother", "Sister",
+  "Grandson", "Granddaughter",
+  "Uncle", "Aunt", "Cousin",
   "Step-Son", "Step-Daughter", "Godchild",
-  "Niece", "Nephew", "Cousin",
+  "Niece", "Nephew",
+  "Half-Brother", "Half-Sister",
 ] as const;
 
 const SPOUSE_RELATIONSHIP_OPTIONS = [
   "Spouse", "Partner",
+  "Aunt", "Uncle",
 ] as const;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -67,11 +73,237 @@ interface AddTreeMemberDialogProps {
   existingMembers: TreeNodeData[];
   realMembers: RealMember[];
   editNode?: TreeNodeData | null;
+  currentUserMemberId?: string | null;
 }
 
 function uuidOrNull(val: string): string | null {
   if (!val || val === "none") return null;
   return val;
+}
+
+// ─── Relationship Inference Engine ───────────────────────────────────────────
+// Given who the ego (current user) is, and who a member is in the tree,
+// figure out what role that member's CHILD / SPOUSE / PARENT would be to ego.
+
+type EgoRelation =
+  | "self"
+  | "parent"        // mom or dad
+  | "grandparent"   // grandma or grandpa
+  | "great-grandparent"
+  | "child"         // son or daughter
+  | "grandchild"
+  | "sibling"       // brother or sister
+  | "aunt-uncle"    // parent's sibling
+  | "cousin"
+  | "niece-nephew"  // sibling's child
+  | "spouse"
+  | "parent-spouse" // parent's spouse (step-parent)
+  | "unknown";
+
+/**
+ * BFS from ego to target, returning the relationship category of target to ego.
+ */
+function classifyRelationToEgo(
+  egoId: string,
+  targetId: string,
+  members: TreeNodeData[]
+): EgoRelation {
+  if (egoId === targetId) return "self";
+
+  const byId = new Map(members.map((m) => [m.id, m]));
+  const ego = byId.get(egoId);
+  if (!ego) return "unknown";
+
+  // Helper: get parents of a member
+  const parentsOf = (id: string): string[] => {
+    const m = byId.get(id);
+    if (!m) return [];
+    const p: string[] = [];
+    if (m.parent_id) p.push(m.parent_id);
+    if (m.parent2_id) p.push(m.parent2_id);
+    return p;
+  };
+
+  // Helper: get children of a member
+  const childrenOf = (id: string): string[] =>
+    members.filter((m) => m.parent_id === id || m.parent2_id === id).map((m) => m.id);
+
+  // Direct checks
+  const egoParents = parentsOf(egoId);
+  const egoGrandparents = egoParents.flatMap(parentsOf);
+  const egoGreatGrandparents = egoGrandparents.flatMap(parentsOf);
+  const egoSiblings = members
+    .filter((m) => m.id !== egoId && egoParents.length > 0 &&
+      (egoParents.includes(m.parent_id ?? "") || egoParents.includes(m.parent2_id ?? "")))
+    .map((m) => m.id);
+  const egoChildren = childrenOf(egoId);
+
+  // Is target a parent?
+  if (egoParents.includes(targetId)) return "parent";
+
+  // Is target a grandparent?
+  if (egoGrandparents.includes(targetId)) return "grandparent";
+
+  // Is target a great-grandparent?
+  if (egoGreatGrandparents.includes(targetId)) return "great-grandparent";
+
+  // Is target a sibling?
+  if (egoSiblings.includes(targetId)) return "sibling";
+
+  // Is target a child?
+  if (egoChildren.includes(targetId)) return "child";
+
+  // Is target a grandchild?
+  const egoGrandchildren = egoChildren.flatMap(childrenOf);
+  if (egoGrandchildren.includes(targetId)) return "grandchild";
+
+  // Is target an aunt/uncle? (parent's sibling)
+  const parentsOfParents = egoParents.flatMap(parentsOf);
+  const auntsUncles = parentsOfParents.flatMap(childrenOf).filter(
+    (id) => !egoParents.includes(id)
+  );
+  if (auntsUncles.includes(targetId)) return "aunt-uncle";
+
+  // Is target a cousin? (aunt/uncle's child)
+  const cousins = auntsUncles.flatMap(childrenOf);
+  if (cousins.includes(targetId)) return "cousin";
+
+  // Is target a niece/nephew? (sibling's child)
+  const niecesNephews = egoSiblings.flatMap(childrenOf);
+  if (niecesNephews.includes(targetId)) return "niece-nephew";
+
+  // Is target ego's spouse?
+  if (ego.spouse_id === targetId) return "spouse";
+
+  // Is target a parent's spouse?
+  for (const pid of egoParents) {
+    const parent = byId.get(pid);
+    if (parent?.spouse_id === targetId && !egoParents.includes(targetId)) {
+      return "parent-spouse";
+    }
+  }
+
+  return "unknown";
+}
+
+/**
+ * Given the edited member's relationship to ego, infer what their CHILD would be to ego.
+ */
+function inferChildRelationship(parentRelation: EgoRelation): string {
+  switch (parentRelation) {
+    case "self":        return "none"; // ego's child — user should pick Son/Daughter
+    case "parent":      return "none"; // parent's child = ego's sibling — but could be self
+    case "grandparent": return "none"; // grandparent's child = ego's parent or aunt/uncle
+    case "great-grandparent": return "none"; // too ambiguous
+    case "sibling":     return "none"; // sibling's child = niece/nephew but need gender
+    case "aunt-uncle":  return "Cousin";
+    case "cousin":      return "none";
+    case "spouse":      return "none"; // spouse's child = ego's child
+    default:            return "none";
+  }
+}
+
+/**
+ * Given the edited member's relationship to ego, infer what their SPOUSE would be to ego.
+ */
+function inferSpouseRelationship(memberRelation: EgoRelation): string {
+  switch (memberRelation) {
+    case "parent":      return "none"; // parent's spouse = other parent or step-parent
+    case "grandparent": return "none"; // grandparent's spouse = other grandparent
+    case "sibling":     return "none"; // sibling's spouse = brother/sister-in-law
+    case "aunt-uncle":  return "none"; // aunt/uncle's spouse = the other aunt/uncle
+    case "child":       return "none";
+    default:            return "none";
+  }
+}
+
+/**
+ * Given a member being edited and their relationship to ego,
+ * auto-suggest the best relationship label for new children being added inline.
+ * This is smarter than inferChildRelationship — it uses the actual relationship_label
+ * of the member when available.
+ */
+function suggestChildLabel(
+  editNode: TreeNodeData,
+  egoRelation: EgoRelation,
+  egoId: string,
+  members: TreeNodeData[]
+): string {
+  const label = editNode.relationship_label?.toLowerCase() ?? "";
+
+  // If we're editing a grandparent, their child is ego's parent or aunt/uncle
+  if (egoRelation === "grandparent" || label === "grandmother" || label === "grandfather") {
+    // Check if this grandparent's child is already ego's parent
+    // If not, they're ego's aunt/uncle
+    const egoNode = members.find((m) => m.id === egoId);
+    if (egoNode) {
+      // The child of a grandparent who isn't ego's parent = Uncle/Aunt
+      // We can't know gender from inline add, so default to Uncle (most common first)
+      return "Uncle";
+    }
+    return "Uncle";
+  }
+
+  // If editing ego's parent, their other child is ego's sibling
+  if (egoRelation === "parent" || label === "mother" || label === "father") {
+    return "Brother";
+  }
+
+  // If editing ego's aunt/uncle, their child is ego's cousin
+  if (egoRelation === "aunt-uncle" || label === "aunt" || label === "uncle") {
+    return "Cousin";
+  }
+
+  // If editing ego's sibling, their child is niece/nephew
+  if (egoRelation === "sibling" || label === "brother" || label === "sister") {
+    return "Nephew";
+  }
+
+  // If editing ego themselves, child = Son
+  if (egoRelation === "self") {
+    return "Son";
+  }
+
+  // If editing a cousin, their child = no standard label
+  // If editing ego's child, their child = Grandchild
+  if (egoRelation === "child" || label === "son" || label === "daughter") {
+    return "Grandson";
+  }
+
+  return "none";
+}
+
+/**
+ * Auto-suggest relationship label for the member being added/edited,
+ * based on who their parents are set to.
+ */
+function suggestMemberLabel(
+  parentId: string | null,
+  parent2Id: string | null,
+  egoId: string,
+  members: TreeNodeData[]
+): string {
+  if (!parentId && !parent2Id) return "none";
+
+  // Check each parent's relationship to ego
+  const parentRelations: EgoRelation[] = [];
+  if (parentId) parentRelations.push(classifyRelationToEgo(egoId, parentId, members));
+  if (parent2Id) parentRelations.push(classifyRelationToEgo(egoId, parent2Id, members));
+
+  for (const rel of parentRelations) {
+    switch (rel) {
+      case "self":        return "Son"; // ego's child
+      case "parent":      return "Brother"; // parent's child = sibling
+      case "grandparent": return "Uncle"; // grandparent's child
+      case "great-grandparent": return "Grandfather"; // great-gp's child = gp
+      case "sibling":     return "Nephew"; // sibling's child
+      case "aunt-uncle":  return "Cousin";
+      case "cousin":      return "none";
+      case "spouse":      return "Son"; // spouse's child = ego's child too
+    }
+  }
+
+  return "none";
 }
 
 // ─── Existing Connections Component ──────────────────────────────────────────
@@ -152,9 +384,31 @@ export function AddTreeMemberDialog({
   existingMembers,
   realMembers,
   editNode,
+  currentUserMemberId,
 }: AddTreeMemberDialogProps) {
   const [isPending, startTransition] = useTransition();
   const isEditing = !!editNode;
+
+  // Find ego tree node
+  const egoTreeId = useMemo(() => {
+    if (!currentUserMemberId) return null;
+    const egoTreeNode = existingMembers.find(
+      (m) => m.linked_member_id === currentUserMemberId
+    );
+    return egoTreeNode?.id ?? null;
+  }, [currentUserMemberId, existingMembers]);
+
+  // Classify the edited node's relationship to ego
+  const editNodeRelation = useMemo((): EgoRelation => {
+    if (!egoTreeId || !editNode) return "unknown";
+    return classifyRelationToEgo(egoTreeId, editNode.id, existingMembers);
+  }, [egoTreeId, editNode, existingMembers]);
+
+  // Suggested label for inline children of this node
+  const suggestedChildLabel = useMemo(() => {
+    if (!editNode || !egoTreeId) return "none";
+    return suggestChildLabel(editNode, editNodeRelation, egoTreeId, existingMembers);
+  }, [editNode, editNodeRelation, egoTreeId, existingMembers]);
 
   // ─── Main member fields ───
   const [displayName, setDisplayName] = useState("");
@@ -194,13 +448,26 @@ export function AddTreeMemberDialog({
     }
   }, [open, editNode]);
 
+  // Auto-suggest relationship label when parents change (add mode)
+  useEffect(() => {
+    if (isEditing || !egoTreeId) return;
+    const pid = uuidOrNull(parentId);
+    const p2id = uuidOrNull(parent2Id);
+    if (!pid && !p2id) return;
+
+    const suggested = suggestMemberLabel(pid, p2id, egoTreeId, existingMembers);
+    if (suggested !== "none" && relationshipLabel === "none") {
+      setRelationshipLabel(suggested);
+    }
+  }, [parentId, parent2Id, egoTreeId, existingMembers, isEditing, relationshipLabel]);
+
   // Filter out the editNode itself from selects
   const selectableMembers = useMemo(
     () => existingMembers.filter((m) => m.id !== editNode?.id),
     [existingMembers, editNode]
   );
 
-  // Existing children of this node (for edit context)
+  // Existing children of this node
   const existingChildren = useMemo(
     () =>
       isEditing
@@ -219,7 +486,11 @@ export function AddTreeMemberDialog({
   }
 
   function addNewChild() {
-    setNewChildren((prev) => [...prev, { name: "", relationship: "none" }]);
+    // Auto-fill the suggested relationship label
+    setNewChildren((prev) => [
+      ...prev,
+      { name: "", relationship: suggestedChildLabel },
+    ]);
   }
 
   // ─── Submit handler ───
@@ -243,7 +514,7 @@ export function AddTreeMemberDialog({
                   ? null
                   : newSpouse.relationship,
               parentId: null,
-              spouseId: editNode.id, // link back to this member
+              spouseId: editNode.id,
               birthYear: null,
               isDeceased: false,
               connectionType: "spouse",
@@ -260,7 +531,6 @@ export function AddTreeMemberDialog({
           // 2. Create new children
           const validChildren = newChildren.filter((c) => c.name.trim());
           for (const child of validChildren) {
-            // If this member has a spouse, add as parent2
             const childParent2 =
               finalSpouseId ?? uuidOrNull(spouseId) ?? null;
             const childResult = await addTreeMember({
@@ -311,7 +581,6 @@ export function AddTreeMemberDialog({
             }
           }
 
-          // Link created parents as spouses if we made 2
           if (
             validParents.length === 2 &&
             createdParent1Id &&
@@ -382,7 +651,6 @@ export function AddTreeMemberDialog({
             }
           }
 
-          // Link created parents as spouses
           if (
             validParents.length === 2 &&
             createdParent1Id &&
@@ -437,7 +705,6 @@ export function AddTreeMemberDialog({
           }
           const mainMemberId = result.id;
 
-          // If we created spouse inline, link them back
           if (finalSpouseId && mainMemberId) {
             await updateTreeMember(finalSpouseId, {
               spouseId: mainMemberId,
@@ -487,7 +754,27 @@ export function AddTreeMemberDialog({
   const hasParent1 = parentId !== "none";
   const hasParent2 = parent2Id !== "none";
   const canAddNewParents =
-    newParents.length < (hasParent1 && hasParent2 ? 0 : hasParent1 || hasParent2 ? 1 : 2);
+    newParents.length <
+    (hasParent1 && hasParent2 ? 0 : hasParent1 || hasParent2 ? 1 : 2);
+
+  // Helper: describe what a child of the edited member would be to ego
+  const childRoleHint = useMemo(() => {
+    if (!editNode || !egoTreeId) return null;
+    const label = editNode.relationship_label?.toLowerCase() ?? "";
+    if (editNodeRelation === "grandparent" || label === "grandmother" || label === "grandfather")
+      return "Their child would be your uncle/aunt";
+    if (editNodeRelation === "parent" || label === "mother" || label === "father")
+      return "Their child would be your sibling";
+    if (editNodeRelation === "aunt-uncle" || label === "aunt" || label === "uncle")
+      return "Their child would be your cousin";
+    if (editNodeRelation === "sibling" || label === "brother" || label === "sister")
+      return "Their child would be your niece/nephew";
+    if (editNodeRelation === "self")
+      return "Their child would be your son/daughter";
+    if (editNodeRelation === "child" || label === "son" || label === "daughter")
+      return "Their child would be your grandchild";
+    return null;
+  }, [editNode, egoTreeId, editNodeRelation]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -529,7 +816,11 @@ export function AddTreeMemberDialog({
             <Label>Connection Type</Label>
             <div className="flex gap-2">
               {[
-                { value: "dna", label: "Family (DNA)", desc: "Blood relative" },
+                {
+                  value: "dna",
+                  label: "Family (DNA)",
+                  desc: "Blood relative",
+                },
                 { value: "friend", label: "Friend", desc: "Non-family" },
                 { value: "spouse", label: "Spouse", desc: "Partner" },
               ].map((opt) => (
@@ -600,7 +891,6 @@ export function AddTreeMemberDialog({
               )}
             </div>
 
-            {/* Existing parent selects */}
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
                 <Label className="text-[11px] text-muted-foreground">
@@ -644,7 +934,6 @@ export function AddTreeMemberDialog({
               </div>
             </div>
 
-            {/* Quick-create parents */}
             {newParents.map((parent, idx) => (
               <div key={idx} className="flex items-center gap-2">
                 <Input
@@ -719,7 +1008,6 @@ export function AddTreeMemberDialog({
               )}
             </div>
 
-            {/* Existing spouse select */}
             {!newSpouse && (
               <Select value={spouseId} onValueChange={setSpouseId}>
                 <SelectTrigger className="w-full h-8 text-xs">
@@ -736,7 +1024,6 @@ export function AddTreeMemberDialog({
               </Select>
             )}
 
-            {/* Quick-create spouse */}
             {newSpouse && (
               <div className="flex items-center gap-2">
                 <Input
@@ -801,7 +1088,13 @@ export function AddTreeMemberDialog({
               </Button>
             </div>
 
-            {/* Show existing children names in edit mode */}
+            {/* Hint about what the child would be to ego */}
+            {childRoleHint && (
+              <p className="text-[11px] text-primary/70 italic">
+                💡 {childRoleHint}
+              </p>
+            )}
+
             {isEditing && existingChildren.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {existingChildren.map((c) => (

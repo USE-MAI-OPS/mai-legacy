@@ -155,6 +155,7 @@ export function FamilyTree({
           existingMembers={treeMembers}
           realMembers={realMembers}
           editNode={editNode}
+          currentUserMemberId={currentUserMemberId}
         />
 
         <InviteMemberDialog
@@ -226,6 +227,7 @@ export function FamilyTree({
         existingMembers={treeMembers}
         realMembers={realMembers}
         editNode={editNode}
+        currentUserMemberId={currentUserMemberId}
       />
 
       <InviteMemberDialog

@@ -11,13 +11,17 @@ import {
   TreePine,
   Mail,
   UserPlus,
+  Layout,
+  GitFork,
 } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type TreeNodeData } from "./family-tree-node";
 import { AddTreeMemberDialog } from "./add-tree-member-dialog";
 import { InviteMemberDialog } from "./invite-member-dialog";
 import { addTreeMember, deleteTreeMember } from "../actions";
 import { toast } from "sonner";
 import { LegacyHubCanvas } from "./legacy-hub";
+import { ClassicTree } from "./classic-tree";
 import type { HubNode } from "./legacy-hub-types";
 
 // ---------------------------------------------------------------------------
@@ -45,6 +49,7 @@ export function FamilyTree({
   currentUserMemberId,
   currentUserDisplayName,
 }: FamilyTreeProps) {
+  const [viewMode, setViewMode] = useState<"hub" | "classic">("hub");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editNode, setEditNode] = useState<TreeNodeData | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -93,6 +98,12 @@ export function FamilyTree({
   const handleInviteGeneral = useCallback(() => {
     setInviteForName(null);
     setInviteOpen(true);
+  }, []);
+
+  // Classic tree passes TreeNodeData directly — no HubNode bridge needed
+  const handleClassicEdit = useCallback((node: TreeNodeData) => {
+    setEditNode(node);
+    setDialogOpen(true);
   }, []);
 
   const handleAddSelf = useCallback(() => {
@@ -171,9 +182,23 @@ export function FamilyTree({
   return (
     <div className="flex flex-col gap-5 h-full">
       <div className="flex items-center justify-between pb-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <TreePine className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold">Legacy Hub</h2>
+          <Tabs
+            value={viewMode}
+            onValueChange={(v) => setViewMode(v as "hub" | "classic")}
+          >
+            <TabsList className="h-8">
+              <TabsTrigger value="hub" className="text-xs px-3 h-6 gap-1.5">
+                <Layout className="h-3 w-3" />
+                Custom
+              </TabsTrigger>
+              <TabsTrigger value="classic" className="text-xs px-3 h-6 gap-1.5">
+                <GitFork className="h-3 w-3" />
+                Classic
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
           <span className="text-sm text-muted-foreground">
             ({treeMembers.length} member{treeMembers.length !== 1 ? "s" : ""})
           </span>
@@ -210,14 +235,26 @@ export function FamilyTree({
       )}
 
       <div className="flex-1 min-h-0">
-        <LegacyHubCanvas
-          members={treeMembers}
-          currentUserMemberId={currentUserMemberId}
-          onEdit={handleHubEdit}
-          onDelete={handleDelete}
-          onInvite={handleInvite}
-          onAddNew={handleAddNew}
-        />
+        {viewMode === "hub" ? (
+          <LegacyHubCanvas
+            members={treeMembers}
+            currentUserMemberId={currentUserMemberId}
+            onEdit={handleHubEdit}
+            onDelete={handleDelete}
+            onInvite={handleInvite}
+            onAddNew={handleAddNew}
+          />
+        ) : (
+          <ClassicTree
+            members={treeMembers}
+            currentUserId={currentUserId}
+            currentUserMemberId={currentUserMemberId}
+            onEdit={handleClassicEdit}
+            onDelete={handleDelete}
+            onInvite={handleInvite}
+            onAddNew={handleAddNew}
+          />
+        )}
       </div>
 
       <AddTreeMemberDialog

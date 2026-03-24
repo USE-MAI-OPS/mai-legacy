@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useTransition } from "react";
 import Link from "next/link";
 import {
   Calendar,
@@ -13,11 +13,15 @@ import {
   Loader2,
   Heart,
   MessageCircle,
+  Send,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { typeConfig } from "@/lib/entry-type-config";
+import { toggleReaction, addComment } from "@/app/(dashboard)/entries/social-actions";
+import type { ReactionType } from "@/app/(dashboard)/entries/social-actions";
 import type { FeedItem, FeedEntry, FeedPrompt, FeedEvent } from "@/app/api/feed/route";
 import type { EntryType, EntryStructuredData } from "@/types/database";
 
@@ -127,11 +131,29 @@ const coverEmojis: Record<string, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// Feed Entry Card — image-first, visually rich
+// Inline reaction config
+// ---------------------------------------------------------------------------
+const FEED_REACTIONS: { type: ReactionType; emoji: string; label: string }[] = [
+  { type: "heart", emoji: "\u2764\uFE0F", label: "Love" },
+  { type: "pray", emoji: "\uD83D\uDE4F", label: "Amen" },
+  { type: "laugh", emoji: "\uD83D\uDE02", label: "Haha" },
+  { type: "cry", emoji: "\uD83D\uDE22", label: "Touched" },
+  { type: "fire", emoji: "\uD83D\uDD25", label: "Fire" },
+];
+
+// ---------------------------------------------------------------------------
+// Feed Entry Card — image-first, with inline reactions + quick comment
 // ---------------------------------------------------------------------------
 function FeedEntryCard({ item }: { item: FeedEntry }) {
   const config = typeConfig[item.type as EntryType] ?? typeConfig.general;
   const summary = getEntrySummary(item);
+  const [isPending, startTransition] = useTransition();
+  const [activeReaction, setActiveReaction] = useState<ReactionType | null>(null);
+  const [localReactionCount, setLocalReactionCount] = useState(item.reaction_count);
+  const [localCommentCount, setLocalCommentCount] = useState(item.comment_count);
+  const [showCommentInput, setShowCommentInput] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const commentInputRef = useRef<HTMLInputElement>(null);
 
   // Extract first image from structured_data
   const sd = item.structured_data as EntryStructuredData | null;
@@ -143,9 +165,42 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
   const gradient = coverGradients[item.type] ?? coverGradients.general;
   const emoji = coverEmojis[item.type] ?? coverEmojis.general;
 
+  function handleReaction(e: React.MouseEvent, type: ReactionType) {
+    e.preventDefault();
+    e.stopPropagation();
+    const wasActive = activeReaction === type;
+    setActiveReaction(wasActive ? null : type);
+    setLocalReactionCount((c) => c + (wasActive ? -1 : activeReaction ? 0 : 1));
+    startTransition(async () => {
+      await toggleReaction(item.id, type);
+    });
+  }
+
+  function handleCommentToggle(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowCommentInput(!showCommentInput);
+    if (!showCommentInput) {
+      setTimeout(() => commentInputRef.current?.focus(), 100);
+    }
+  }
+
+  function handleSubmitComment(e: React.MouseEvent | React.KeyboardEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!commentText.trim()) return;
+    startTransition(async () => {
+      await addComment(item.id, commentText);
+      setCommentText("");
+      setLocalCommentCount((c) => c + 1);
+      setShowCommentInput(false);
+    });
+  }
+
   return (
-    <Link href={`/entries/${item.id}`} className="block group">
-      <Card className="overflow-hidden transition-all hover:shadow-lg hover:border-primary/20 hover:-translate-y-0.5 duration-300">
+    <Card className="overflow-hidden transition-all hover:shadow-lg hover:border-primary/20 duration-300">
+      {/* Clickable hero + content area */}
+      <Link href={`/entries/${item.id}`} className="block group">
         {/* HERO IMAGE — every card has one */}
         {firstImage ? (
           <div className="relative h-56 overflow-hidden">
@@ -154,9 +209,7 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
               alt={item.title}
               className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
             />
-            {/* Gradient overlay for text readability */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-            {/* Badge on image */}
             <div className="absolute top-3 left-3">
               <Badge className="bg-white/90 text-foreground backdrop-blur-sm text-xs px-2.5 py-0.5 rounded-full shadow-sm">
                 {config.emoji} {config.label}
@@ -164,12 +217,9 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
             </div>
             {item.is_mature && (
               <div className="absolute top-3 right-3">
-                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 shadow-sm">
-                  21+
-                </Badge>
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 shadow-sm">21+</Badge>
               </div>
             )}
-            {/* Title on image */}
             <div className="absolute bottom-0 left-0 right-0 p-5">
               <h3 className="text-xl font-bold font-serif leading-snug text-white drop-shadow-md line-clamp-2">
                 {item.title}
@@ -177,17 +227,11 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
             </div>
           </div>
         ) : (
-          /* Gradient fallback cover — warm, textured, personal */
           <div className={`relative h-56 overflow-hidden ${gradient}`}>
-            {/* Subtle texture overlay */}
             <div className="absolute inset-0 opacity-[0.08]" style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
             }} />
-            {/* Large emoji accent */}
-            <div className="absolute top-4 right-4 text-5xl opacity-20 select-none">
-              {emoji}
-            </div>
-            {/* Badge */}
+            <div className="absolute top-4 right-4 text-5xl opacity-20 select-none">{emoji}</div>
             <div className="absolute top-3 left-3">
               <Badge className="bg-white/20 text-white backdrop-blur-sm border-white/20 text-xs px-2.5 py-0.5 rounded-full">
                 {config.emoji} {config.label}
@@ -195,12 +239,9 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
             </div>
             {item.is_mature && (
               <div className="absolute top-3 right-3">
-                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 shadow-sm">
-                  21+
-                </Badge>
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 shadow-sm">21+</Badge>
               </div>
             )}
-            {/* Title centered on gradient */}
             <div className="absolute inset-0 flex items-end p-6">
               <div>
                 <h3 className="text-2xl font-bold font-serif leading-snug text-white drop-shadow-lg line-clamp-3">
@@ -220,7 +261,7 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
         )}
 
         {/* Content section */}
-        <CardContent className="p-5">
+        <CardContent className="p-5 pb-3">
           <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-3">
             {summary}
           </p>
@@ -228,32 +269,10 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
           {item.tags.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-3">
               {item.tags.slice(0, 3).map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="outline"
-                  className="text-[10px] px-1.5 py-0 rounded-full"
-                >
+                <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0 rounded-full">
                   {tag}
                 </Badge>
               ))}
-            </div>
-          )}
-
-          {/* Social counts */}
-          {(item.reaction_count > 0 || item.comment_count > 0) && (
-            <div className="flex items-center gap-3 mb-3 text-xs text-muted-foreground">
-              {item.reaction_count > 0 && (
-                <span className="flex items-center gap-1">
-                  <Heart className="h-3.5 w-3.5 fill-rose-400 text-rose-400" />
-                  {item.reaction_count}
-                </span>
-              )}
-              {item.comment_count > 0 && (
-                <span className="flex items-center gap-1">
-                  <MessageCircle className="h-3.5 w-3.5" />
-                  {item.comment_count}
-                </span>
-              )}
             </div>
           )}
 
@@ -267,8 +286,83 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
             <span className="text-xs text-muted-foreground">{formatDate(item.created_at)}</span>
           </div>
         </CardContent>
-      </Card>
-    </Link>
+      </Link>
+
+      {/* Reaction + comment counts */}
+      {(localReactionCount > 0 || localCommentCount > 0) && (
+        <div className="px-5 pb-1 flex items-center gap-3 text-xs text-muted-foreground">
+          {localReactionCount > 0 && (
+            <span className="flex items-center gap-1">
+              <Heart className="h-3 w-3 fill-rose-400 text-rose-400" />
+              {localReactionCount}
+            </span>
+          )}
+          {localCommentCount > 0 && (
+            <span className="flex items-center gap-1">
+              <MessageCircle className="h-3 w-3" />
+              {localCommentCount}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Inline reaction bar — NOT inside the Link */}
+      <div className="px-3 py-2 border-t flex items-center justify-between">
+        <div className="flex items-center gap-0.5">
+          {FEED_REACTIONS.map(({ type, emoji: rxEmoji }) => (
+            <button
+              key={type}
+              onClick={(e) => handleReaction(e, type)}
+              disabled={isPending}
+              className={cn(
+                "px-2 py-1 rounded-full text-base transition-all hover:scale-110",
+                activeReaction === type
+                  ? "bg-primary/10 scale-110"
+                  : "hover:bg-muted"
+              )}
+              title={type}
+            >
+              {rxEmoji}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={handleCommentToggle}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs text-muted-foreground hover:bg-muted transition-colors"
+        >
+          <MessageCircle className="h-4 w-4" />
+          Comment
+        </button>
+      </div>
+
+      {/* Quick comment input */}
+      {showCommentInput && (
+        <div className="px-4 pb-3 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <input
+            ref={commentInputRef}
+            type="text"
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSubmitComment(e);
+              e.stopPropagation();
+            }}
+            onClick={(e) => e.stopPropagation()}
+            placeholder="Write a comment..."
+            className="flex-1 text-sm bg-muted/50 border rounded-full px-4 py-2 focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleSubmitComment}
+            disabled={isPending || !commentText.trim()}
+            className="rounded-full h-8 w-8 p-0"
+          >
+            <Send className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
+    </Card>
   );
 }
 

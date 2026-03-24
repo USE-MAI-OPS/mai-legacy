@@ -96,56 +96,135 @@ const promptIcons: Record<string, React.ReactNode> = {
 };
 
 // ---------------------------------------------------------------------------
-// Feed Entry Card
+// Cover gradients — warm, rich defaults per entry type
+// Each entry ALWAYS has a visual. If user uploaded a photo, show that.
+// Otherwise show a beautiful gradient with the entry title overlaid.
+// ---------------------------------------------------------------------------
+const coverGradients: Record<string, string> = {
+  recipe:
+    "bg-gradient-to-br from-amber-800 via-orange-700 to-yellow-900",
+  story:
+    "bg-gradient-to-br from-stone-800 via-amber-900 to-stone-700",
+  skill:
+    "bg-gradient-to-br from-emerald-900 via-teal-800 to-green-900",
+  lesson:
+    "bg-gradient-to-br from-violet-900 via-purple-800 to-indigo-900",
+  connection:
+    "bg-gradient-to-br from-rose-900 via-pink-800 to-red-900",
+  general:
+    "bg-gradient-to-br from-slate-800 via-gray-700 to-zinc-800",
+};
+
+const coverEmojis: Record<string, string> = {
+  recipe: "\uD83C\uDF73",
+  story: "\uD83D\uDCD6",
+  skill: "\uD83D\uDEE0\uFE0F",
+  lesson: "\uD83C\uDF93",
+  connection: "\uD83E\uDD1D",
+  general: "\uD83D\uDCDD",
+};
+
+// ---------------------------------------------------------------------------
+// Feed Entry Card — image-first, visually rich
 // ---------------------------------------------------------------------------
 function FeedEntryCard({ item }: { item: FeedEntry }) {
   const config = typeConfig[item.type as EntryType] ?? typeConfig.general;
   const summary = getEntrySummary(item);
 
-  // Extract first image
+  // Extract first image from structured_data
   const sd = item.structured_data as EntryStructuredData | null;
   const firstImage =
     sd?.data && "images" in sd.data
       ? (sd.data as { images?: string[] }).images?.[0]
       : undefined;
 
+  const gradient = coverGradients[item.type] ?? coverGradients.general;
+  const emoji = coverEmojis[item.type] ?? coverEmojis.general;
+
   return (
     <Link href={`/entries/${item.id}`} className="block group">
-      <Card className="overflow-hidden transition-all hover:shadow-md hover:border-primary/20">
-        {firstImage && (
-          <div className="h-48 overflow-hidden">
+      <Card className="overflow-hidden transition-all hover:shadow-lg hover:border-primary/20 hover:-translate-y-0.5 duration-300">
+        {/* HERO IMAGE — every card has one */}
+        {firstImage ? (
+          <div className="relative h-56 overflow-hidden">
             <img
               src={firstImage}
               alt={item.title}
-              className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+              className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
             />
+            {/* Gradient overlay for text readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+            {/* Badge on image */}
+            <div className="absolute top-3 left-3">
+              <Badge className="bg-white/90 text-foreground backdrop-blur-sm text-xs px-2.5 py-0.5 rounded-full shadow-sm">
+                {config.emoji} {config.label}
+              </Badge>
+            </div>
+            {item.is_mature && (
+              <div className="absolute top-3 right-3">
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 shadow-sm">
+                  21+
+                </Badge>
+              </div>
+            )}
+            {/* Title on image */}
+            <div className="absolute bottom-0 left-0 right-0 p-5">
+              <h3 className="text-xl font-bold font-serif leading-snug text-white drop-shadow-md line-clamp-2">
+                {item.title}
+              </h3>
+            </div>
+          </div>
+        ) : (
+          /* Gradient fallback cover — warm, textured, personal */
+          <div className={`relative h-56 overflow-hidden ${gradient}`}>
+            {/* Subtle texture overlay */}
+            <div className="absolute inset-0 opacity-[0.08]" style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+            }} />
+            {/* Large emoji accent */}
+            <div className="absolute top-4 right-4 text-5xl opacity-20 select-none">
+              {emoji}
+            </div>
+            {/* Badge */}
+            <div className="absolute top-3 left-3">
+              <Badge className="bg-white/20 text-white backdrop-blur-sm border-white/20 text-xs px-2.5 py-0.5 rounded-full">
+                {config.emoji} {config.label}
+              </Badge>
+            </div>
+            {item.is_mature && (
+              <div className="absolute top-3 right-3">
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 shadow-sm">
+                  21+
+                </Badge>
+              </div>
+            )}
+            {/* Title centered on gradient */}
+            <div className="absolute inset-0 flex items-end p-6">
+              <div>
+                <h3 className="text-2xl font-bold font-serif leading-snug text-white drop-shadow-lg line-clamp-3">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-white/70 mt-1 font-serif italic line-clamp-1">
+                  {item.type === "recipe" ? "A family recipe" :
+                   item.type === "story" ? "A family story" :
+                   item.type === "skill" ? "A family skill" :
+                   item.type === "lesson" ? "A life lesson" :
+                   item.type === "connection" ? "A family connection" :
+                   "A family entry"}
+                </p>
+              </div>
+            </div>
           </div>
         )}
+
+        {/* Content section */}
         <CardContent className="p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Badge
-              variant="secondary"
-              className={`text-xs px-2 py-0.5 rounded-full ${config.color}`}
-            >
-              {config.emoji} {config.label}
-            </Badge>
-            {item.is_mature && (
-              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                21+
-              </Badge>
-            )}
-          </div>
-
-          <h3 className="text-lg font-bold font-serif leading-snug mb-2 group-hover:text-primary transition-colors line-clamp-2">
-            {item.title}
-          </h3>
-
-          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 mb-4">
+          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-3">
             {summary}
           </p>
 
           {item.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-4">
+            <div className="flex flex-wrap gap-1.5 mb-3">
               {item.tags.slice(0, 3).map((tag) => (
                 <Badge
                   key={tag}
@@ -158,10 +237,14 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
             </div>
           )}
 
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-medium">{item.author_name}</span>
-            <span className="text-muted-foreground/40">&bull;</span>
-            <span>{formatDate(item.created_at)}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
+                {item.author_name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+              </div>
+              <span className="font-medium">{item.author_name}</span>
+            </div>
+            <span className="text-xs text-muted-foreground">{formatDate(item.created_at)}</span>
           </div>
         </CardContent>
       </Card>

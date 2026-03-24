@@ -14,6 +14,12 @@ import {
   Heart,
   MessageCircle,
   Send,
+  Sparkles,
+  Link2,
+  TrendingUp,
+  Clock,
+  HelpCircle,
+  Trophy,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +28,7 @@ import { cn } from "@/lib/utils";
 import { typeConfig } from "@/lib/entry-type-config";
 import { toggleReaction, addComment } from "@/app/(dashboard)/entries/social-actions";
 import type { ReactionType } from "@/app/(dashboard)/entries/social-actions";
-import type { FeedItem, FeedEntry, FeedPrompt, FeedEvent } from "@/app/api/feed/route";
+import type { FeedItem, FeedEntry, FeedPrompt, FeedEvent, FeedDiscovery } from "@/app/api/feed/route";
 import type { EntryType, EntryStructuredData } from "@/types/database";
 
 // ---------------------------------------------------------------------------
@@ -437,6 +443,82 @@ function FeedPromptCard({ item }: { item: FeedPrompt }) {
 }
 
 // ---------------------------------------------------------------------------
+// Discovery Card — AI-generated Griot insight
+// ---------------------------------------------------------------------------
+const discoveryIcons: Record<string, React.ReactNode> = {
+  connection: <Link2 className="h-5 w-5" />,
+  pattern: <TrendingUp className="h-5 w-5" />,
+  on_this_day: <Clock className="h-5 w-5" />,
+  missing_piece: <HelpCircle className="h-5 w-5" />,
+  milestone: <Trophy className="h-5 w-5" />,
+};
+
+const discoveryLabels: Record<string, string> = {
+  connection: "Griot found a connection",
+  pattern: "Griot spotted a pattern",
+  on_this_day: "On this day",
+  missing_piece: "A piece of your story is missing",
+  milestone: "Family milestone",
+};
+
+const discoveryGradients: Record<string, string> = {
+  connection: "from-indigo-600 via-purple-600 to-blue-700",
+  pattern: "from-teal-600 via-cyan-600 to-emerald-700",
+  on_this_day: "from-amber-600 via-orange-600 to-yellow-700",
+  missing_piece: "from-rose-600 via-pink-600 to-red-700",
+  milestone: "from-yellow-500 via-amber-500 to-orange-600",
+};
+
+function FeedDiscoveryCard({ item }: { item: FeedDiscovery }) {
+  const icon = discoveryIcons[item.discovery_type] ?? <Sparkles className="h-5 w-5" />;
+  const label = discoveryLabels[item.discovery_type] ?? "Griot Discovery";
+  const gradient = discoveryGradients[item.discovery_type] ?? "from-indigo-600 to-purple-700";
+
+  return (
+    <Card className="overflow-hidden transition-all hover:shadow-lg duration-300 border-0">
+      <div className={`bg-gradient-to-br ${gradient} p-5 text-white`}>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="h-8 w-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <span className="text-xs font-semibold uppercase tracking-wider text-white/80">
+            {label}
+          </span>
+        </div>
+
+        <h3 className="text-lg font-bold font-serif leading-snug mb-2">
+          {item.title}
+        </h3>
+
+        <p className="text-sm text-white/85 leading-relaxed mb-4">
+          {item.body}
+        </p>
+
+        {item.related_members.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {item.related_members.map((name) => (
+              <Badge
+                key={name}
+                className="bg-white/20 text-white border-white/30 text-[10px] px-2 py-0 rounded-full backdrop-blur-sm"
+              >
+                {name}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-white/60">
+            {icon}
+            <span className="text-xs">{formatDate(item.created_at)}</span>
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Feed List (with infinite scroll)
 // ---------------------------------------------------------------------------
 export function FeedList({ initialItems, initialCursor }: FeedListProps) {
@@ -508,6 +590,8 @@ export function FeedList({ initialItems, initialCursor }: FeedListProps) {
             return <FeedEventCard key={`event-${item.id}`} item={item} />;
           case "prompt":
             return <FeedPromptCard key={item.id} item={item} />;
+          case "discovery":
+            return <FeedDiscoveryCard key={`discovery-${item.id}`} item={item} />;
           default:
             return null;
         }

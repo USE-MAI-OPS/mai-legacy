@@ -45,7 +45,18 @@ export interface FeedEvent {
   created_at: string;
 }
 
-export type FeedItem = FeedEntry | FeedPrompt | FeedEvent;
+export interface FeedDiscovery {
+  kind: "discovery";
+  id: string;
+  discovery_type: string;
+  title: string;
+  body: string;
+  related_entries: string[];
+  related_members: string[];
+  created_at: string;
+}
+
+export type FeedItem = FeedEntry | FeedPrompt | FeedEvent | FeedDiscovery;
 
 // ---------------------------------------------------------------------------
 // GET /api/feed?cursor=<iso>&limit=<n>
@@ -263,17 +274,49 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // --- Fetch Griot discoveries (recent, up to 5) ---
+  const discoveryItems: FeedDiscovery[] = [];
+  if (!cursor) {
+    try {
+      const { data: discoveries } = await sb
+        .from("griot_discoveries")
+        .select("id, discovery_type, title, body, related_entries, related_members, created_at")
+        .eq("family_id", familyId)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      for (const d of discoveries ?? []) {
+        discoveryItems.push({
+          kind: "discovery",
+          id: d.id,
+          discovery_type: d.discovery_type,
+          title: d.title,
+          body: d.body,
+          related_entries: d.related_entries ?? [],
+          related_members: d.related_members ?? [],
+          created_at: d.created_at,
+        });
+      }
+    } catch { /* table may not exist yet */ }
+  }
+
   // --- Merge & interleave ---
-  // Entries are the main content, interleave events and prompts every 4-5 entries
+  // 60% entries, 25% discoveries, 15% events/prompts — interleaved naturally
   const items: FeedItem[] = [];
   let eventIdx = 0;
   let promptIdx = 0;
+  let discoveryIdx = 0;
 
   for (let i = 0; i < feedEntries.length; i++) {
     items.push(feedEntries[i]);
 
-    // After every 4th entry, interleave an event or prompt
-    if ((i + 1) % 4 === 0) {
+    // After every 3rd entry, insert a discovery card
+    if ((i + 1) % 3 === 0 && discoveryIdx < discoveryItems.length) {
+      items.push(discoveryItems[discoveryIdx++]);
+    }
+
+    // After every 5th entry, interleave an event or prompt
+    if ((i + 1) % 5 === 0) {
       if (eventIdx < eventItems.length) {
         items.push(eventItems[eventIdx++]);
       } else if (promptIdx < promptItems.length) {
@@ -282,7 +325,8 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Append remaining events/prompts at the end
+  // Append remaining discoveries, events, prompts at the end
+  while (discoveryIdx < discoveryItems.length) items.push(discoveryItems[discoveryIdx++]);
   while (eventIdx < eventItems.length) items.push(eventItems[eventIdx++]);
   while (promptIdx < promptItems.length) items.push(promptItems[promptIdx++]);
 

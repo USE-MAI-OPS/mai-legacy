@@ -1,6 +1,6 @@
 import { getFamilyContext } from "@/lib/get-family-context";
 import { FeedList } from "./components/feed-list";
-import type { FeedItem, FeedEntry, FeedEvent, FeedPrompt } from "@/app/api/feed/route";
+import type { FeedItem, FeedEntry, FeedEvent, FeedPrompt, FeedDiscovery } from "@/app/api/feed/route";
 
 // ---------------------------------------------------------------------------
 // Data fetching — loads the initial page server-side
@@ -165,13 +165,41 @@ async function getInitialFeed(): Promise<{ items: FeedItem[]; nextCursor: string
       }
     }
 
-    // Interleave
+    // Fetch Griot discoveries
+    const discoveryItems: FeedDiscovery[] = [];
+    try {
+      const { data: discoveries } = await sb
+        .from("griot_discoveries")
+        .select("id, discovery_type, title, body, related_entries, related_members, created_at")
+        .eq("family_id", familyId)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      for (const d of discoveries ?? []) {
+        discoveryItems.push({
+          kind: "discovery",
+          id: d.id,
+          discovery_type: d.discovery_type,
+          title: d.title,
+          body: d.body,
+          related_entries: d.related_entries ?? [],
+          related_members: d.related_members ?? [],
+          created_at: d.created_at,
+        });
+      }
+    } catch { /* table may not exist yet */ }
+
+    // Interleave: entries + discoveries every 3rd + events/prompts every 5th
     const items: FeedItem[] = [];
     let eventIdx = 0;
     let promptIdx = 0;
+    let discoveryIdx = 0;
     for (let i = 0; i < feedEntries.length; i++) {
       items.push(feedEntries[i]);
-      if ((i + 1) % 4 === 0) {
+      if ((i + 1) % 3 === 0 && discoveryIdx < discoveryItems.length) {
+        items.push(discoveryItems[discoveryIdx++]);
+      }
+      if ((i + 1) % 5 === 0) {
         if (eventIdx < eventItems.length) {
           items.push(eventItems[eventIdx++]);
         } else if (promptIdx < promptItems.length) {
@@ -179,6 +207,7 @@ async function getInitialFeed(): Promise<{ items: FeedItem[]; nextCursor: string
         }
       }
     }
+    while (discoveryIdx < discoveryItems.length) items.push(discoveryItems[discoveryIdx++]);
     while (eventIdx < eventItems.length) items.push(eventItems[eventIdx++]);
     while (promptIdx < promptItems.length) items.push(promptItems[promptIdx++]);
 

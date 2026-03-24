@@ -25,8 +25,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ImageUpload } from "@/components/image-upload";
+import { VisibilitySelect } from "@/components/entry-forms/visibility-select";
 import { updateEntry } from "@/app/(dashboard)/entries/[id]/actions";
-import type { EntryType } from "@/types/database";
+import type { EntryType, EntryVisibility } from "@/types/database";
 
 const entryTypes: { value: EntryType; label: string; emoji: string }[] = [
   { value: "story", label: "Story", emoji: "\uD83D\uDCD6" },
@@ -49,6 +50,7 @@ interface EditEntryFormProps {
     tags: string[];
     structured_data?: { type: string; data: Record<string, unknown> } | null;
     familyId?: string | null;
+    visibility?: EntryVisibility;
   };
 }
 
@@ -63,6 +65,7 @@ export default function EditEntryForm({ entry }: EditEntryFormProps) {
   const [errors, setErrors] = useState<{ title?: string; content?: string }>(
     {}
   );
+  const [visibility, setVisibility] = useState<EntryVisibility>(entry.visibility ?? "family");
   const [saving, setSaving] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -143,6 +146,7 @@ export default function EditEntryForm({ entry }: EditEntryFormProps) {
         type,
         tags,
         structured_data: structured_data as { type: string; data: Record<string, unknown> } | undefined,
+        visibility,
       });
 
       if (result?.error) {
@@ -279,6 +283,9 @@ export default function EditEntryForm({ entry }: EditEntryFormProps) {
               </div>
             )}
           </div>
+
+          {/* Visibility */}
+          <VisibilitySelect value={visibility} onChange={setVisibility} />
 
           {/* Photos — only for types that support images */}
           {supportsImages && (

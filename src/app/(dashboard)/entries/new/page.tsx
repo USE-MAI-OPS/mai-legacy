@@ -12,9 +12,10 @@ import SkillForm from "@/components/entry-forms/skill-form";
 import StoryForm from "@/components/entry-forms/story-form";
 import LessonForm from "@/components/entry-forms/lesson-form";
 import GeneralForm from "./general-form";
+import { VisibilitySelect } from "@/components/entry-forms/visibility-select";
 import { createEntry } from "./actions";
 import { getActiveFamilyIdClient } from "@/lib/active-family";
-import type { EntryType, EntryStructuredData } from "@/types/database";
+import type { EntryType, EntryStructuredData, EntryVisibility } from "@/types/database";
 
 export default function NewEntryPage() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function NewEntryPage() {
   const [saving, setSaving] = useState(false);
   const [navigating, setNavigating] = useState(false);
   const [familyId, setFamilyId] = useState<string | null>(null);
+  const [visibility, setVisibility] = useState<EntryVisibility>("family");
 
   useEffect(() => {
     setFamilyId(getActiveFamilyIdClient());
@@ -44,6 +46,7 @@ export default function NewEntryPage() {
         tags: data.tags,
         structured_data: data.structured_data as EntryStructuredData,
         is_mature: data.is_mature,
+        visibility,
       });
 
       setNavigating(true);
@@ -97,6 +100,10 @@ export default function NewEntryPage() {
             <ArrowLeft className="size-4 mr-2" />
             Choose a different type
           </Button>
+
+          <div className="px-1">
+            <VisibilitySelect value={visibility} onChange={setVisibility} />
+          </div>
 
           {selectedType === "recipe" && (
             <RecipeForm onSubmit={handleSubmit} saving={saving} familyId={familyId ?? undefined} />

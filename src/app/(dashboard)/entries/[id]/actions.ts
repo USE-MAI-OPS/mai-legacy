@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import type { EntryType } from "@/types/database";
+import type { EntryType, EntryVisibility } from "@/types/database";
 
 // ---------------------------------------------------------------------------
 // Copy entry to other families
@@ -148,6 +148,7 @@ interface UpdateEntryInput {
   type: EntryType;
   tags: string[];
   structured_data?: { type: string; data: Record<string, unknown> };
+  visibility?: EntryVisibility;
 }
 
 export async function updateEntry(entryId: string, input: UpdateEntryInput) {
@@ -171,6 +172,11 @@ export async function updateEntry(entryId: string, input: UpdateEntryInput) {
       tags: input.tags,
       updated_at: new Date().toISOString(),
     };
+
+    // Include visibility if provided
+    if (input.visibility) {
+      updatePayload.visibility = input.visibility;
+    }
 
     // Include structured_data if provided
     if (input.structured_data) {

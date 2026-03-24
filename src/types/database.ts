@@ -20,6 +20,8 @@ export type MemberSpecialty =
   | "sports"
   | "other";
 
+export type EntryVisibility = "family" | "link" | "public";
+
 export type GoalStatus = "active" | "completed" | "archived";
 
 export type RsvpStatus = "going" | "maybe" | "not_going";
@@ -269,6 +271,7 @@ export interface Database {
           tags: string[];
           structured_data: EntryStructuredData;
           is_mature: boolean;
+          visibility: EntryVisibility;
           created_at: string;
           updated_at: string;
         };
@@ -282,6 +285,7 @@ export interface Database {
           tags?: string[];
           structured_data?: EntryStructuredData;
           is_mature?: boolean;
+          visibility?: EntryVisibility;
           created_at?: string;
           updated_at?: string;
         };
@@ -295,6 +299,7 @@ export interface Database {
           tags?: string[];
           structured_data?: EntryStructuredData;
           is_mature?: boolean;
+          visibility?: EntryVisibility;
           created_at?: string;
           updated_at?: string;
         };

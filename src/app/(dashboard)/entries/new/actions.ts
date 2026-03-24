@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getFamilyContext } from "@/lib/get-family-context";
-import type { EntryType, EntryStructuredData } from "@/types/database";
+import type { EntryType, EntryStructuredData, EntryVisibility } from "@/types/database";
 
 interface CreateEntryInput {
   title: string;
@@ -11,6 +11,7 @@ interface CreateEntryInput {
   tags: string[];
   structured_data?: EntryStructuredData;
   is_mature?: boolean;
+  visibility?: EntryVisibility;
 }
 
 export async function createEntry(input: CreateEntryInput) {
@@ -29,6 +30,7 @@ export async function createEntry(input: CreateEntryInput) {
       type: input.type,
       tags: input.tags,
       is_mature: input.is_mature ?? false,
+      visibility: input.visibility ?? "family",
     };
     if (input.structured_data) {
       row.structured_data = input.structured_data;

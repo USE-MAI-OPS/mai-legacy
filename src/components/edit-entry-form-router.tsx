@@ -6,7 +6,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { updateEntry } from "@/app/(dashboard)/entries/[id]/actions";
-import type { EntryType } from "@/types/database";
+import { VisibilitySelect } from "@/components/entry-forms/visibility-select";
+import type { EntryType, EntryVisibility } from "@/types/database";
 
 import RecipeForm from "@/components/entry-forms/recipe-form";
 import SkillForm from "@/components/entry-forms/skill-form";
@@ -24,6 +25,7 @@ interface EditEntryFormRouterProps {
     tags: string[];
     structured_data?: { type: string; data: Record<string, unknown> } | null;
     familyId?: string | null;
+    visibility?: EntryVisibility;
   };
 }
 
@@ -31,6 +33,7 @@ export default function EditEntryFormRouter({ entry }: EditEntryFormRouterProps)
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [visibility, setVisibility] = useState<EntryVisibility>(entry.visibility ?? "family");
 
   const cancelHref = `/entries/${entry.id}`;
   const sd = entry.structured_data?.data as Record<string, unknown> | undefined;
@@ -51,6 +54,7 @@ export default function EditEntryFormRouter({ entry }: EditEntryFormRouterProps)
         type: data.type as EntryType,
         tags: data.tags,
         structured_data: data.structured_data,
+        visibility,
       });
       if (result?.error) {
         setServerError(result.error);
@@ -80,6 +84,10 @@ export default function EditEntryFormRouter({ entry }: EditEntryFormRouterProps)
             <p className="text-sm text-destructive">{serverError}</p>
           </div>
         )}
+
+        <div className="mb-6">
+          <VisibilitySelect value={visibility} onChange={setVisibility} />
+        </div>
 
         {formElement}
       </div>
@@ -163,6 +171,6 @@ export default function EditEntryFormRouter({ entry }: EditEntryFormRouterProps)
 
     default:
       // Fall back to generic edit form for unknown types
-      return <EditEntryForm entry={entry} />;
+      return <EditEntryForm entry={{ ...entry, visibility }} />;
   }
 }

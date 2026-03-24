@@ -16,6 +16,8 @@ import { getFamilyContext } from "@/lib/get-family-context";
 import { DeleteEntryButton } from "@/components/delete-entry-button";
 import { EntrySocial } from "@/components/entry-social";
 import { getSocialData } from "@/app/(dashboard)/entries/social-actions";
+import { AudioPlayer } from "@/components/audio-player";
+import { EntryAudioRecorder } from "@/components/entry-audio-recorder";
 
 import { RecipeView } from "@/components/entry-views/recipe-view";
 import { ConnectionView } from "@/components/entry-views/connection-view";
@@ -45,6 +47,9 @@ const MOCK_ENTRIES: Record<
     date: string;
     structuredData: EntryStructuredData;
     familyId?: string;
+    audioUrl?: string | null;
+    audioDuration?: number | null;
+    authorId?: string;
   }
 > = {
   "1": {
@@ -204,7 +209,7 @@ async function getEntry(id: string) {
     const { data: entry, error: entryError } = await sb
       .from("entries")
       .select(
-        "id, title, content, type, tags, structured_data, created_at, updated_at, author_id, family_id"
+        "id, title, content, type, tags, structured_data, created_at, updated_at, author_id, family_id, audio_url, audio_duration"
       )
       .eq("id", id)
       .single();
@@ -246,6 +251,9 @@ async function getEntry(id: string) {
       date: entry.created_at as string,
       structuredData: (entry.structured_data ?? null) as EntryStructuredData,
       familyId: entry.family_id as string,
+      audioUrl: (entry.audio_url ?? null) as string | null,
+      audioDuration: (entry.audio_duration ?? null) as number | null,
+      authorId: entry.author_id as string,
     };
   } catch (err) {
     console.error("Failed to fetch entry:", err);
@@ -345,6 +353,24 @@ export default async function EntryDetailPage({
             </span>
           </div>
         </CardHeader>
+
+        {/* Audio player — if entry has audio */}
+        {entry.audioUrl && (
+          <div className="px-6 pb-4">
+            <AudioPlayer
+              src={entry.audioUrl}
+              duration={entry.audioDuration ?? undefined}
+              authorName={entry.authorName}
+            />
+          </div>
+        )}
+
+        {/* Audio recorder — if current user is the author and no audio yet */}
+        {currentUserId === entry.authorId && !entry.audioUrl && (
+          <div className="px-6 pb-4">
+            <EntryAudioRecorder entryId={entry.id} />
+          </div>
+        )}
 
         <Separator />
 

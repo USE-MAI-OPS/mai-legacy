@@ -16,6 +16,7 @@ import {
   HelpCircle,
   Settings,
   ChevronDown,
+  Rss,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -162,6 +163,18 @@ export function DashboardNav() {
             )}
           >
             Dashboard
+          </Link>
+
+          <Link
+            href="/feed"
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-md text-base font-medium transition-colors whitespace-nowrap",
+              pathname === "/feed"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            )}
+          >
+            Feed
           </Link>
 
           {/* Our Legacy Dropdown */}
@@ -352,6 +365,20 @@ export function DashboardNav() {
             >
               <LayoutDashboard className="h-4 w-4" />
               Dashboard
+            </Link>
+
+            <Link
+              href="/feed"
+              onClick={() => setMobileOpen(false)}
+              className={cn(
+                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                pathname === "/feed"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              )}
+            >
+              <Rss className="h-4 w-4" />
+              Family Feed
             </Link>
 
             <Separator className="my-2" />

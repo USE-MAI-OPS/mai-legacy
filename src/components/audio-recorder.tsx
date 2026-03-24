@@ -30,6 +30,7 @@ export function AudioRecorder({
   const [playing, setPlaying] = useState(false);
   const [playbackTime, setPlaybackTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -48,7 +49,12 @@ export function AudioRecorder({
   }, [previewUrl]);
 
   const startRecording = useCallback(async () => {
+    setError(null);
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError("Your browser does not support audio recording. Try Chrome or Safari.");
+        return;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream, {
         mimeType: MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
@@ -85,6 +91,13 @@ export function AudioRecorder({
       }, 1000);
     } catch (err) {
       console.error("Microphone access denied:", err);
+      if (err instanceof DOMException && err.name === "NotAllowedError") {
+        setError("Microphone access denied. Please allow microphone access in your browser settings and try again.");
+      } else if (err instanceof DOMException && err.name === "NotFoundError") {
+        setError("No microphone found. Please connect a microphone and try again.");
+      } else {
+        setError("Could not start recording. Please check your microphone and try again.");
+      }
     }
   }, [onRecordingComplete]);
 
@@ -138,6 +151,12 @@ export function AudioRecorder({
           <Mic className="h-5 w-5 mr-2" />
           Record audio narration
         </Button>
+      )}
+
+      {error && (
+        <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-2">
+          {error}
+        </p>
       )}
 
       {recording && (

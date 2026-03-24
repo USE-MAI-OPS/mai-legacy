@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Pencil, Calendar, User } from "lucide-react";
@@ -14,6 +15,7 @@ import { typeConfig } from "@/lib/entry-type-config";
 import { createClient } from "@/lib/supabase/server";
 import { getFamilyContext } from "@/lib/get-family-context";
 import { DeleteEntryButton } from "@/components/delete-entry-button";
+import { ShareButton } from "@/components/share-button";
 import { EntrySocial } from "@/components/entry-social";
 import { getSocialData } from "@/app/(dashboard)/entries/social-actions";
 import { AudioPlayer } from "@/components/audio-player";
@@ -185,6 +187,71 @@ The family has been in New York ever since.`,
 };
 
 // ---------------------------------------------------------------------------
+// OG metadata
+// ---------------------------------------------------------------------------
+function getSiteUrl() {
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return "http://localhost:3000";
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+
+  // Only generate rich metadata for real UUIDs
+  if (!UUID_REGEX.test(id)) {
+    return { title: "Entry | MAI Legacy" };
+  }
+
+  try {
+    const supabase = await createClient();
+    const { data: entry } = await (supabase as any)
+      .from("entries")
+      .select("title, type")
+      .eq("id", id)
+      .single();
+
+    if (!entry) return { title: "Entry | MAI Legacy" };
+
+    const config = typeConfig[entry.type as EntryType] ?? typeConfig.general;
+    const siteUrl = getSiteUrl();
+
+    return {
+      title: `${entry.title} | MAI Legacy`,
+      description: `${config.emoji} ${config.label} preserved on MAI Legacy`,
+      openGraph: {
+        title: entry.title,
+        description: `${config.emoji} ${config.label} preserved on MAI Legacy`,
+        images: [
+          {
+            url: `${siteUrl}/api/share/${id}`,
+            width: 1200,
+            height: 630,
+            alt: entry.title,
+          },
+        ],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: entry.title,
+        description: `${config.emoji} ${config.label} preserved on MAI Legacy`,
+        images: [`${siteUrl}/api/share/${id}`],
+      },
+    };
+  } catch {
+    return { title: "Entry | MAI Legacy" };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Data fetching
 // ---------------------------------------------------------------------------
 async function getEntry(id: string) {
@@ -351,6 +418,8 @@ export default async function EntryDetailPage({
 
             {/* Action buttons */}
             <div className="flex flex-wrap gap-2 shrink-0">
+              <ShareButton entryId={entry.id} entryTitle={entry.title} />
+
               <Button variant="outline" size="sm" asChild>
                 <Link href={`/entries/${entry.id}/edit`}>
                   <Pencil className="size-4 mr-2" />

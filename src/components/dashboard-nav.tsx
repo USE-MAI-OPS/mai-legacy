@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   BookOpen,
   MessageCircle,
+  Mail,
   User,
   Users,
   LogOut,
@@ -214,7 +215,7 @@ export function DashboardNav() {
             <DropdownMenuTrigger
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-base font-medium transition-colors outline-none whitespace-nowrap font-serif",
-                pathname.startsWith("/family") || pathname.startsWith("/goals")
+                pathname.startsWith("/family") || pathname.startsWith("/goals") || pathname.startsWith("/messages")
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
@@ -230,6 +231,12 @@ export function DashboardNav() {
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/goals" className="w-full cursor-pointer">Family Goals</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/messages" className="w-full cursor-pointer">
+                  <Mail className="mr-2 h-4 w-4" />
+                  Messages
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/family#traditions" className="w-full cursor-pointer">Traditions</Link>
@@ -440,6 +447,10 @@ export function DashboardNav() {
                 </Link>
                 <Link href="/goals" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
                   Family Goals
+                </Link>
+                <Link href="/messages" onClick={() => setMobileOpen(false)} className={cn("flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors", pathname.startsWith("/messages") ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}>
+                  <Mail className="h-4 w-4" />
+                  Messages
                 </Link>
                 <Link href="/family#traditions" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
                   Traditions

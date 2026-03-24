@@ -248,10 +248,8 @@ export function DashboardNav() {
           </Link>
         </nav>
 
-        {/* Right side: notifications + family name + user menu */}
-        <div className="ml-auto flex items-center gap-2 shrink-0">
-          <NotificationBell />
-
+        {/* Right side: family name + notifications + user menu */}
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
           {/* Family name (display only) */}
           <div className="flex items-center gap-1.5 px-2 py-1">
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -259,6 +257,8 @@ export function DashboardNav() {
               {userInfo.familyName}
             </span>
           </div>
+
+          <NotificationBell />
 
           {/* User menu */}
           <DropdownMenu>

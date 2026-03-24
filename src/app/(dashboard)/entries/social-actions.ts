@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getFamilyContext } from "@/lib/get-family-context";
 import { revalidatePath } from "next/cache";
+import { createNotification } from "@/lib/notifications";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -74,6 +75,41 @@ export async function toggleReaction(
       family_id: familyId,
       reaction_type: reactionType,
     });
+
+    // Notify the entry author (if not self)
+    try {
+      const { data: entry } = await sb
+        .from("entries")
+        .select("author_id, title")
+        .eq("id", entryId)
+        .maybeSingle();
+      if (entry && entry.author_id !== userId) {
+        const emojiMap: Record<string, string> = {
+          heart: "\u2764\uFE0F",
+          pray: "\uD83D\uDE4F",
+          laugh: "\uD83D\uDE02",
+          cry: "\uD83D\uDE22",
+          fire: "\uD83D\uDD25",
+        };
+        const { data: actor } = await sb
+          .from("family_members")
+          .select("display_name")
+          .eq("user_id", userId)
+          .eq("family_id", familyId)
+          .maybeSingle();
+        const actorName = actor?.display_name ?? "Someone";
+        await createNotification({
+          userId: entry.author_id,
+          familyId,
+          type: "reaction",
+          title: `${actorName} ${emojiMap[reactionType] ?? ""} your entry`,
+          body: entry.title,
+          referenceType: "entry",
+          referenceId: entryId,
+          actorId: userId,
+        });
+      }
+    } catch { /* notification failure shouldn't block */ }
   }
 
   revalidatePath(`/entries/${entryId}`);
@@ -110,6 +146,57 @@ export async function addComment(
   });
 
   if (error) return { success: false, error: error.message };
+
+  // Notify entry author or parent comment author
+  try {
+    const { data: actor } = await sb
+      .from("family_members")
+      .select("display_name")
+      .eq("user_id", userId)
+      .eq("family_id", familyId)
+      .maybeSingle();
+    const actorName = actor?.display_name ?? "Someone";
+
+    if (parentCommentId) {
+      // This is a reply — notify the parent comment author
+      const { data: parentComment } = await sb
+        .from("entry_comments")
+        .select("user_id")
+        .eq("id", parentCommentId)
+        .maybeSingle();
+      if (parentComment && parentComment.user_id !== userId) {
+        await createNotification({
+          userId: parentComment.user_id,
+          familyId,
+          type: "reply",
+          title: `${actorName} replied to your comment`,
+          body: trimmed.length > 100 ? trimmed.slice(0, 100) + "..." : trimmed,
+          referenceType: "entry",
+          referenceId: entryId,
+          actorId: userId,
+        });
+      }
+    } else {
+      // Top-level comment — notify entry author
+      const { data: entry } = await sb
+        .from("entries")
+        .select("author_id, title")
+        .eq("id", entryId)
+        .maybeSingle();
+      if (entry && entry.author_id !== userId) {
+        await createNotification({
+          userId: entry.author_id,
+          familyId,
+          type: "comment",
+          title: `${actorName} commented on "${entry.title}"`,
+          body: trimmed.length > 100 ? trimmed.slice(0, 100) + "..." : trimmed,
+          referenceType: "entry",
+          referenceId: entryId,
+          actorId: userId,
+        });
+      }
+    }
+  } catch { /* notification failure shouldn't block */ }
 
   revalidatePath(`/entries/${entryId}`);
   return { success: true };

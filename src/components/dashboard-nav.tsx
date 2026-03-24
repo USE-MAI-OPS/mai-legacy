@@ -34,6 +34,7 @@ import { signOut } from "@/app/(auth)/actions";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveFamilyIdClient } from "@/lib/active-family";
 import { useTourOptional } from "@/components/tour/tour-provider";
+import { NotificationBell } from "@/components/notification-bell";
 
 interface UserInfo {
   displayName: string;
@@ -247,8 +248,10 @@ export function DashboardNav() {
           </Link>
         </nav>
 
-        {/* Right side: family name + user menu */}
+        {/* Right side: notifications + family name + user menu */}
         <div className="ml-auto flex items-center gap-2 shrink-0">
+          <NotificationBell />
+
           {/* Family name (display only) */}
           <div className="flex items-center gap-1.5 px-2 py-1">
             <Users className="h-4 w-4 text-muted-foreground" />

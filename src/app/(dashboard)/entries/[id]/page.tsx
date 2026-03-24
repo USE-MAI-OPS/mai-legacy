@@ -206,13 +206,34 @@ async function getEntry(id: string) {
     }
 
     const sb = supabase as any;
-    const { data: entry, error: entryError } = await sb
+
+    // Try with audio columns first, fall back without them if migration hasn't run
+    let entry: any = null;
+    let entryError: any = null;
+
+    const { data: d1, error: e1 } = await sb
       .from("entries")
       .select(
         "id, title, content, type, tags, structured_data, created_at, updated_at, author_id, family_id, audio_url, audio_duration"
       )
       .eq("id", id)
       .single();
+
+    if (e1 && e1.message?.includes("audio")) {
+      // audio columns don't exist yet — query without them
+      const { data: d2, error: e2 } = await sb
+        .from("entries")
+        .select(
+          "id, title, content, type, tags, structured_data, created_at, updated_at, author_id, family_id"
+        )
+        .eq("id", id)
+        .single();
+      entry = d2;
+      entryError = e2;
+    } else {
+      entry = d1;
+      entryError = e1;
+    }
 
     if (entryError || !entry) {
       return MOCK_ENTRIES[id] ?? null;

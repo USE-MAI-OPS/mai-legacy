@@ -21,6 +21,8 @@ export interface FeedEntry {
   author_id: string;
   author_name: string;
   created_at: string;
+  reaction_count: number;
+  comment_count: number;
 }
 
 export interface FeedPrompt {
@@ -130,6 +132,35 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Batch-fetch reaction and comment counts for these entries
+  const entryIds = (entries ?? []).map((e: { id: string }) => e.id);
+  const reactionCountMap: Record<string, number> = {};
+  const commentCountMap: Record<string, number> = {};
+
+  if (entryIds.length > 0) {
+    // Reaction counts per entry
+    try {
+      const { data: reactionData } = await sb
+        .from("entry_reactions")
+        .select("entry_id")
+        .in("entry_id", entryIds);
+      for (const r of reactionData ?? []) {
+        reactionCountMap[r.entry_id] = (reactionCountMap[r.entry_id] ?? 0) + 1;
+      }
+    } catch { /* table may not exist yet */ }
+
+    // Comment counts per entry
+    try {
+      const { data: commentData } = await sb
+        .from("entry_comments")
+        .select("entry_id")
+        .in("entry_id", entryIds);
+      for (const c of commentData ?? []) {
+        commentCountMap[c.entry_id] = (commentCountMap[c.entry_id] ?? 0) + 1;
+      }
+    } catch { /* table may not exist yet */ }
+  }
+
   // Map to FeedEntry items
   const feedEntries: FeedEntry[] = (entries ?? []).map(
     (e: {
@@ -154,6 +185,8 @@ export async function GET(req: NextRequest) {
       author_id: e.author_id,
       author_name: authorMap[e.author_id] ?? "Unknown",
       created_at: e.created_at,
+      reaction_count: reactionCountMap[e.id] ?? 0,
+      comment_count: commentCountMap[e.id] ?? 0,
     })
   );
 

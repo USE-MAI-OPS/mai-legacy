@@ -11,6 +11,8 @@ import {
   UtensilsCrossed,
   ArrowRight,
   Loader2,
+  Heart,
+  MessageCircle,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -234,6 +236,24 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
                   {tag}
                 </Badge>
               ))}
+            </div>
+          )}
+
+          {/* Social counts */}
+          {(item.reaction_count > 0 || item.comment_count > 0) && (
+            <div className="flex items-center gap-3 mb-3 text-xs text-muted-foreground">
+              {item.reaction_count > 0 && (
+                <span className="flex items-center gap-1">
+                  <Heart className="h-3.5 w-3.5 fill-rose-400 text-rose-400" />
+                  {item.reaction_count}
+                </span>
+              )}
+              {item.comment_count > 0 && (
+                <span className="flex items-center gap-1">
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  {item.comment_count}
+                </span>
+              )}
             </div>
           )}
 

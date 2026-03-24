@@ -14,6 +14,8 @@ import { typeConfig } from "@/lib/entry-type-config";
 import { createClient } from "@/lib/supabase/server";
 import { getFamilyContext } from "@/lib/get-family-context";
 import { DeleteEntryButton } from "@/components/delete-entry-button";
+import { EntrySocial } from "@/components/entry-social";
+import { getSocialData } from "@/app/(dashboard)/entries/social-actions";
 
 import { RecipeView } from "@/components/entry-views/recipe-view";
 import { ConnectionView } from "@/components/entry-views/connection-view";
@@ -280,6 +282,19 @@ export default async function EntryDetailPage({
 
   const config = typeConfig[entry.type];
 
+  // Fetch social data (reactions + comments) and current user
+  let socialData: Awaited<ReturnType<typeof getSocialData>> | null = null;
+  let currentUserId = "";
+  try {
+    const ctx = await getFamilyContext();
+    if (ctx) {
+      currentUserId = ctx.userId;
+      socialData = await getSocialData(id);
+    }
+  } catch {
+    // Social data is optional — page still works without it
+  }
+
   return (
     <div className="container mx-auto py-8 px-4 max-w-3xl">
       {/* Back link */}
@@ -404,6 +419,19 @@ export default async function EntryDetailPage({
               </div>
             </CardContent>
           </>
+        )}
+
+        {/* Reactions & Comments */}
+        {socialData && (
+          <EntrySocial
+            entryId={entry.id}
+            currentUserId={currentUserId}
+            initialReactions={socialData.reactions}
+            initialUserReaction={socialData.userReaction}
+            initialTotalReactions={socialData.totalReactions}
+            initialComments={socialData.comments}
+            initialTotalComments={socialData.totalComments}
+          />
         )}
       </Card>
     </div>

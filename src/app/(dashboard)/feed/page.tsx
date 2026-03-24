@@ -66,8 +66,36 @@ async function getInitialFeed(): Promise<{ items: FeedItem[]; nextCursor: string
         author_id: e.author_id,
         author_name: authorMap[e.author_id] ?? "Unknown",
         created_at: e.created_at,
+        reaction_count: 0,
+        comment_count: 0,
       })
     );
+
+    // Fetch reaction/comment counts
+    const entryIds = feedEntries.map((e) => e.id);
+    if (entryIds.length > 0) {
+      try {
+        const { data: reactionData } = await sb
+          .from("entry_reactions")
+          .select("entry_id")
+          .in("entry_id", entryIds);
+        for (const r of reactionData ?? []) {
+          const fe = feedEntries.find((e) => e.id === r.entry_id);
+          if (fe) fe.reaction_count++;
+        }
+      } catch { /* table may not exist yet */ }
+
+      try {
+        const { data: commentData } = await sb
+          .from("entry_comments")
+          .select("entry_id")
+          .in("entry_id", entryIds);
+        for (const c of commentData ?? []) {
+          const fe = feedEntries.find((e) => e.id === c.entry_id);
+          if (fe) fe.comment_count++;
+        }
+      } catch { /* table may not exist yet */ }
+    }
 
     // Upcoming events
     const eventItems: FeedEvent[] = [];

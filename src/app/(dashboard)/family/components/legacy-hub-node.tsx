@@ -168,7 +168,7 @@ export const LegacyHubNode = memo(function LegacyHubNode({
   return (
     <div className="relative group flex flex-col items-center">
       {/* ─── Kebab menu ─── */}
-      <div className="absolute -top-1 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+      <div className="absolute -top-1 -right-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity z-10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button aria-label="Open node menu" className="h-5 w-5 flex items-center justify-center rounded-full bg-background/90 border shadow-sm hover:bg-accent">

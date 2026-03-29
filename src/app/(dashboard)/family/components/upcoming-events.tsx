@@ -267,7 +267,8 @@ export function UpcomingEvents({
                   {isCreator && (
                     <button
                       onClick={() => handleDeleteEvent(event.id)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 p-1 rounded hover:bg-destructive/10"
+                      className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity shrink-0 p-1 rounded hover:bg-destructive/10"
+                      aria-label="Delete event"
                       title="Delete event"
                     >
                       <Trash2 className="h-3.5 w-3.5 text-destructive" />

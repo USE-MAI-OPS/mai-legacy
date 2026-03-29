@@ -201,7 +201,7 @@ export function EntryCard({
                 e.stopPropagation();
                 router.push(`/entries/${id}/edit`);
               }}
-              className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors opacity-0 group-hover:opacity-100"
+              className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
               aria-label={`Edit ${title}`}
             >
               <Pencil className="h-4 w-4" />

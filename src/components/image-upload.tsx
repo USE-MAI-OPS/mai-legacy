@@ -103,7 +103,7 @@ export function ImageUpload({
               <button
                 type="button"
                 onClick={() => handleRemove(i)}
-                className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80"
+                className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity hover:bg-black/80"
                 aria-label={`Remove image ${i + 1}`}
               >
                 <X className="size-3" />

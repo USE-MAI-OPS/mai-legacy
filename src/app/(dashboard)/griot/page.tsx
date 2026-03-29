@@ -457,7 +457,7 @@ export default function GriotPage() {
                           size="icon"
                           className={cn(
                             "absolute right-1.5 top-1/2 -translate-y-1/2 h-6 w-6",
-                            "opacity-0 group-hover:opacity-100 transition-opacity",
+                            "opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity",
                             "text-muted-foreground hover:text-red-500 hover:bg-red-50"
                           )}
                           onClick={(e) =>

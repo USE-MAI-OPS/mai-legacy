@@ -189,7 +189,7 @@ export function ChatMessage({
                     onClick={handleCopy}
                     className={cn(
                       "absolute -bottom-1 right-1 h-6 w-6 rounded-md",
-                      "opacity-0 group-hover:opacity-100 transition-opacity",
+                      "opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity",
                       "text-muted-foreground hover:text-foreground"
                     )}
                   >

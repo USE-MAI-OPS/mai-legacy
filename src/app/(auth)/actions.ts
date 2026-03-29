@@ -5,6 +5,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import type { LifeStory, MemberSpecialty } from "@/types/database";
 import { setActiveFamilyCookie } from "@/lib/active-family-server";
+import { getSafeRedirect } from "@/lib/safe-redirect";
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
@@ -28,7 +29,7 @@ export async function login(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}${rp}`);
   }
 
-  redirect(redirectTo || "/dashboard");
+  redirect(getSafeRedirect(redirectTo, "/dashboard"));
 }
 
 export async function signup(formData: FormData) {
@@ -79,7 +80,7 @@ export async function signup(formData: FormData) {
   // If session exists, user is auto-confirmed
   if (data.session) {
     // If there's an invite redirect, go there instead of onboarding
-    redirect(redirectTo || "/onboarding");
+    redirect(getSafeRedirect(redirectTo, "/onboarding"));
   }
 
   // Fallback: email confirmation is still enabled

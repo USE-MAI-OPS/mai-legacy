@@ -3,7 +3,6 @@
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
-import type { LifeStory, MemberSpecialty } from "@/types/database";
 import { setActiveFamilyCookie } from "@/lib/active-family-server";
 import { getSafeRedirect } from "@/lib/safe-redirect";
 
@@ -110,24 +109,7 @@ export async function signInWithGoogle() {
 export async function createFamily(
   familyName: string,
   displayName: string,
-  lifeStory?: LifeStory,
-  profileFields?: {
-    nickname?: string;
-    phone?: string;
-    email?: string;
-    occupation?: string;
-    country?: string;
-    state?: string;
-    specialty?: MemberSpecialty;
-  },
-  parentData?: {
-    motherName: string;
-    motherBirthYear?: number;
-    motherIsDeceased?: boolean;
-    fatherName: string;
-    fatherBirthYear?: number;
-    fatherIsDeceased?: boolean;
-  }
+  nickname?: string
 ) {
   // Use the normal client to verify the user is authenticated
   const supabase = await createClient();
@@ -158,18 +140,12 @@ export async function createFamily(
     return { error: familyError.message };
   }
 
-  // Check if user already has a membership (creating 2nd+ family)
-  // If so, inherit profile data from the existing row
-  let memberData: Record<string, unknown> = {
+  const memberData: Record<string, unknown> = {
     family_id: family.id,
     user_id: user.id,
     role: "admin",
     display_name: displayName.trim(),
-  };
-
-  if (lifeStory || profileFields) {
-    // Explicit data provided (first family during onboarding)
-    memberData.life_story = lifeStory ?? {
+    life_story: {
       career: [],
       places: [],
       education: [],
@@ -177,53 +153,11 @@ export async function createFamily(
       hobbies: [],
       military: null,
       milestones: [],
-    };
-    if (profileFields) {
-      Object.assign(memberData, profileFields);
-    }
-  } else {
-    // No explicit data — try to inherit from an existing membership
-    const { data: existingMember } = await admin
-      .from("family_members")
-      .select(
-        "display_name, life_story, nickname, phone, email, occupation, country, state, specialty"
-      )
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
+    },
+  };
 
-    if (existingMember) {
-      memberData = {
-        ...memberData,
-        display_name: existingMember.display_name || displayName.trim(),
-        life_story: existingMember.life_story ?? {
-          career: [],
-          places: [],
-          education: [],
-          skills: [],
-          hobbies: [],
-          military: null,
-          milestones: [],
-        },
-        nickname: existingMember.nickname,
-        phone: existingMember.phone,
-        email: existingMember.email,
-        occupation: existingMember.occupation,
-        country: existingMember.country,
-        state: existingMember.state,
-        specialty: existingMember.specialty,
-      };
-    } else {
-      memberData.life_story = {
-        career: [],
-        places: [],
-        education: [],
-        skills: [],
-        hobbies: [],
-        military: null,
-        milestones: [],
-      };
-    }
+  if (nickname?.trim()) {
+    memberData.nickname = nickname.trim();
   }
 
   // Add the current user as admin member
@@ -242,71 +176,32 @@ export async function createFamily(
     // Non-critical — cookie will be set on next page load
   }
 
-  // Create tree nodes for the user and their parents (connection chain foundation)
-  if (parentData?.motherName && parentData?.fatherName) {
-    try {
-      // Get the family_members row we just created (need its ID for linked_member_id)
-      const { data: memberRow } = await (admin as any)
-        .from("family_members")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("family_id", family.id)
-        .single();
+  // Create user's own root tree node (no parent links)
+  try {
+    const { data: memberRow } = await (admin as any)
+      .from("family_members")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("family_id", family.id)
+      .single();
 
-      if (memberRow) {
-        // 1. Create mother tree node
-        const { data: motherNode } = await (admin as any)
-          .from("family_tree_members")
-          .insert({
-            family_id: family.id,
-            display_name: parentData.motherName.trim(),
-            relationship_label: "Mother",
-            birth_year: parentData.motherBirthYear || null,
-            is_deceased: parentData.motherIsDeceased ?? false,
-          })
-          .select("id")
-          .single();
-
-        // 2. Create father tree node
-        const { data: fatherNode } = await (admin as any)
-          .from("family_tree_members")
-          .insert({
-            family_id: family.id,
-            display_name: parentData.fatherName.trim(),
-            relationship_label: "Father",
-            birth_year: parentData.fatherBirthYear || null,
-            is_deceased: parentData.fatherIsDeceased ?? false,
-            spouse_id: motherNode?.id ?? null,
-          })
-          .select("id")
-          .single();
-
-        // Set bidirectional spouse link on mother
-        if (motherNode && fatherNode) {
-          await (admin as any)
-            .from("family_tree_members")
-            .update({ spouse_id: fatherNode.id })
-            .eq("id", motherNode.id);
-        }
-
-        // 3. Create user's own tree node linked to both parents
-        await (admin as any)
-          .from("family_tree_members")
-          .insert({
-            family_id: family.id,
-            display_name: displayName.trim(),
-            linked_member_id: memberRow.id,
-            parent_id: motherNode?.id ?? null,
-            parent2_id: fatherNode?.id ?? null,
-          });
-      }
-    } catch (treeError) {
-      // Non-critical — tree nodes can be added later
-      console.error("Failed to create tree nodes during onboarding:", treeError);
+    if (memberRow) {
+      await (admin as any)
+        .from("family_tree_members")
+        .insert({
+          family_id: family.id,
+          display_name: displayName.trim(),
+          linked_member_id: memberRow.id,
+          parent_id: null,
+          parent2_id: null,
+        });
     }
+  } catch (treeError) {
+    // Non-critical — tree nodes can be added later
+    console.error("Failed to create tree node during onboarding:", treeError);
   }
 
-  return { success: true };
+  return { success: true, familyId: family.id };
 }
 
 export async function forgotPassword(formData: FormData) {

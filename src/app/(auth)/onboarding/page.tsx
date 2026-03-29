@@ -2,33 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Users,
-  ArrowRight,
-  ArrowLeft,
-  User,
-  MapPin,
-  Briefcase,
-  GraduationCap,
-  Wrench,
-  Heart,
-  Flag,
-  Medal,
-  Plus,
-  X,
-  Check,
-  Sparkles,
-  Phone,
-  Mail,
-  Globe,
-  UtensilsCrossed,
-  Hammer,
-  Flower2,
-  Archive,
-  BookOpen,
-  Laptop2,
-  Trophy,
-} from "lucide-react";
+import { ArrowRight, ArrowLeft } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -39,48 +13,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import { createFamily } from "../actions";
-import type {
-  LifeStory,
-  CareerItem,
-  PlaceItem,
-  EducationItem,
-  MilitaryInfo,
-  MilestoneItem,
-  MemberSpecialty,
-} from "@/types/database";
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-const TOTAL_STEPS = 9;
-
-const EMPTY_LIFE_STORY: LifeStory = {
-  career: [],
-  places: [],
-  education: [],
-  skills: [],
-  hobbies: [],
-  military: null,
-  milestones: [],
-};
-
-const SPECIALTY_OPTIONS: {
-  value: MemberSpecialty;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}[] = [
-  { value: "cook", label: "Cook", icon: UtensilsCrossed },
-  { value: "storyteller", label: "Storyteller", icon: BookOpen },
-  { value: "handyman", label: "Handyman", icon: Hammer },
-  { value: "gardener", label: "Gardener", icon: Flower2 },
-  { value: "historian", label: "Historian", icon: Archive },
-  { value: "technology", label: "Tech Whiz", icon: Laptop2 },
-  { value: "sports", label: "Athlete", icon: Trophy },
-  { value: "other", label: "A Bit of Everything", icon: Sparkles },
-];
+import { createEntry } from "@/app/(dashboard)/entries/new/actions";
 
 // ---------------------------------------------------------------------------
 // Progress bar
@@ -105,1313 +40,213 @@ function StepProgress({ current, total }: { current: number; total: number }) {
 }
 
 // ---------------------------------------------------------------------------
-// Tag input (for skills & hobbies)
+// Main onboarding page
 // ---------------------------------------------------------------------------
-function TagInput({
-  items,
-  onAdd,
-  onRemove,
-  placeholder,
-}: {
-  items: string[];
-  onAdd: (item: string) => void;
-  onRemove: (index: number) => void;
-  placeholder: string;
-}) {
-  const [value, setValue] = useState("");
+const TOTAL_STEPS = 3;
 
-  const handleAdd = () => {
-    const trimmed = value.trim();
-    if (trimmed && !items.includes(trimmed)) {
-      onAdd(trimmed);
-      setValue("");
-    }
-  };
-
-  return (
-    <div className="space-y-3">
-      <div className="flex gap-2">
-        <Input
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleAdd();
-            }
-          }}
-          placeholder={placeholder}
-          className="text-sm"
-        />
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={handleAdd}
-          className="shrink-0"
-        >
-          <Plus className="size-4" />
-        </Button>
-      </div>
-      {items.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {items.map((item, i) => (
-            <Badge
-              key={i}
-              variant="secondary"
-              className="gap-1 pl-2.5 pr-1.5 py-1"
-            >
-              {item}
-              <button
-                type="button"
-                onClick={() => onRemove(i)}
-                className="ml-0.5 hover:text-destructive transition-colors"
-              >
-                <X className="size-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Year range select (for career, places, military years)
-// ---------------------------------------------------------------------------
-const CURRENT_YEAR = new Date().getFullYear();
-const YEAR_OPTIONS = Array.from({ length: CURRENT_YEAR - 1939 }, (_, i) => CURRENT_YEAR - i);
-
-function YearRangeSelect({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (val: string) => void;
-}) {
-  // Parse existing value like "2018 - Present" or "2018 - 2023"
-  const parts = value.split(" - ");
-  const startYear = parts[0] || "";
-  const endYear = parts[1] || "";
-
-  const updateRange = (start: string, end: string) => {
-    if (start && end) {
-      onChange(`${start} - ${end}`);
-    } else if (start) {
-      onChange(start);
-    } else {
-      onChange("");
-    }
-  };
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <select
-        value={startYear}
-        onChange={(e) => updateRange(e.target.value, endYear)}
-        className="flex-1 h-9 rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <option value="">Start</option>
-        {YEAR_OPTIONS.map((y) => (
-          <option key={y} value={y}>{y}</option>
-        ))}
-      </select>
-      <span className="text-xs text-muted-foreground">—</span>
-      <select
-        value={endYear}
-        onChange={(e) => updateRange(startYear, e.target.value)}
-        className="flex-1 h-9 rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <option value="">End</option>
-        <option value="Present">Present</option>
-        {YEAR_OPTIONS.map((y) => (
-          <option key={y} value={y}>{y}</option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Inline multi-field form row (for career, places, education, milestones)
-// ---------------------------------------------------------------------------
-function InlineFormRow({
-  fields,
-  onSubmit,
-  onCancel,
-}: {
-  fields: { label: string; placeholder: string; width?: string; type?: "text" | "year-range" }[];
-  onSubmit: (values: string[]) => void;
-  onCancel: () => void;
-}) {
-  const [values, setValues] = useState<string[]>(fields.map(() => ""));
-
-  const handleSubmit = () => {
-    if (values.every((v) => v.trim())) {
-      onSubmit(values.map((v) => v.trim()));
-      setValues(fields.map(() => ""));
-    }
-  };
-
-  return (
-    <div className="space-y-3 p-3 rounded-lg border bg-muted/30">
-      <div className={`grid gap-2 grid-cols-1 ${fields.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
-        {fields.map((field, i) => (
-          <div key={field.label} className="space-y-1">
-            <Label className="text-xs text-muted-foreground">
-              {field.label}
-            </Label>
-            {field.type === "year-range" ? (
-              <YearRangeSelect
-                value={values[i]}
-                onChange={(val) => {
-                  const newValues = [...values];
-                  newValues[i] = val;
-                  setValues(newValues);
-                }}
-              />
-            ) : (
-              <Input
-                placeholder={field.placeholder}
-                value={values[i]}
-                onChange={(e) => {
-                  const newValues = [...values];
-                  newValues[i] = e.target.value;
-                  setValues(newValues);
-                }}
-                onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                className="text-sm h-9"
-                autoFocus={i === 0}
-              />
-            )}
-          </div>
-        ))}
-      </div>
-      <div className="flex gap-2">
-        <Button type="button" size="sm" onClick={handleSubmit} className="h-8 text-xs gap-1">
-          <Plus className="size-3" />
-          Add
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={onCancel}
-          className="h-8 text-xs"
-        >
-          Cancel
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Main onboarding wizard
-// ---------------------------------------------------------------------------
 export default function OnboardingPage() {
   const router = useRouter();
+
   const [step, setStep] = useState(0);
-  const [familyNames, setFamilyNames] = useState<string[]>([""]);
   const [displayName, setDisplayName] = useState("");
   const [nickname, setNickname] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [occupation, setOccupation] = useState("");
-  const [country, setCountry] = useState("");
-  const [stateName, setStateName] = useState("");
-  const [specialty, setSpecialty] = useState<MemberSpecialty | "">("");
-  const [lifeStory, setLifeStory] = useState<LifeStory>(EMPTY_LIFE_STORY);
+  const [familyName, setFamilyName] = useState("");
+  const [entryTitle, setEntryTitle] = useState("");
+  const [entryContent, setEntryContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Parent linking state (required for connection chain)
-  const [motherName, setMotherName] = useState("");
-  const [motherBirthYear, setMotherBirthYear] = useState("");
-  const [motherDeceased, setMotherDeceased] = useState(false);
-  const [fatherName, setFatherName] = useState("");
-  const [fatherBirthYear, setFatherBirthYear] = useState("");
-  const [fatherDeceased, setFatherDeceased] = useState(false);
+  function canGoNext() {
+    if (step === 0) return displayName.trim().length > 0;
+    if (step === 1) return familyName.trim().length > 0;
+    return true; // step 2 is skippable
+  }
 
-  // Inline form toggles
-  const [showCareerForm, setShowCareerForm] = useState(false);
-  const [showPlaceForm, setShowPlaceForm] = useState(false);
-  const [showEduForm, setShowEduForm] = useState(false);
-  const [showMilestoneForm, setShowMilestoneForm] = useState(false);
-  const [showMilitaryForm, setShowMilitaryForm] = useState(false);
+  async function handleNext() {
+    if (step < 2) {
+      setStep((s) => s + 1);
+      return;
+    }
+    // Step 2: save and go to dashboard
+    await handleFinish(false);
+  }
 
-  const validFamilyNames = familyNames
-    .map((n) => n.trim())
-    .filter((n) => n.length > 0);
-
-  const handleCreate = async () => {
-    if (validFamilyNames.length === 0 || !displayName.trim()) return;
+  async function handleFinish(skip: boolean) {
     setLoading(true);
     setError(null);
 
-    try {
-      const profileFields = {
-        nickname: nickname.trim() || undefined,
-        phone: phone.trim() || undefined,
-        email: email.trim() || undefined,
-        occupation: occupation.trim() || undefined,
-        country: country.trim() || undefined,
-        state: stateName.trim() || undefined,
-        specialty: specialty || undefined,
-      };
-
-      // Parent data for connection chain (required)
-      const parentData = {
-        motherName: motherName.trim(),
-        motherBirthYear: motherBirthYear ? parseInt(motherBirthYear) : undefined,
-        motherIsDeceased: motherDeceased,
-        fatherName: fatherName.trim(),
-        fatherBirthYear: fatherBirthYear ? parseInt(fatherBirthYear) : undefined,
-        fatherIsDeceased: fatherDeceased,
-      };
-
-      // Create each family — first one gets full profile data,
-      // subsequent ones inherit from the first membership row
-      for (let i = 0; i < validFamilyNames.length; i++) {
-        const isFirst = i === 0;
-        const result = await createFamily(
-          validFamilyNames[i],
-          displayName,
-          isFirst ? lifeStory : undefined,
-          isFirst ? profileFields : undefined,
-          parentData
-        );
-        if (result?.error) {
-          setError(result.error);
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Success — navigate to dashboard
-      router.push("/dashboard");
-    } catch {
-      setError("Something went wrong. Please try again.");
+    const result = await createFamily(familyName, displayName, nickname || undefined);
+    if (result.error) {
+      setError(result.error);
       setLoading(false);
+      return;
     }
-  };
 
-  const canGoNext = () => {
-    if (step === 0) return validFamilyNames.length > 0;
-    if (step === 1) return displayName.trim().length > 0;
-    if (step === 2) return motherName.trim().length > 0 && fatherName.trim().length > 0;
-    return true; // All other steps are optional
-  };
+    if (!skip && entryTitle.trim()) {
+      try {
+        await createEntry({
+          title: entryTitle.trim(),
+          content: entryContent.trim(),
+          type: "story",
+          tags: [],
+        });
+      } catch {
+        // Swallow — family was created, entry failure is non-critical
+      }
+    }
 
-  const goNext = () => {
-    if (step < TOTAL_STEPS - 1) setStep(step + 1);
-  };
-  const goBack = () => {
-    if (step > 0) setStep(step - 1);
-  };
-
-  // Step configs
-  const stepInfo = [
-    {
-      icon: Users,
-      title: "Name Your Family",
-      description:
-        "This is how your family will appear across MAI Legacy.",
-    },
-    {
-      icon: User,
-      title: "About You",
-      description: "How should your family know you?",
-    },
-    {
-      icon: Heart,
-      title: "Who Are Your Parents?",
-      description:
-        "This is how we connect you to your family. Both are required to build your connection chain.",
-    },
-    {
-      icon: Globe,
-      title: "Where You're From",
-      description:
-        "The places that shaped you. Add as many as you'd like, or skip for now.",
-    },
-    {
-      icon: Sparkles,
-      title: "What's Your Specialty?",
-      description:
-        "Pick what you're known for in the family. You can always change this later.",
-    },
-    {
-      icon: Briefcase,
-      title: "Your Career & Education",
-      description:
-        "Share your professional journey and education. You can always add more later.",
-    },
-    {
-      icon: Heart,
-      title: "Skills & Interests",
-      description:
-        "What makes you, you? Add your skills, talents, and hobbies.",
-    },
-    {
-      icon: Flag,
-      title: "Life Milestones",
-      description:
-        "The moments that defined your journey — big or small.",
-    },
-    {
-      icon: Check,
-      title: "You're All Set!",
-      description: "Here's a summary of your profile. Ready to start your legacy?",
-    },
-  ];
-
-  const StepIcon = stepInfo[step].icon;
+    router.push("/dashboard");
+  }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-b from-background to-muted/30">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="text-center pb-4">
-          <div className="mb-4">
-            <StepProgress current={step} total={TOTAL_STEPS} />
-          </div>
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <StepIcon className="h-6 w-6 text-primary" />
-          </div>
-          <CardTitle className="text-xl">{stepInfo[step].title}</CardTitle>
-          <CardDescription>{stepInfo[step].description}</CardDescription>
-        </CardHeader>
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="w-full max-w-md space-y-6">
+        <StepProgress current={step} total={TOTAL_STEPS} />
 
-        <CardContent className="space-y-4">
-          {/* ---- STEP 0: Family Names ---- */}
-          {step === 0 && (
-            <div className="space-y-3">
-              {familyNames.map((name, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <div className="flex-1 space-y-1">
-                    {i === 0 && <Label>Family Name</Label>}
-                    <Input
-                      placeholder={
-                        i === 0
-                          ? "e.g., The Powell Family"
-                          : "e.g., Mom's Side, Dad's Side"
-                      }
-                      value={name}
-                      onChange={(e) => {
-                        const updated = [...familyNames];
-                        updated[i] = e.target.value;
-                        setFamilyNames(updated);
-                      }}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" && canGoNext() && goNext()
-                      }
-                      autoFocus={i === 0}
-                    />
-                  </div>
-                  {familyNames.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFamilyNames(familyNames.filter((_, idx) => idx !== i))
-                      }
-                      className="mt-auto mb-1 text-muted-foreground hover:text-destructive transition-colors"
-                    >
-                      <X className="size-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setFamilyNames([...familyNames, ""])}
-                className="gap-1.5 w-full"
-              >
-                <Plus className="size-4" />
-                Add Another Family
-              </Button>
-              <p className="text-xs text-muted-foreground text-center">
-                You can create separate families for different branches (e.g.,
-                Mom&apos;s Side, Dad&apos;s Side). Each family has its own
-                entries and members.
-              </p>
-            </div>
-          )}
-
-          {/* ---- STEP 1: About You ---- */}
-          {step === 1 && (
-            <div className="space-y-4">
+        {/* Step 0 — Your Name */}
+        {step === 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>What should we call you?</CardTitle>
+              <CardDescription>
+                This is how you&apos;ll appear to your family.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="display-name">Display Name *</Label>
+                <Label htmlFor="displayName">Your name</Label>
                 <Input
-                  id="display-name"
-                  placeholder="e.g., Kobe, Grandma Rose, Uncle Ray"
+                  id="displayName"
+                  placeholder="e.g. Grandma Rosa"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && canGoNext() && goNext()
-                  }
+                  onKeyDown={(e) => e.key === "Enter" && canGoNext() && handleNext()}
                   autoFocus
                 />
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="nickname">Nickname</Label>
+                <Label htmlFor="nickname">
+                  Nickname{" "}
+                  <span className="text-muted-foreground text-xs">(optional)</span>
+                </Label>
                 <Input
                   id="nickname"
-                  placeholder="e.g., Big K, Rosie, etc."
+                  placeholder="e.g. Nana"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && canGoNext() && handleNext()}
                 />
               </div>
+            </CardContent>
+          </Card>
+        )}
 
+        {/* Step 1 — Name Your Family */}
+        {step === 1 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>What do you call your family?</CardTitle>
+              <CardDescription>
+                Give your family a name to get started.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="flex items-center gap-1.5">
-                  <Mail className="size-3.5" />
-                  Email
-                </Label>
+                <Label htmlFor="familyName">Family name</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="familyName"
+                  placeholder="e.g. The Johnsons"
+                  value={familyName}
+                  onChange={(e) => setFamilyName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && canGoNext() && handleNext()}
+                  autoFocus
                 />
-                <p className="text-xs text-muted-foreground">
-                  Visible to family members so they can reach you.
-                </p>
               </div>
+            </CardContent>
+          </Card>
+        )}
 
+        {/* Step 2 — First Entry */}
+        {step === 2 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>What&apos;s a story worth saving?</CardTitle>
+              <CardDescription>
+                Start with one memory — big or small.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="phone" className="flex items-center gap-1.5">
-                  <Phone className="size-3.5" />
-                  Phone
-                </Label>
+                <Label htmlFor="entryTitle">Title</Label>
                 <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="(555) 123-4567"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  id="entryTitle"
+                  placeholder="e.g. Sunday dinners at Grandma's"
+                  value={entryTitle}
+                  onChange={(e) => setEntryTitle(e.target.value)}
+                  autoFocus
                 />
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="occupation">Current Occupation</Label>
-                <Input
-                  id="occupation"
-                  placeholder="e.g., Retired Teacher, Software Engineer"
-                  value={occupation}
-                  onChange={(e) => setOccupation(e.target.value)}
+                <Label htmlFor="entryContent">Story</Label>
+                <Textarea
+                  id="entryContent"
+                  placeholder="Write your memory here…"
+                  value={entryContent}
+                  onChange={(e) => setEntryContent(e.target.value)}
+                  rows={5}
                 />
               </div>
+            </CardContent>
+          </Card>
+        )}
 
-              <div className="rounded-md border p-3 bg-muted/50 space-y-1">
-                {validFamilyNames.map((name, i) => (
-                  <p key={i} className="text-sm">
-                    <span className="font-medium">{name}</span>
-                    <span className="text-muted-foreground">
-                      {" "}
-                      &middot; {i === 0 ? "You'll be the admin" : "Member"}
-                    </span>
-                  </p>
-                ))}
-              </div>
-            </div>
+        {error && (
+          <p className="text-sm text-destructive text-center">{error}</p>
+        )}
+
+        {/* Navigation */}
+        <div className="flex items-center justify-between">
+          {step > 0 ? (
+            <Button
+              variant="ghost"
+              onClick={() => setStep((s) => s - 1)}
+              disabled={loading}
+            >
+              <ArrowLeft className="size-4 mr-1" />
+              Back
+            </Button>
+          ) : (
+            <div />
           )}
 
-          {/* ---- STEP 2: Who Are Your Parents? ---- */}
-          {step === 2 && (
-            <div className="space-y-5">
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="h-6 w-6 rounded-full bg-pink-100 dark:bg-pink-900/30 flex items-center justify-center">
-                    <Heart className="h-3 w-3 text-pink-600 dark:text-pink-400" />
-                  </div>
-                  <Label className="font-semibold">Mother</Label>
-                </div>
-                <div className="space-y-2">
-                  <Input
-                    placeholder="Mother's full name"
-                    value={motherName}
-                    onChange={(e) => setMotherName(e.target.value)}
-                    autoFocus
-                  />
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      placeholder="Birth year (optional)"
-                      value={motherBirthYear}
-                      onChange={(e) => setMotherBirthYear(e.target.value)}
-                      className="flex-1"
-                    />
-                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={motherDeceased}
-                        onChange={(e) => setMotherDeceased(e.target.checked)}
-                        className="rounded border-border"
-                      />
-                      Deceased
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                    <User className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <Label className="font-semibold">Father</Label>
-                </div>
-                <div className="space-y-2">
-                  <Input
-                    placeholder="Father's full name"
-                    value={fatherName}
-                    onChange={(e) => setFatherName(e.target.value)}
-                  />
-                  <div className="flex gap-2">
-                    <Input
-                      type="number"
-                      placeholder="Birth year (optional)"
-                      value={fatherBirthYear}
-                      onChange={(e) => setFatherBirthYear(e.target.value)}
-                      className="flex-1"
-                    />
-                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={fatherDeceased}
-                        onChange={(e) => setFatherDeceased(e.target.checked)}
-                        className="rounded border-border"
-                      />
-                      Deceased
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <p className="text-xs text-muted-foreground text-center">
-                Your parents are the foundation of your family connection chain.
-                This is how we connect you to the rest of your family.
-              </p>
-            </div>
-          )}
-
-          {/* ---- STEP 3: Where You're From ---- */}
-          {step === 3 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="country">Country</Label>
-                  <Input
-                    id="country"
-                    placeholder="e.g., United States"
-                    value={country}
-                    onChange={(e) => setCountry(e.target.value)}
-                    autoFocus
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="state-name">State / Province</Label>
-                  <Input
-                    id="state-name"
-                    placeholder="e.g., Georgia"
-                    value={stateName}
-                    onChange={(e) => setStateName(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-3">
-                <Label className="flex items-center gap-1.5 text-sm font-medium">
-                  <MapPin className="size-3.5" />
-                  Places Lived
-                </Label>
-                {lifeStory.places.length > 0 && (
-                  <div className="space-y-1">
-                    {lifeStory.places.map((p, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50"
-                      >
-                        <div className="flex items-center gap-2">
-                          <MapPin className="size-3.5 text-muted-foreground" />
-                          <span className="text-sm">
-                            {p.city}, {p.state}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            {p.years}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setLifeStory((s) => ({
-                                ...s,
-                                places: s.places.filter((_, idx) => idx !== i),
-                              }))
-                            }
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                          >
-                            <X className="size-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {showPlaceForm ? (
-                  <InlineFormRow
-                    fields={[
-                      { label: "City", placeholder: "Atlanta" },
-                      { label: "State", placeholder: "GA" },
-                      { label: "Years", placeholder: "", type: "year-range" },
-                    ]}
-                    onSubmit={([city, state, years]) => {
-                      setLifeStory((s) => ({
-                        ...s,
-                        places: [...s.places, { city, state, years }],
-                      }));
-                      setShowPlaceForm(false);
-                    }}
-                    onCancel={() => setShowPlaceForm(false)}
-                  />
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowPlaceForm(true)}
-                    className="gap-1.5 w-full"
-                  >
-                    <Plus className="size-4" />
-                    Add a Place
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ---- STEP 3: What's Your Specialty? ---- */}
-          {step === 4 && (
-            <div className="grid grid-cols-2 gap-3">
-              {SPECIALTY_OPTIONS.map((opt) => {
-                const Icon = opt.icon;
-                const isSelected = specialty === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() =>
-                      setSpecialty(isSelected ? "" : opt.value)
-                    }
-                    className={`relative flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all hover:bg-muted/50 ${
-                      isSelected
-                        ? "border-primary bg-primary/5"
-                        : "border-muted bg-background"
-                    }`}
-                  >
-                    {isSelected && (
-                      <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                        <Check className="size-3" />
-                      </div>
-                    )}
-                    <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                        isSelected
-                          ? "bg-primary/10 text-primary"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
-                      <Icon className="size-5" />
-                    </div>
-                    <span
-                      className={`text-sm font-medium ${
-                        isSelected ? "text-primary" : "text-foreground"
-                      }`}
-                    >
-                      {opt.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* ---- STEP 4: Career & Education ---- */}
-          {step === 5 && (
-            <div className="space-y-4">
-              {/* Career */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5 text-sm font-medium">
-                  <Briefcase className="size-3.5" />
-                  Career History
-                </Label>
-                {lifeStory.career.length > 0 && (
-                  <div className="space-y-1">
-                    {lifeStory.career.map((c, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50"
-                      >
-                        <div>
-                          <p className="text-sm font-medium">{c.title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {c.company}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            {c.years}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setLifeStory((s) => ({
-                                ...s,
-                                career: s.career.filter(
-                                  (_, idx) => idx !== i
-                                ),
-                              }))
-                            }
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                          >
-                            <X className="size-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {showCareerForm ? (
-                  <InlineFormRow
-                    fields={[
-                      { label: "Title", placeholder: "Software Engineer" },
-                      { label: "Company", placeholder: "Acme Corp" },
-                      { label: "Years", placeholder: "", type: "year-range" },
-                    ]}
-                    onSubmit={([title, company, years]) => {
-                      setLifeStory((s) => ({
-                        ...s,
-                        career: [...s.career, { title, company, years }],
-                      }));
-                      setShowCareerForm(false);
-                    }}
-                    onCancel={() => setShowCareerForm(false)}
-                  />
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowCareerForm(true)}
-                    className="gap-1.5 w-full"
-                  >
-                    <Plus className="size-4" />
-                    Add Job
-                  </Button>
-                )}
-              </div>
-
-              <Separator />
-
-              {/* Education */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5 text-sm font-medium">
-                  <GraduationCap className="size-3.5" />
-                  Education
-                </Label>
-                {lifeStory.education.length > 0 && (
-                  <div className="space-y-1">
-                    {lifeStory.education.map((e, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50"
-                      >
-                        <div>
-                          <p className="text-sm font-medium">{e.school}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {e.degree}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            {e.year}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setLifeStory((s) => ({
-                                ...s,
-                                education: s.education.filter(
-                                  (_, idx) => idx !== i
-                                ),
-                              }))
-                            }
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                          >
-                            <X className="size-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {showEduForm ? (
-                  <InlineFormRow
-                    fields={[
-                      { label: "School", placeholder: "e.g., Lincoln High School, Georgia Tech" },
-                      {
-                        label: "Degree / Level",
-                        placeholder: "e.g., High School Diploma, B.S. Computer Science",
-                      },
-                      { label: "Year", placeholder: "e.g., 2016" },
-                    ]}
-                    onSubmit={([school, degree, year]) => {
-                      setLifeStory((s) => ({
-                        ...s,
-                        education: [...s.education, { school, degree, year }],
-                      }));
-                      setShowEduForm(false);
-                    }}
-                    onCancel={() => setShowEduForm(false)}
-                  />
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowEduForm(true)}
-                    className="gap-1.5 w-full"
-                  >
-                    <Plus className="size-4" />
-                    Add Education
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ---- STEP 5: Skills & Interests ---- */}
-          {step === 6 && (
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5 text-sm font-medium">
-                  <Wrench className="size-3.5" />
-                  Skills & Talents
-                </Label>
-                <TagInput
-                  items={lifeStory.skills}
-                  onAdd={(s) =>
-                    setLifeStory((prev) => ({
-                      ...prev,
-                      skills: [...prev.skills, s],
-                    }))
-                  }
-                  onRemove={(i) =>
-                    setLifeStory((prev) => ({
-                      ...prev,
-                      skills: prev.skills.filter((_, idx) => idx !== i),
-                    }))
-                  }
-                  placeholder="e.g., Cooking, Woodworking, Guitar..."
-                />
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5 text-sm font-medium">
-                  <Heart className="size-3.5" />
-                  Hobbies & Interests
-                </Label>
-                <TagInput
-                  items={lifeStory.hobbies}
-                  onAdd={(h) =>
-                    setLifeStory((prev) => ({
-                      ...prev,
-                      hobbies: [...prev.hobbies, h],
-                    }))
-                  }
-                  onRemove={(i) =>
-                    setLifeStory((prev) => ({
-                      ...prev,
-                      hobbies: prev.hobbies.filter((_, idx) => idx !== i),
-                    }))
-                  }
-                  placeholder="e.g., Photography, Fishing, Gardening..."
-                />
-              </div>
-            </div>
-          )}
-
-          {/* ---- STEP 6: Life Milestones + Military ---- */}
-          {step === 7 && (
-            <div className="space-y-4">
-              {/* Milestones */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5 text-sm font-medium">
-                  <Flag className="size-3.5" />
-                  Life Milestones
-                </Label>
-                {lifeStory.milestones.length > 0 && (
-                  <div className="space-y-1">
-                    {lifeStory.milestones.map((m, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Flag className="size-3 text-primary" />
-                          <span className="text-sm">{m.event}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            {m.year}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setLifeStory((s) => ({
-                                ...s,
-                                milestones: s.milestones.filter(
-                                  (_, idx) => idx !== i
-                                ),
-                              }))
-                            }
-                            className="text-muted-foreground hover:text-destructive transition-colors"
-                          >
-                            <X className="size-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {showMilestoneForm ? (
-                  <InlineFormRow
-                    fields={[
-                      {
-                        label: "Event",
-                        placeholder: "First child born",
-                      },
-                      { label: "Year", placeholder: "2022" },
-                    ]}
-                    onSubmit={([event, year]) => {
-                      setLifeStory((s) => ({
-                        ...s,
-                        milestones: [...s.milestones, { event, year }],
-                      }));
-                      setShowMilestoneForm(false);
-                    }}
-                    onCancel={() => setShowMilestoneForm(false)}
-                  />
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowMilestoneForm(true)}
-                    className="gap-1.5 w-full"
-                  >
-                    <Plus className="size-4" />
-                    Add Milestone
-                  </Button>
-                )}
-              </div>
-
-              <Separator />
-
-              {/* Military */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-1.5 text-sm font-medium">
-                  <Medal className="size-3.5" />
-                  Military Service
-                  <span className="text-xs font-normal text-muted-foreground">
-                    (optional)
-                  </span>
-                </Label>
-                {lifeStory.military ? (
-                  <div className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50">
-                    <div>
-                      <p className="text-sm font-medium">
-                        {lifeStory.military.branch}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {lifeStory.military.rank}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        {lifeStory.military.years}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setLifeStory((s) => ({ ...s, military: null }))
-                        }
-                        className="text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        <X className="size-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ) : showMilitaryForm ? (
-                  <InlineFormRow
-                    fields={[
-                      { label: "Branch", placeholder: "U.S. Army" },
-                      { label: "Rank", placeholder: "Sergeant" },
-                      { label: "Years", placeholder: "", type: "year-range" },
-                    ]}
-                    onSubmit={([branch, rank, years]) => {
-                      setLifeStory((s) => ({
-                        ...s,
-                        military: { branch, rank, years },
-                      }));
-                      setShowMilitaryForm(false);
-                    }}
-                    onCancel={() => setShowMilitaryForm(false)}
-                  />
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowMilitaryForm(true)}
-                    className="gap-1.5 w-full"
-                  >
-                    <Plus className="size-4" />
-                    Add Service Record
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ---- STEP 7: Review & Create ---- */}
-          {step === 8 && (
-            <div className="space-y-4">
-              {/* Summary card */}
-              <div className="rounded-lg border p-4 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-lg">
-                    {displayName.charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="font-semibold">
-                      {displayName}
-                      {nickname && (
-                        <span className="text-muted-foreground font-normal">
-                          {" "}
-                          &ldquo;{nickname}&rdquo;
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Admin of {validFamilyNames.join(", ")}
-                    </p>
-                  </div>
-                </div>
-
-                {(occupation || email || phone) && (
-                  <>
-                    <Separator />
-                    <div className="space-y-1.5 text-sm">
-                      {occupation && (
-                        <div className="flex items-center gap-2">
-                          <Briefcase className="size-3.5 text-muted-foreground" />
-                          <span>{occupation}</span>
-                        </div>
-                      )}
-                      {email && (
-                        <div className="flex items-center gap-2">
-                          <Mail className="size-3.5 text-muted-foreground" />
-                          <span>{email}</span>
-                        </div>
-                      )}
-                      {phone && (
-                        <div className="flex items-center gap-2">
-                          <Phone className="size-3.5 text-muted-foreground" />
-                          <span>{phone}</span>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                {(country || stateName) && (
-                  <>
-                    <Separator />
-                    <div className="flex items-center gap-2 text-sm">
-                      <Globe className="size-3.5 text-muted-foreground" />
-                      <span>
-                        {[stateName, country].filter(Boolean).join(", ")}
-                      </span>
-                    </div>
-                  </>
-                )}
-
-                {specialty && (
-                  <>
-                    <Separator />
-                    <div className="flex items-center gap-2 text-sm">
-                      <Sparkles className="size-3.5 text-muted-foreground" />
-                      <span>
-                        Specialty:{" "}
-                        {SPECIALTY_OPTIONS.find((o) => o.value === specialty)
-                          ?.label ?? specialty}
-                      </span>
-                    </div>
-                  </>
-                )}
-
-                <Separator />
-
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <SummaryItem
-                    icon={MapPin}
-                    label="Places"
-                    count={lifeStory.places.length}
-                  />
-                  <SummaryItem
-                    icon={Briefcase}
-                    label="Jobs"
-                    count={lifeStory.career.length}
-                  />
-                  <SummaryItem
-                    icon={GraduationCap}
-                    label="Education"
-                    count={lifeStory.education.length}
-                  />
-                  <SummaryItem
-                    icon={Wrench}
-                    label="Skills"
-                    count={lifeStory.skills.length}
-                  />
-                  <SummaryItem
-                    icon={Heart}
-                    label="Hobbies"
-                    count={lifeStory.hobbies.length}
-                  />
-                  <SummaryItem
-                    icon={Flag}
-                    label="Milestones"
-                    count={lifeStory.milestones.length}
-                  />
-                </div>
-
-                {lifeStory.military && (
-                  <>
-                    <Separator />
-                    <div className="flex items-center gap-2 text-sm">
-                      <Medal className="size-3.5 text-muted-foreground" />
-                      <span>
-                        {lifeStory.military.branch} &middot;{" "}
-                        {lifeStory.military.rank}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <p className="text-xs text-center text-muted-foreground">
-                You can always update your profile later from the dashboard.
-              </p>
-            </div>
-          )}
-
-          {/* ---- Error message ---- */}
-          {error && (
-            <p className="text-sm text-destructive text-center">{error}</p>
-          )}
-
-          {/* ---- Navigation buttons ---- */}
-          <div className="flex gap-2 pt-2">
-            {step > 0 && (
+          <div className="flex items-center gap-3">
+            {step === 2 && (
               <Button
-                type="button"
                 variant="ghost"
-                onClick={goBack}
-                className="gap-1"
+                onClick={() => handleFinish(true)}
                 disabled={loading}
               >
-                <ArrowLeft className="size-4" />
-                Back
+                Skip for now
               </Button>
             )}
-            <div className="flex-1" />
-
-            {step >= 3 && step < TOTAL_STEPS - 1 && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={goNext}
-                className="text-muted-foreground"
-              >
-                Skip
-              </Button>
-            )}
-
-            {step < TOTAL_STEPS - 1 ? (
-              <Button
-                type="button"
-                onClick={goNext}
-                disabled={!canGoNext()}
-                className="gap-1"
-              >
-                Continue
-                <ArrowRight className="size-4" />
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                onClick={handleCreate}
-                disabled={loading}
-                className="gap-1"
-              >
-                {loading ? (
-                  "Creating..."
-                ) : (
+            <Button
+              onClick={handleNext}
+              disabled={!canGoNext() || loading}
+            >
+              {loading
+                ? "Saving…"
+                : step === 2
+                ? "Save My First Memory"
+                : (
                   <>
-                    <Check className="size-4" />
-                    Create Family & Get Started
+                    Next
+                    <ArrowRight className="size-4 ml-1" />
                   </>
                 )}
-              </Button>
-            )}
+            </Button>
           </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Summary item for review step
-// ---------------------------------------------------------------------------
-function SummaryItem({
-  icon: Icon,
-  label,
-  count,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  count: number;
-}) {
-  return (
-    <div className="flex items-center gap-2 text-sm">
-      <Icon className="size-3.5 text-muted-foreground" />
-      <span className="text-muted-foreground">{label}:</span>
-      <span className="font-medium">{count}</span>
+        </div>
+      </div>
     </div>
   );
 }

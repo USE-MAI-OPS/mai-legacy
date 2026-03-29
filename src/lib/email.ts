@@ -242,3 +242,379 @@ export async function sendWeeklyDigest(opts: {
     html,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Drip onboarding sequence
+// ---------------------------------------------------------------------------
+
+export async function sendWaitlistConfirmation(opts: {
+  to: string;
+  name?: string;
+  appUrl: string;
+}) {
+  const { to, name, appUrl } = opts;
+  const greeting = name ? `Hi ${name}` : "Hi there";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#18181b;padding:24px 32px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.02em;">MAI Legacy</h1>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px;">
+              <h2 style="margin:0 0 12px;font-size:22px;font-weight:700;color:#18181b;">${greeting} — you're on the list!</h2>
+              <p style="margin:0 0 20px;font-size:15px;color:#52525b;line-height:1.7;">
+                Thank you for joining the MAI Legacy waitlist. We're building the private family archive
+                your family deserves — and you'll be among the first to experience it.
+              </p>
+              <p style="margin:0 0 20px;font-size:15px;color:#52525b;line-height:1.7;">
+                We'll reach out as soon as your access is ready. In the meantime, feel free to
+                explore our interactive demo to see what you're in for.
+              </p>
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding:8px 0 24px;">
+                    <a href="${appUrl}/demo" style="display:inline-block;background-color:#18181b;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:8px;">
+                      Explore the Demo
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0;font-size:13px;color:#71717a;line-height:1.5;">
+                Excited to preserve what matters most,<br/>
+                <strong style="color:#18181b;">The MAI Legacy Team</strong>
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:16px 32px;border-top:1px solid #e4e4e7;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#a1a1aa;">
+                MAI Legacy — Preserve what matters.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return resend.emails.send({
+    from: "MAI Legacy <noreply@usemai.com>",
+    to,
+    subject: "You're on the MAI Legacy list!",
+    html,
+  });
+}
+
+export async function sendDripWelcome(opts: {
+  to: string;
+  displayName: string;
+  appUrl: string;
+}) {
+  const { to, displayName, appUrl } = opts;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#18181b;padding:24px 32px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.02em;">MAI Legacy</h1>
+              <p style="margin:6px 0 0;color:#a1a1aa;font-size:13px;">Your family's knowledge base is ready</p>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px;">
+              <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#18181b;">Welcome, ${displayName}!</h2>
+              <p style="margin:0 0 20px;font-size:15px;color:#52525b;line-height:1.6;">
+                You've just created your family's private knowledge base. Now it's time to
+                start filling it with the stories, skills, and wisdom that matter most.
+              </p>
+              <p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#18181b;">Get started in 3 steps:</p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                <tr>
+                  <td style="padding:10px 0;border-bottom:1px solid #f4f4f5;">
+                    <p style="margin:0;font-size:14px;color:#18181b;"><strong>1. Add your first entry</strong></p>
+                    <p style="margin:4px 0 0;font-size:13px;color:#71717a;line-height:1.5;">Record a family story, a recipe passed down through generations, or a skill worth teaching.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 0;border-bottom:1px solid #f4f4f5;">
+                    <p style="margin:0;font-size:14px;color:#18181b;"><strong>2. Invite a family member</strong></p>
+                    <p style="margin:4px 0 0;font-size:13px;color:#71717a;line-height:1.5;">The best family archives are built together. Invite a parent, sibling, or grandparent to contribute.</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:10px 0;">
+                    <p style="margin:0;font-size:14px;color:#18181b;"><strong>3. Ask the Griot</strong></p>
+                    <p style="margin:4px 0 0;font-size:13px;color:#71717a;line-height:1.5;">Your AI Griot learns from every entry. Once you have a few, ask it anything about your family's documented knowledge.</p>
+                  </td>
+                </tr>
+              </table>
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding:8px 0;">
+                    <a href="${appUrl}/dashboard" style="display:inline-block;background-color:#18181b;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:8px;">
+                      Start Your Legacy
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:16px 32px;border-top:1px solid #e4e4e7;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#a1a1aa;">
+                MAI Legacy — Preserve what matters.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return resend.emails.send({
+    from: "MAI Legacy <noreply@usemai.com>",
+    to,
+    subject: "Your family's knowledge base is ready — here's how to start",
+    html,
+  });
+}
+
+export async function sendDripDay3(opts: {
+  to: string;
+  displayName: string;
+  appUrl: string;
+}) {
+  const { to, displayName, appUrl } = opts;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#18181b;padding:24px 32px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.02em;">MAI Legacy</h1>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px;">
+              <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#18181b;">Hi ${displayName} — two features worth knowing</h2>
+              <p style="margin:0 0 24px;font-size:15px;color:#52525b;line-height:1.6;">
+                As your family's archive grows, these two features become more powerful with every entry you add.
+              </p>
+              <!-- Feature 1: Memories -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;background-color:#f9f9f9;border-radius:8px;">
+                <tr>
+                  <td style="padding:20px;">
+                    <p style="margin:0 0 6px;font-size:15px;font-weight:700;color:#18181b;">Family Timeline &amp; Search</p>
+                    <p style="margin:0;font-size:14px;color:#52525b;line-height:1.5;">
+                      Every entry you add — stories, recipes, skills, lessons — is automatically indexed.
+                      Search across your entire family history in seconds. Find that recipe your grandmother
+                      made, or every story about a specific family member.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+              <!-- Feature 2: Griot -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;background-color:#f9f9f9;border-radius:8px;">
+                <tr>
+                  <td style="padding:20px;">
+                    <p style="margin:0 0 6px;font-size:15px;font-weight:700;color:#18181b;">Ask the Griot</p>
+                    <p style="margin:0;font-size:14px;color:#52525b;line-height:1.5;">
+                      Your AI Griot is trained only on <em>your</em> family's entries — nothing else.
+                      Ask it "What did grandma teach about cooking?" or "What skills has our family passed down?"
+                      and it answers from your actual archive. Private, personal, and powerful.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0 0 24px;font-size:14px;color:#71717a;line-height:1.5;">
+                The more entries you and your family contribute, the smarter and richer your archive becomes.
+              </p>
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${appUrl}/dashboard" style="display:inline-block;background-color:#18181b;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:8px;">
+                      Add an Entry Now
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:16px 32px;border-top:1px solid #e4e4e7;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#a1a1aa;">
+                MAI Legacy — Preserve what matters.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return resend.emails.send({
+    from: "MAI Legacy <noreply@usemai.com>",
+    to,
+    subject: "Your family archive + AI Griot: how they work together",
+    html,
+  });
+}
+
+export async function sendDripDay7(opts: {
+  to: string;
+  displayName: string;
+  appUrl: string;
+}) {
+  const { to, displayName, appUrl } = opts;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#18181b;padding:24px 32px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.02em;">MAI Legacy</h1>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px;">
+              <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#18181b;">One week in, ${displayName}</h2>
+              <p style="margin:0 0 24px;font-size:15px;color:#52525b;line-height:1.6;">
+                Families using MAI Legacy tell us the same thing: <em>"I wish we had started this sooner."</em>
+                Here's what they're preserving before it's too late.
+              </p>
+              <!-- Testimonials -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;border-left:3px solid #18181b;padding-left:0;">
+                <tr>
+                  <td style="padding:0 0 0 16px;">
+                    <p style="margin:0 0 4px;font-size:14px;color:#18181b;line-height:1.5;font-style:italic;">
+                      "My dad passed last year. I'm so grateful I had him record his stories in MAI Legacy. My kids can still ask the Griot questions about him."
+                    </p>
+                    <p style="margin:0;font-size:12px;color:#71717a;">— Early MAI Legacy family</p>
+                  </td>
+                </tr>
+              </table>
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;border-left:3px solid #18181b;padding-left:0;">
+                <tr>
+                  <td style="padding:0 0 0 16px;">
+                    <p style="margin:0 0 4px;font-size:14px;color:#18181b;line-height:1.5;font-style:italic;">
+                      "We recovered three generations of recipes that were almost lost. My grandmother dictated them all; now the whole family has access."
+                    </p>
+                    <p style="margin:0;font-size:12px;color:#71717a;">— Early MAI Legacy family</p>
+                  </td>
+                </tr>
+              </table>
+              <!-- Upgrade nudge -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;background-color:#f4f4f5;border-radius:8px;">
+                <tr>
+                  <td style="padding:20px;">
+                    <p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#18181b;">Ready to grow your archive?</p>
+                    <p style="margin:0 0 12px;font-size:14px;color:#52525b;line-height:1.5;">
+                      Invite more family members, add audio recordings, and unlock unlimited entries
+                      as your family's story grows. Our paid plans are built for families serious
+                      about preservation.
+                    </p>
+                    <a href="${appUrl}/settings/billing" style="display:inline-block;background-color:#18181b;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:10px 24px;border-radius:8px;">
+                      See Plans
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0 0 24px;font-size:14px;color:#71717a;line-height:1.5;">
+                Not ready to upgrade? Keep going on the free plan — there's no rush.
+                The most important thing is that you keep adding entries while you still can.
+              </p>
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${appUrl}/dashboard" style="display:inline-block;background-color:#18181b;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:8px;">
+                      Continue Building Your Archive
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:16px 32px;border-top:1px solid #e4e4e7;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#a1a1aa;">
+                MAI Legacy — Preserve what matters.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  return resend.emails.send({
+    from: "MAI Legacy <noreply@usemai.com>",
+    to,
+    subject: "One week of family history preserved — what's next?",
+    html,
+  });
+}

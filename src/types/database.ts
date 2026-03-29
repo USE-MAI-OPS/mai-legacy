@@ -635,12 +635,16 @@ export interface Database {
           display_name: string;
           relationship_label: RelationshipLabel | null;
           parent_id: string | null;
+          parent2_id: string | null;
           spouse_id: string | null;
           linked_member_id: string | null;
           birth_year: number | null;
           is_deceased: boolean;
           avatar_url: string | null;
           added_by: string;
+          position_x: number | null;
+          position_y: number | null;
+          connection_type: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -650,12 +654,16 @@ export interface Database {
           display_name: string;
           relationship_label?: RelationshipLabel | null;
           parent_id?: string | null;
+          parent2_id?: string | null;
           spouse_id?: string | null;
           linked_member_id?: string | null;
           birth_year?: number | null;
           is_deceased?: boolean;
           avatar_url?: string | null;
-          added_by: string;
+          added_by?: string;
+          position_x?: number | null;
+          position_y?: number | null;
+          connection_type?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -665,12 +673,16 @@ export interface Database {
           display_name?: string;
           relationship_label?: RelationshipLabel | null;
           parent_id?: string | null;
+          parent2_id?: string | null;
           spouse_id?: string | null;
           linked_member_id?: string | null;
           birth_year?: number | null;
           is_deceased?: boolean;
           avatar_url?: string | null;
           added_by?: string;
+          position_x?: number | null;
+          position_y?: number | null;
+          connection_type?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -736,6 +748,195 @@ export interface Database {
           user_id?: string;
           status?: RsvpStatus;
           responded_at?: string;
+        };
+        Relationships: [];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          family_id: string;
+          type: string;
+          title: string;
+          body: string | null;
+          reference_type: string | null;
+          reference_id: string | null;
+          actor_id: string | null;
+          read: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          family_id: string;
+          type: string;
+          title: string;
+          body?: string | null;
+          reference_type?: string | null;
+          reference_id?: string | null;
+          actor_id?: string | null;
+          read?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          family_id?: string;
+          type?: string;
+          title?: string;
+          body?: string | null;
+          reference_type?: string | null;
+          reference_id?: string | null;
+          actor_id?: string | null;
+          read?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      griot_discoveries: {
+        Row: {
+          id: string;
+          family_id: string;
+          discovery_type: string;
+          title: string;
+          body: string;
+          related_entries: string[];
+          related_members: string[];
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          discovery_type: string;
+          title: string;
+          body: string;
+          related_entries?: string[];
+          related_members?: string[];
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          discovery_type?: string;
+          title?: string;
+          body?: string;
+          related_entries?: string[];
+          related_members?: string[];
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      interview_transcripts: {
+        Row: {
+          id: string;
+          family_id: string;
+          uploaded_by: string;
+          subject_member_id: string;
+          raw_transcript: string;
+          extraction_status: string;
+          extracted_data: unknown | null;
+          processed_at: string | null;
+          error_message: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          uploaded_by: string;
+          subject_member_id: string;
+          raw_transcript: string;
+          extraction_status?: string;
+          extracted_data?: unknown | null;
+          processed_at?: string | null;
+          error_message?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          uploaded_by?: string;
+          subject_member_id?: string;
+          raw_transcript?: string;
+          extraction_status?: string;
+          extracted_data?: unknown | null;
+          processed_at?: string | null;
+          error_message?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      dm_conversations: {
+        Row: {
+          id: string;
+          family_id: string;
+          participant_ids: string[];
+          last_message_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          participant_ids: string[];
+          last_message_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          participant_ids?: string[];
+          last_message_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      direct_messages: {
+        Row: {
+          id: string;
+          conversation_id: string;
+          sender_id: string;
+          content: string;
+          read: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          conversation_id: string;
+          sender_id: string;
+          content: string;
+          read?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          conversation_id?: string;
+          sender_id?: string;
+          content?: string;
+          read?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      waitlist: {
+        Row: {
+          id: string;
+          email: string;
+          name: string | null;
+          source: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          name?: string | null;
+          source?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          name?: string | null;
+          source?: string;
+          created_at?: string;
         };
         Relationships: [];
       };

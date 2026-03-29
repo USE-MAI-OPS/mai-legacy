@@ -46,7 +46,7 @@ export async function toggleReaction(
 
   const { userId, familyId, supabase } = ctx;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   // Check if user already reacted
   const { data: existing } = await sb
@@ -130,7 +130,7 @@ export async function addComment(
 
   const { userId, familyId, supabase } = ctx;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   const trimmed = content.trim();
   if (!trimmed) return { success: false, error: "Comment cannot be empty" };
@@ -214,7 +214,7 @@ export async function deleteComment(
 
   const { supabase } = ctx;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   // RLS ensures only own comments can be deleted
   const { error } = await sb
@@ -245,7 +245,7 @@ export async function getSocialData(entryId: string): Promise<SocialData> {
 
   const { userId, familyId, supabase } = ctx;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   // Fetch reactions
   const { data: reactions } = await sb

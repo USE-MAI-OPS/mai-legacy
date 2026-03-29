@@ -9,6 +9,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -71,6 +81,9 @@ export function SettingsClient({
   provider,
   createdAt,
 }: SettingsClientProps) {
+  // Danger zone
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+
   // Password form
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -379,11 +392,7 @@ export function SettingsClient({
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => {
-                toast.error(
-                  "To delete your account, please contact support at support@usemai.com"
-                );
-              }}
+              onClick={() => setDeleteAccountOpen(true)}
             >
               Delete Account
             </Button>
@@ -399,6 +408,31 @@ export function SettingsClient({
           your personal information with third parties.
         </p>
       </div>
+
+      <AlertDialog open={deleteAccountOpen} onOpenChange={setDeleteAccountOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete your account and all associated data including entries, stories, and memories. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setDeleteAccountOpen(false);
+                toast.error(
+                  "To delete your account, please contact support at support@usemai.com"
+                );
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Continue to Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

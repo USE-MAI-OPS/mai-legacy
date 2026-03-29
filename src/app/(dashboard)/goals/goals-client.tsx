@@ -24,6 +24,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Target,
   Plus,
   Calendar,
@@ -59,6 +69,7 @@ export default function GoalsClient({
   const [goals, setGoals] = useState<FamilyGoal[]>(initialGoals);
   const [filter, setFilter] = useState<FilterTab>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [goalToDelete, setGoalToDelete] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // Form state
@@ -142,12 +153,17 @@ export default function GoalsClient({
   }
 
   function handleDelete(goalId: string) {
-    if (!confirm("Are you sure you want to delete this goal?")) return;
+    setGoalToDelete(goalId);
+  }
 
+  function confirmDelete() {
+    if (!goalToDelete) return;
+    const id = goalToDelete;
+    setGoalToDelete(null);
     startTransition(async () => {
-      const result = await deleteGoal(goalId);
+      const result = await deleteGoal(id);
       if (result.success) {
-        setGoals((prev) => prev.filter((g) => g.id !== goalId));
+        setGoals((prev) => prev.filter((g) => g.id !== id));
       }
     });
   }
@@ -424,6 +440,26 @@ export default function GoalsClient({
           })}
         </div>
       )}
+
+      <AlertDialog open={!!goalToDelete} onOpenChange={(open) => { if (!open) setGoalToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this goal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the goal and all its progress. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Goal
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

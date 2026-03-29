@@ -10,8 +10,7 @@ import { getFamilyContext } from "@/lib/get-family-context";
 async function getUserFamily() {
   const ctx = await getFamilyContext();
   if (!ctx) return null;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return { userId: ctx.userId, familyId: ctx.familyId, sb: ctx.supabase as any };
+  return { userId: ctx.userId, familyId: ctx.familyId, sb: ctx.supabase };
 }
 
 // ---------------------------------------------------------------------------
@@ -66,8 +65,8 @@ export async function getConversations(): Promise<ConversationPreview[]> {
     if (error || !conversations) return [];
 
     // Get all participant IDs (other than current user) to resolve names
-    const otherIds = conversations.map((c: any) =>
-      (c.participant_ids as string[]).find((id: string) => id !== ctx.userId)
+    const otherIds = conversations.map((c) =>
+      c.participant_ids.find((id: string) => id !== ctx.userId)
     ).filter(Boolean) as string[];
 
     const nameMap: Record<string, string> = {};
@@ -84,8 +83,8 @@ export async function getConversations(): Promise<ConversationPreview[]> {
 
     // For each conversation, get the last message and unread count
     const previews: ConversationPreview[] = [];
-    for (const conv of conversations as any[]) {
-      const otherId = (conv.participant_ids as string[]).find(
+    for (const conv of conversations) {
+      const otherId = conv.participant_ids.find(
         (id: string) => id !== ctx.userId
       ) ?? "";
 
@@ -141,7 +140,7 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
       .maybeSingle();
 
     if (convError || !conv) return [];
-    if (!(conv.participant_ids as string[]).includes(ctx.userId)) return [];
+    if (!conv.participant_ids.includes(ctx.userId)) return [];
 
     // Fetch messages
     const { data: messages, error: msgError } = await ctx.sb
@@ -153,7 +152,7 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
     if (msgError || !messages) return [];
 
     // Resolve sender names
-    const senderIds = [...new Set(messages.map((m: any) => m.sender_id))];
+    const senderIds = [...new Set(messages.map((m) => m.sender_id))];
     const nameMap: Record<string, string> = {};
     if (senderIds.length > 0) {
       const { data: members } = await ctx.sb
@@ -168,8 +167,8 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
 
     // Mark unread messages from others as read
     const unreadIds = messages
-      .filter((m: any) => !m.read && m.sender_id !== ctx.userId)
-      .map((m: any) => m.id);
+      .filter((m) => !m.read && m.sender_id !== ctx.userId)
+      .map((m) => m.id);
 
     if (unreadIds.length > 0) {
       await ctx.sb
@@ -178,7 +177,7 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
         .in("id", unreadIds);
     }
 
-    return messages.map((m: any) => ({
+    return messages.map((m) => ({
       id: m.id,
       conversation_id: m.conversation_id,
       sender_id: m.sender_id,
@@ -212,7 +211,7 @@ export async function sendMessage(conversationId: string, content: string) {
       .eq("family_id", ctx.familyId)
       .maybeSingle();
 
-    if (!conv || !(conv.participant_ids as string[]).includes(ctx.userId)) {
+    if (!conv || !conv.participant_ids.includes(ctx.userId)) {
       return { error: "Conversation not found" };
     }
 
@@ -264,10 +263,10 @@ export async function startConversation(recipientUserId: string): Promise<{ conv
 
     // Find an exact 2-person match
     const match = (existing ?? []).find(
-      (c: any) =>
-        (c.participant_ids as string[]).length === 2 &&
-        (c.participant_ids as string[]).includes(ctx.userId) &&
-        (c.participant_ids as string[]).includes(recipientUserId)
+      (c) =>
+        c.participant_ids.length === 2 &&
+        c.participant_ids.includes(ctx.userId) &&
+        c.participant_ids.includes(recipientUserId)
     );
 
     if (match) {
@@ -311,8 +310,8 @@ export async function getFamilyMembers(): Promise<FamilyMember[]> {
     if (error || !members) return [];
 
     return members
-      .filter((m: any) => m.user_id && m.display_name)
-      .map((m: any) => ({
+      .filter((m) => m.user_id && m.display_name)
+      .map((m) => ({
         userId: m.user_id,
         displayName: m.display_name,
       }));
@@ -337,9 +336,9 @@ export async function getConversationInfo(conversationId: string): Promise<{ oth
       .maybeSingle();
 
     if (!conv) return null;
-    if (!(conv.participant_ids as string[]).includes(ctx.userId)) return null;
+    if (!conv.participant_ids.includes(ctx.userId)) return null;
 
-    const otherId = (conv.participant_ids as string[]).find(
+    const otherId = conv.participant_ids.find(
       (id: string) => id !== ctx.userId
     ) ?? "";
 

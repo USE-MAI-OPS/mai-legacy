@@ -39,8 +39,7 @@ async function getTreeData() {
     if (!ctx) return null;
     const { userId, familyId, supabase, connectedTreeMemberIds } = ctx;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     // Build tree query — try with position columns, fall back without
     const fullSelect = "id, display_name, relationship_label, parent_id, parent2_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url, position_x, position_y, connection_type";

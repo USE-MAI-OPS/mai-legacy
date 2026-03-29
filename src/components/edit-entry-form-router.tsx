@@ -7,7 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { updateEntry } from "@/app/(dashboard)/entries/[id]/actions";
 import { VisibilitySelect } from "@/components/entry-forms/visibility-select";
-import type { EntryType, EntryVisibility } from "@/types/database";
+import type { EntryType, EntryVisibility, EntryStructuredData, RecipeData, SkillData, StoryData, LessonData, ConnectionData } from "@/types/database";
 
 import RecipeForm from "@/components/entry-forms/recipe-form";
 import SkillForm from "@/components/entry-forms/skill-form";
@@ -41,9 +41,10 @@ export default function EditEntryFormRouter({ entry }: EditEntryFormRouterProps)
   async function handleSubmit(data: {
     title: string;
     content: string;
-    type: string;
+    type: EntryType;
     tags: string[];
-    structured_data: { type: string; data: Record<string, unknown> };
+    structured_data: EntryStructuredData;
+    is_mature?: boolean;
   }) {
     setSaving(true);
     setServerError(null);
@@ -51,9 +52,9 @@ export default function EditEntryFormRouter({ entry }: EditEntryFormRouterProps)
       const result = await updateEntry(entry.id, {
         title: data.title,
         content: data.content,
-        type: data.type as EntryType,
+        type: data.type,
         tags: data.tags,
-        structured_data: data.structured_data,
+        structured_data: data.structured_data ?? undefined,
         visibility,
       });
       if (result?.error) {
@@ -99,7 +100,7 @@ export default function EditEntryFormRouter({ entry }: EditEntryFormRouterProps)
     case "recipe":
       return renderForm(
         <RecipeForm
-          onSubmit={handleSubmit as any}
+          onSubmit={handleSubmit}
           saving={saving}
           familyId={entry.familyId ?? undefined}
           mode="edit"
@@ -107,14 +108,14 @@ export default function EditEntryFormRouter({ entry }: EditEntryFormRouterProps)
           initialTitle={entry.title}
           initialTags={entry.tags}
           initialImages={(sd?.images as string[]) ?? []}
-          initialData={sd as any}
+          initialData={sd as Partial<RecipeData>}
         />
       );
 
     case "skill":
       return renderForm(
         <SkillForm
-          onSubmit={handleSubmit as any}
+          onSubmit={handleSubmit}
           saving={saving}
           familyId={entry.familyId ?? undefined}
           mode="edit"
@@ -122,14 +123,14 @@ export default function EditEntryFormRouter({ entry }: EditEntryFormRouterProps)
           initialTitle={entry.title}
           initialTags={entry.tags}
           initialImages={(sd?.images as string[]) ?? []}
-          initialData={sd as any}
+          initialData={sd as Partial<SkillData>}
         />
       );
 
     case "story":
       return renderForm(
         <StoryForm
-          onSubmit={handleSubmit as any}
+          onSubmit={handleSubmit}
           saving={saving}
           familyId={entry.familyId ?? undefined}
           mode="edit"
@@ -137,14 +138,14 @@ export default function EditEntryFormRouter({ entry }: EditEntryFormRouterProps)
           initialTitle={entry.title}
           initialTags={entry.tags}
           initialImages={(sd?.images as string[]) ?? []}
-          initialData={sd as any}
+          initialData={sd as Partial<StoryData>}
         />
       );
 
     case "lesson":
       return renderForm(
         <LessonForm
-          onSubmit={handleSubmit as any}
+          onSubmit={handleSubmit}
           saving={saving}
           familyId={entry.familyId ?? undefined}
           mode="edit"
@@ -152,20 +153,20 @@ export default function EditEntryFormRouter({ entry }: EditEntryFormRouterProps)
           initialTitle={entry.title}
           initialTags={entry.tags}
           initialImages={(sd?.images as string[]) ?? []}
-          initialData={sd as any}
+          initialData={sd as Partial<LessonData>}
         />
       );
 
     case "connection":
       return renderForm(
         <ConnectionForm
-          onSubmit={handleSubmit as any}
+          onSubmit={handleSubmit}
           saving={saving}
           mode="edit"
           cancelHref={cancelHref}
           initialTitle={entry.title}
           initialTags={entry.tags}
-          initialData={sd as any}
+          initialData={sd as Partial<ConnectionData>}
         />
       );
 

@@ -51,7 +51,7 @@ async function getPublicEntry(id: string) {
   if (!UUID_REGEX.test(id)) return null;
 
   try {
-    const supabase = createAdminClient() as any;
+    const supabase = createAdminClient();
 
     const { data: entry, error } = await supabase
       .from("entries")
@@ -110,7 +110,7 @@ export async function generateMetadata({
   }
 
   try {
-    const supabase = createAdminClient() as any;
+    const supabase = createAdminClient();
     const { data: entry } = await supabase
       .from("entries")
       .select("title, type, visibility")

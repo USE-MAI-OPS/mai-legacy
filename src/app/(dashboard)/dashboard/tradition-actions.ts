@@ -8,8 +8,7 @@ export async function getTraditions() {
     const ctx = await getFamilyContext();
     if (!ctx) return [];
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = ctx.supabase as any;
+    const sb = ctx.supabase;
 
     const { data, error } = await sb
       .from("family_traditions")
@@ -35,8 +34,7 @@ export async function createTradition(input: {
     const ctx = await getFamilyContext();
     if (!ctx) return { error: "Not authenticated" };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = ctx.supabase as any;
+    const sb = ctx.supabase;
 
     const { error } = await sb.from("family_traditions").insert({
       family_id: ctx.familyId,
@@ -72,8 +70,7 @@ export async function updateTradition(
     const ctx = await getFamilyContext();
     if (!ctx) return { error: "Not authenticated" };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = ctx.supabase as any;
+    const sb = ctx.supabase;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updates: Record<string, any> = {};
     if (input.name !== undefined) updates.name = input.name.trim();
@@ -107,8 +104,7 @@ export async function deleteTradition(id: string) {
     const ctx = await getFamilyContext();
     if (!ctx) return { error: "Not authenticated" };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = ctx.supabase as any;
+    const sb = ctx.supabase;
     const { error } = await sb
       .from("family_traditions")
       .delete()
@@ -133,8 +129,7 @@ export async function getTraditionMemories(traditionId: string) {
     const ctx = await getFamilyContext();
     if (!ctx) return [];
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = ctx.supabase as any;
+    const sb = ctx.supabase;
 
     const { data, error } = await sb
       .from("tradition_memories")
@@ -160,8 +155,7 @@ export async function addTraditionMemory(input: {
     const ctx = await getFamilyContext();
     if (!ctx) return { error: "Not authenticated" };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = ctx.supabase as any;
+    const sb = ctx.supabase;
 
     const { error } = await sb.from("tradition_memories").insert({
       tradition_id: input.tradition_id,
@@ -194,8 +188,7 @@ export async function deleteTraditionMemory(memoryId: string) {
     const ctx = await getFamilyContext();
     if (!ctx) return { error: "Not authenticated" };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = ctx.supabase as any;
+    const sb = ctx.supabase;
 
     const { error } = await sb
       .from("tradition_memories")

@@ -5,6 +5,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import { setActiveFamilyCookie } from "@/lib/active-family-server";
 import { getSafeRedirect } from "@/lib/safe-redirect";
+import { sendDripWelcome } from "@/lib/email";
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
@@ -78,6 +79,15 @@ export async function signup(formData: FormData) {
 
   // If session exists, user is auto-confirmed
   if (data.session) {
+    // Fire Day 0 drip welcome email — non-blocking, failure is non-critical
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://usemai.com";
+    const admin = createAdminClient();
+    sendDripWelcome({ to: email, displayName, appUrl })
+      .then(() =>
+        admin.from("drip_email_log").insert({ user_id: data.user!.id, step: "welcome" })
+      )
+      .catch((err) => console.error("[drip] Failed to send welcome email:", err));
+
     // If there's an invite redirect, go there instead of onboarding
     redirect(getSafeRedirect(redirectTo, "/onboarding"));
   }
@@ -161,7 +171,7 @@ export async function createFamily(
   }
 
   // Add the current user as admin member
-  const { error: memberError } = await (admin as any)
+  const { error: memberError } = await admin
     .from("family_members")
     .insert(memberData);
 
@@ -178,7 +188,7 @@ export async function createFamily(
 
   // Create user's own root tree node (no parent links)
   try {
-    const { data: memberRow } = await (admin as any)
+    const { data: memberRow } = await admin
       .from("family_members")
       .select("id")
       .eq("user_id", user.id)
@@ -186,7 +196,7 @@ export async function createFamily(
       .single();
 
     if (memberRow) {
-      await (admin as any)
+      await admin
         .from("family_tree_members")
         .insert({
           family_id: family.id,

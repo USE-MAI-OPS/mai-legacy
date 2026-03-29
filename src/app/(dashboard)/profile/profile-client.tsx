@@ -116,7 +116,7 @@ export function ProfileClient({
       );
 
       // Update display_name on ALL family_members rows for this user
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("family_members")
         .update({ display_name: trimmed })
         .eq("user_id", userId);
@@ -127,16 +127,16 @@ export function ProfileClient({
       }
 
       // Also update linked family_tree_members
-      const { data: memberRows } = await (supabase as any)
+      const { data: memberRows } = await supabase
         .from("family_members")
         .select("id")
         .eq("user_id", userId);
 
       if (memberRows && memberRows.length > 0) {
-        const memberIds = memberRows.map((m: { id: string }) => m.id);
-        await (supabase as any)
+        const memberIds = memberRows.map((m) => m.id);
+        await supabase
           .from("family_tree_members")
-          .update({ name: trimmed })
+          .update({ display_name: trimmed })
           .in("linked_member_id", memberIds);
       }
 
@@ -157,9 +157,9 @@ export function ProfileClient({
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
     // Update ALL family_members rows for this user so profile syncs across families
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("family_members")
-      .update({ life_story: story as unknown as Record<string, unknown> })
+      .update({ life_story: story })
       .eq("user_id", userId || memberId);
     if (error) throw error;
   };
@@ -187,7 +187,7 @@ export function ProfileClient({
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       );
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from("family_members")
         .update({ avatar_url: url })
         .eq("user_id", userId);
@@ -199,14 +199,14 @@ export function ProfileClient({
 
       // Also update family_tree_members that are linked to this user's member rows
       // Get the member IDs for this user first
-      const { data: memberRows } = await (supabase as any)
+      const { data: memberRows } = await supabase
         .from("family_members")
         .select("id")
         .eq("user_id", userId);
 
       if (memberRows && memberRows.length > 0) {
-        const memberIds = memberRows.map((m: { id: string }) => m.id);
-        await (supabase as any)
+        const memberIds = memberRows.map((m) => m.id);
+        await supabase
           .from("family_tree_members")
           .update({ avatar_url: url })
           .in("linked_member_id", memberIds);

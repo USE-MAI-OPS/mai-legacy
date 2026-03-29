@@ -240,6 +240,8 @@ export interface Database {
           country: string | null;
           state: string | null;
           specialty: MemberSpecialty | null;
+          digest_opt_out: boolean;
+          digest_unsubscribe_token: string | null;
         };
         Insert: {
           id?: string;
@@ -257,6 +259,8 @@ export interface Database {
           country?: string | null;
           state?: string | null;
           specialty?: MemberSpecialty | null;
+          digest_opt_out?: boolean;
+          digest_unsubscribe_token?: string | null;
         };
         Update: {
           id?: string;
@@ -274,6 +278,8 @@ export interface Database {
           country?: string | null;
           state?: string | null;
           specialty?: MemberSpecialty | null;
+          digest_opt_out?: boolean;
+          digest_unsubscribe_token?: string | null;
         };
         Relationships: [];
       };
@@ -916,6 +922,27 @@ export interface Database {
         };
         Relationships: [];
       };
+      drip_email_log: {
+        Row: {
+          id: string;
+          user_id: string;
+          step: string;
+          sent_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          step: string;
+          sent_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          step?: string;
+          sent_at?: string;
+        };
+        Relationships: [];
+      };
       waitlist: {
         Row: {
           id: string;
@@ -955,6 +982,15 @@ export interface Database {
           entry_id: string;
           chunk_text: string;
           similarity: number;
+        }[];
+      };
+      get_entry_counts_by_type: {
+        Args: {
+          p_family_id: string;
+        };
+        Returns: {
+          type: string;
+          count: number;
         }[];
       };
     };

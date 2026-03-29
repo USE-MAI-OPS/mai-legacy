@@ -64,7 +64,7 @@ interface PublicEntryCard {
 
 async function getPublicEntries(): Promise<PublicEntryCard[]> {
   try {
-    const supabase = createAdminClient() as any;
+    const supabase = createAdminClient();
 
     const { data: entries, error } = await supabase
       .from("entries")
@@ -76,7 +76,7 @@ async function getPublicEntries(): Promise<PublicEntryCard[]> {
     if (error || !entries || entries.length === 0) return [];
 
     // Batch-resolve author names
-    const authorIds = [...new Set(entries.map((e: any) => e.author_id).filter(Boolean))] as string[];
+    const authorIds = [...new Set(entries.map((e) => e.author_id).filter(Boolean))] as string[];
     const authorMap = new Map<string, string>();
 
     if (authorIds.length > 0) {

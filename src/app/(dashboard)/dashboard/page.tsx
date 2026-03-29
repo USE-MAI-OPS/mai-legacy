@@ -120,8 +120,7 @@ async function getDashboardData() {
     if (!ctx) return null;
     const { userId, familyId, supabase, connectedUserIds } = ctx;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     // Get display name for this family
     const { data: memberInfo } = await sb
@@ -628,7 +627,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="flex-1">
             {familyMembers.length > 0 ? (
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {familyMembers.slice(0, 9).map(
                   (member: { name: string; initials: string; role: string }, idx: number) => (
                     <div

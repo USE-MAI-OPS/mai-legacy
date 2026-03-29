@@ -78,8 +78,7 @@ export async function saveConversation(
   try {
     const supabase = createClient();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: existing } = await (supabase as any)
+    const { data: existing } = await supabase
       .from("griot_conversations")
       .select("id, messages")
       .eq("id", conversationId)
@@ -88,8 +87,7 @@ export async function saveConversation(
     const now = new Date().toISOString();
 
     if (existing) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase as any)
+      await supabase
         .from("griot_conversations")
         .update({ messages, updated_at: now })
         .eq("id", conversationId);
@@ -103,8 +101,7 @@ export async function saveConversation(
 
       if (!user) return null;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from("griot_conversations")
         .insert({
           id: conversationId,
@@ -138,8 +135,7 @@ export async function loadConversations(
   try {
     const supabase = createClient();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("griot_conversations")
       .select("id, family_id, user_id, messages, created_at, updated_at")
       .eq("family_id", familyId)
@@ -167,8 +163,7 @@ export async function loadConversation(
   try {
     const supabase = createClient();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("griot_conversations")
       .select("id, family_id, user_id, messages, created_at, updated_at")
       .eq("id", conversationId)
@@ -195,8 +190,7 @@ export async function deleteConversation(
   try {
     const supabase = createClient();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from("griot_conversations")
       .delete()
       .eq("id", conversationId);
@@ -232,8 +226,7 @@ export async function getCurrentFamilyId(): Promise<string | null> {
 
     if (!user) return null;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: membership } = await (supabase as any)
+    const { data: membership } = await supabase
       .from("family_members")
       .select("family_id")
       .eq("user_id", user.id)

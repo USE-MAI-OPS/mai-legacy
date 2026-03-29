@@ -180,8 +180,7 @@ async function getMemberData(memberId: string) {
 
     if (!user) return MOCK_MEMBERS[memberId] ?? null;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     // Get the current user's family
     const { data: currentMembership } = await sb

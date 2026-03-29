@@ -49,8 +49,7 @@ async function getFamilyData() {
     if (!ctx) return null;
     const { userId, familyId, supabase, connectedUserIds, connectedTreeMemberIds } = ctx;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     // Build tree count query — filter to connected members
     let treeCountQuery = sb
@@ -280,7 +279,7 @@ export default async function FamilyPage() {
           </CardHeader>
           <CardContent>
             {data.goals.length > 0 ? (
-              <div className="grid sm:grid-cols-3 gap-4">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {data.goals.map((goal) => {
                   const pct = goal.target_count > 0 ? Math.round((goal.current_count / goal.target_count) * 100) : 0;
                   return (

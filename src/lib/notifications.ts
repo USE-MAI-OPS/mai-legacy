@@ -62,10 +62,7 @@ export async function createNotification({
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
-
-    await sb.from("notifications").insert({
+    await supabase.from("notifications").insert({
       user_id: userId,
       family_id: familyId,
       type,
@@ -91,11 +88,9 @@ export async function getNotifications(
   if (!ctx) return { notifications: [], unreadCount: 0 };
 
   const { userId, familyId, supabase } = ctx;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
 
   // Fetch recent notifications
-  const { data: notifs } = await sb
+  const { data: notifs } = await supabase
     .from("notifications")
     .select("*")
     .eq("user_id", userId)
@@ -103,7 +98,7 @@ export async function getNotifications(
     .limit(limit);
 
   // Get unread count
-  const { count } = await sb
+  const { count } = await supabase
     .from("notifications")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
@@ -113,13 +108,13 @@ export async function getNotifications(
   const actorIds = [
     ...new Set(
       (notifs ?? [])
-        .map((n: { actor_id: string | null }) => n.actor_id)
+        .map((n) => n.actor_id)
         .filter(Boolean)
     ),
-  ];
+  ] as string[];
   const actorMap: Record<string, string> = {};
   if (actorIds.length > 0) {
-    const { data: members } = await sb
+    const { data: members } = await supabase
       .from("family_members")
       .select("user_id, display_name")
       .eq("family_id", familyId)
@@ -129,18 +124,7 @@ export async function getNotifications(
     }
   }
 
-  const notifications: NotificationData[] = (notifs ?? []).map(
-    (n: {
-      id: string;
-      type: NotificationType;
-      title: string;
-      body: string | null;
-      reference_type: string | null;
-      reference_id: string | null;
-      actor_id: string | null;
-      read: boolean;
-      created_at: string;
-    }) => ({
+  const notifications: NotificationData[] = (notifs ?? []).map((n) => ({
       id: n.id,
       type: n.type,
       title: n.title,
@@ -166,9 +150,7 @@ export async function markNotificationRead(
   const ctx = await getFamilyContext();
   if (!ctx) return;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = ctx.supabase as any;
-  await sb
+  await ctx.supabase
     .from("notifications")
     .update({ read: true })
     .eq("id", notificationId)
@@ -184,9 +166,7 @@ export async function markAllNotificationsRead(): Promise<void> {
   const ctx = await getFamilyContext();
   if (!ctx) return;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = ctx.supabase as any;
-  await sb
+  await ctx.supabase
     .from("notifications")
     .update({ read: true })
     .eq("user_id", ctx.userId)

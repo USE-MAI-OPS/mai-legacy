@@ -7,6 +7,10 @@
     {
       "path": "/api/digest/send",
       "schedule": "0 20 * * 0"
+    },
+    {
+      "path": "/api/drip/send",
+      "schedule": "0 14 * * *"
     }
   ]
 }

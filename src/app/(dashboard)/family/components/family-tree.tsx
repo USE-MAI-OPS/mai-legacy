@@ -5,6 +5,16 @@ import {
   useTransition,
   useCallback,
 } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Plus,
@@ -55,6 +65,7 @@ export function FamilyTree({
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteForName, setInviteForName] = useState<string | null>(null);
   const [addingSelf, setAddingSelf] = useState(false);
+  const [memberToDelete, setMemberToDelete] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   const userInTree = currentUserMemberId
@@ -74,7 +85,13 @@ export function FamilyTree({
   );
 
   const handleDelete = useCallback((id: string) => {
-    if (!confirm("Remove this person from the family tree?")) return;
+    setMemberToDelete(id);
+  }, []);
+
+  function confirmDeleteMember() {
+    if (!memberToDelete) return;
+    const id = memberToDelete;
+    setMemberToDelete(null);
     startTransition(async () => {
       const result = await deleteTreeMember(id);
       if (!result.success) {
@@ -83,7 +100,7 @@ export function FamilyTree({
         toast.success("Member removed from tree");
       }
     });
-  }, []);
+  }
 
   const handleAddNew = useCallback(() => {
     setEditNode(null);
@@ -175,6 +192,26 @@ export function FamilyTree({
           familyId={familyId}
           forMemberName={inviteForName}
         />
+
+        <AlertDialog open={!!memberToDelete} onOpenChange={(open) => { if (!open) setMemberToDelete(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove from family tree?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently remove this person from your family tree. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={confirmDeleteMember}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Remove
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
@@ -273,6 +310,26 @@ export function FamilyTree({
         familyId={familyId}
         forMemberName={inviteForName}
       />
+
+      <AlertDialog open={!!memberToDelete} onOpenChange={(open) => { if (!open) setMemberToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove from family tree?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this person from your family tree. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteMember}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

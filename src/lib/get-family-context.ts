@@ -45,8 +45,7 @@ export async function getFamilyContext(): Promise<FamilyContext | null> {
 
   const cookieFamilyId = await getActiveFamilyIdFromCookie();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   let familyId: string | null = null;
 

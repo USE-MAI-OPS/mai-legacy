@@ -397,7 +397,7 @@ export default function RecipeForm({ onSubmit, saving = false, familyId, mode = 
         </div>
 
         {/* Prep / Cook / Servings */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label htmlFor="prep-time">Prep Time</Label>
             <Input

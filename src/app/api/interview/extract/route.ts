@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
     // Update transcript status to processing
     if (body.transcript_id) {
-      const sb = supabase as any;
+      const sb = supabase;
       await sb
         .from("interview_transcripts")
         .update({ extraction_status: "processing" })
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     // Update transcript with results
     if (body.transcript_id) {
-      const sb = supabase as any;
+      const sb = supabase;
       await sb
         .from("interview_transcripts")
         .update({
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       const body = await request.clone().json();
       if (body.transcript_id) {
         const supabase = await createClient();
-        const sb = supabase as any;
+        const sb = supabase;
         await sb
           .from("interview_transcripts")
           .update({

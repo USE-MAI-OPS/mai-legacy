@@ -34,7 +34,7 @@ export async function saveNodePosition(id: string, x: number, y: number) {
     if (!user) return;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     await sb
       .from("family_tree_members")
@@ -63,33 +63,23 @@ export async function addTreeMember(data: {
   } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Not authenticated" };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
-  const insertPayload: Record<string, unknown> = {
-    family_id: data.familyId,
-    display_name: capitalizeName(data.displayName),
-    relationship_label: clean(data.relationshipLabel),
-    parent_id: clean(data.parentId),
-    parent2_id: clean(data.parent2Id ?? null),
-    spouse_id: clean(data.spouseId),
-    birth_year: data.birthYear || null,
-    is_deceased: data.isDeceased,
-    added_by: user.id,
-  };
-
-  // Add connection_type if provided (column may not exist yet)
-  if (data.connectionType) {
-    insertPayload.connection_type = data.connectionType;
-  }
-
-  // Optionally link to a signed-up family_members row (used by "Add Yourself")
   const linkedId = clean(data.linkedMemberId ?? null);
-  if (linkedId) insertPayload.linked_member_id = linkedId;
 
-  const { data: inserted, error } = await sb
+  const { data: inserted, error } = await supabase
     .from("family_tree_members")
-    .insert(insertPayload)
+    .insert({
+      family_id: data.familyId,
+      display_name: capitalizeName(data.displayName),
+      relationship_label: clean(data.relationshipLabel) as import("@/types/database").RelationshipLabel | null,
+      parent_id: clean(data.parentId),
+      parent2_id: clean(data.parent2Id ?? null),
+      spouse_id: clean(data.spouseId),
+      birth_year: data.birthYear || null,
+      is_deceased: data.isDeceased,
+      added_by: user.id,
+      ...(data.connectionType ? { connection_type: data.connectionType } : {}),
+      ...(linkedId ? { linked_member_id: linkedId } : {}),
+    })
     .select("id")
     .single();
 
@@ -98,7 +88,7 @@ export async function addTreeMember(data: {
   // Bidirectional spouse link — point the spouse back to this new member
   const spouseId = clean(data.spouseId);
   if (spouseId && inserted?.id) {
-    await sb
+    await supabase
       .from("family_tree_members")
       .update({ spouse_id: inserted.id })
       .eq("id", spouseId);
@@ -128,10 +118,17 @@ export async function updateTreeMember(
   } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Not authenticated" };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
-  const update: Record<string, unknown> = {};
+  const update: {
+    display_name?: string;
+    relationship_label?: string | null;
+    parent_id?: string | null;
+    parent2_id?: string | null;
+    spouse_id?: string | null;
+    birth_year?: number | null;
+    is_deceased?: boolean;
+    linked_member_id?: string | null;
+    connection_type?: string | null;
+  } = {};
   if (data.displayName !== undefined) update.display_name = capitalizeName(data.displayName);
   if (data.relationshipLabel !== undefined)
     update.relationship_label = clean(data.relationshipLabel);
@@ -146,7 +143,7 @@ export async function updateTreeMember(
     update.connection_type = data.connectionType;
 
   // Update the member
-  const { error } = await sb
+  const { error } = await supabase
     .from("family_tree_members")
     .update(update)
     .eq("id", id);
@@ -158,20 +155,9 @@ export async function updateTreeMember(
   if (data.spouseId !== undefined) {
     const newSpouseId = clean(data.spouseId);
 
-    // 1) Get the old record to find the previous spouse
-    const { data: current } = await sb
-      .from("family_tree_members")
-      .select("spouse_id")
-      .eq("id", id)
-      .single();
-
-    // Note: current.spouse_id is already updated at this point, so we need
-    // to clear the old spouse's reference if it was different.
-    // Since the update already happened, we rely on the incoming data:
-
     // 2) Clear spouse_id on anyone who still points to us as their spouse
     //    (handles the "old spouse" side of a divorce)
-    await sb
+    await supabase
       .from("family_tree_members")
       .update({ spouse_id: null })
       .eq("spouse_id", id)
@@ -179,7 +165,7 @@ export async function updateTreeMember(
 
     // 3) If setting a new spouse, point them back to us
     if (newSpouseId) {
-      await sb
+      await supabase
         .from("family_tree_members")
         .update({ spouse_id: id })
         .eq("id", newSpouseId);
@@ -197,10 +183,7 @@ export async function deleteTreeMember(id: string) {
   } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Not authenticated" };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
-  const { error } = await sb
+  const { error } = await supabase
     .from("family_tree_members")
     .delete()
     .eq("id", id);
@@ -228,10 +211,7 @@ export async function createEvent(data: {
   } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Not authenticated" };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
-  const { error } = await sb.from("family_events").insert({
+  const { error } = await supabase.from("family_events").insert({
     family_id: data.familyId,
     title: data.title,
     description: data.description,
@@ -256,10 +236,7 @@ export async function respondToEvent(
   } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Not authenticated" };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
-  const { error } = await sb.from("event_rsvps").upsert(
+  const { error } = await supabase.from("event_rsvps").upsert(
     {
       event_id: eventId,
       user_id: user.id,
@@ -281,10 +258,7 @@ export async function deleteEvent(eventId: string) {
   } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Not authenticated" };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
-
-  const { error } = await sb
+  const { error } = await supabase
     .from("family_events")
     .delete()
     .eq("id", eventId);

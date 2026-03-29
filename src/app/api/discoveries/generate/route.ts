@@ -31,8 +31,7 @@ export async function POST() {
   if (rl.limited) return rateLimitResponse(rl.retryAfterMs);
 
   const cookieFamilyId = await getActiveFamilyIdFromCookie();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   let familyId = cookieFamilyId;
   if (!familyId) {

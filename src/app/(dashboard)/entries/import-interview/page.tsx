@@ -82,7 +82,7 @@ function ImportInterviewContent() {
         }
 
         // Get family
-        const { data: membership } = await (supabase as any)
+        const { data: membership } = await supabase
           .from("family_members")
           .select("family_id")
           .eq("user_id", user.id)
@@ -95,7 +95,7 @@ function ImportInterviewContent() {
         }
 
         // Get all family members
-        const { data: members } = await (supabase as any)
+        const { data: members } = await supabase
           .from("family_members")
           .select("id, display_name, life_story")
           .eq("family_id", membership.family_id)

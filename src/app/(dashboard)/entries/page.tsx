@@ -100,7 +100,7 @@ async function getEntries(): Promise<EntryListItem[]> {
     const { familyId, supabase, connectedUserIds } = ctx;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     // Fetch entries from connected family members only
     const { data: entries, error: entriesError } = await sb

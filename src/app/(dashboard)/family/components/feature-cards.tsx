@@ -103,7 +103,7 @@ export function FeatureCards({ entryCounts }: FeatureCardsProps) {
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Quick Search</h2>
-      <div className="grid sm:grid-cols-3 gap-3">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {FEATURE_CARDS.map((config) => (
           <FeatureCard
             key={config.type}

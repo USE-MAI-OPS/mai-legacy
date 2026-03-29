@@ -167,7 +167,7 @@ export function EntryCard({
 
   // Extract first image from structured_data if available
   const firstImage = structured_data?.data && 'images' in structured_data.data
-    ? (structured_data.data as any).images?.[0] as string | undefined
+    ? (structured_data.data as { images?: string[] }).images?.[0]
     : undefined;
 
   return (

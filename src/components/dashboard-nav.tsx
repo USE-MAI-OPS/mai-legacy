@@ -106,16 +106,22 @@ export function DashboardNav() {
 
       const cookieId = getActiveFamilyIdClient();
 
-      const { data: memberships } = await (supabase as any)
+      type MembershipWithFamily = {
+        family_id: string;
+        display_name: string | null;
+        role: string;
+        families: { name: string } | null;
+      };
+      const { data: memberships } = await supabase
         .from("family_members")
         .select("family_id, display_name, role, families(name)")
-        .eq("user_id", user.id);
+        .eq("user_id", user.id) as unknown as { data: MembershipWithFamily[] | null };
 
       if (!memberships || memberships.length === 0) return;
 
       // Use cookie family or first family
       const activeMembership = cookieId
-        ? memberships.find((m: any) => m.family_id === cookieId) ?? memberships[0]
+        ? memberships.find((m) => m.family_id === cookieId) ?? memberships[0]
         : memberships[0];
 
       const name = activeMembership.display_name || "User";
@@ -128,7 +134,7 @@ export function DashboardNav() {
           .toUpperCase()
           .slice(0, 2),
         role: activeMembership.role || "member",
-        familyName: (activeMembership.families as any)?.name ?? "My Family",
+        familyName: activeMembership.families?.name ?? "My Family",
       });
     }
 

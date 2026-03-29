@@ -29,25 +29,19 @@ export async function createEntry(input: CreateEntryInput) {
       };
     }
 
-    const sb = supabase as any;
-
-    const row: Record<string, unknown> = {
-      family_id: familyId,
-      author_id: userId,
-      title: input.title,
-      content: input.content,
-      type: input.type,
-      tags: input.tags,
-      is_mature: input.is_mature ?? false,
-      visibility: input.visibility ?? "family",
-    };
-    if (input.structured_data) {
-      row.structured_data = input.structured_data;
-    }
-
-    const { data: entry, error: insertError } = await sb
+    const { data: entry, error: insertError } = await supabase
       .from("entries")
-      .insert(row)
+      .insert({
+        family_id: familyId,
+        author_id: userId,
+        title: input.title,
+        content: input.content,
+        type: input.type,
+        tags: input.tags,
+        is_mature: input.is_mature ?? false,
+        visibility: input.visibility ?? "family",
+        ...(input.structured_data ? { structured_data: input.structured_data } : {}),
+      })
       .select()
       .single();
 

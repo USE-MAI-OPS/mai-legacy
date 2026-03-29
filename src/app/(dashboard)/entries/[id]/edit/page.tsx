@@ -20,8 +20,7 @@ async function getEntryForEdit(id: string) {
       return null;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: entry, error: entryError } = await (supabase as any)
+    const { data: entry, error: entryError } = await supabase
       .from("entries")
       .select("id, title, content, type, tags, structured_data, family_id, visibility")
       .eq("id", id)

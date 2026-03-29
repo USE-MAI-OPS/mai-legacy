@@ -23,7 +23,7 @@ export default async function ConversationPage({
   }
 
   return (
-    <div className="container mx-auto max-w-2xl">
+    <div className="container mx-auto max-w-2xl px-4 sm:px-6">
       {/* Conversation header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b">
         <Button variant="ghost" size="icon" asChild>

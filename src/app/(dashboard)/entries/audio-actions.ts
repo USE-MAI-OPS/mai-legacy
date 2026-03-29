@@ -17,7 +17,7 @@ export async function uploadEntryAudio(
 
   const { userId, familyId, supabase } = ctx;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   const audioFile = formData.get("audio") as File | null;
   const durationStr = formData.get("duration") as string | null;
@@ -90,7 +90,7 @@ export async function removeEntryAudio(
 
   const { userId, familyId, supabase } = ctx;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   // Verify ownership
   const { data: entry } = await sb

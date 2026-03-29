@@ -7,7 +7,7 @@ async function getSkillEntries() {
     if (!ctx) return [];
     const { familyId, supabase } = ctx;
 
-    const sb = supabase as any;
+    const sb = supabase;
 
     // Fetch all skill-type entries with author info
     const { data, error } = await sb

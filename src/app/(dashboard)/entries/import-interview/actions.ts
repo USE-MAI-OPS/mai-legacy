@@ -6,7 +6,7 @@ import type {
   ReviewableEntry,
   ExtractedProfileUpdates,
 } from "@/lib/interview/types";
-import type { EntryType, EntryStructuredData, LifeStory } from "@/types/database";
+import type { EntryType, EntryStructuredData, LifeStory, StoryData, RecipeData, LessonData, SkillData, ConnectionData } from "@/types/database";
 import { normalizeLifeStory } from "@/types/database";
 
 // ---------------------------------------------------------------------------
@@ -21,7 +21,7 @@ export async function saveTranscriptRecord(
   if (!ctx) return { error: "You must be signed in." };
   const { userId, familyId, supabase } = ctx;
 
-  const sb = supabase as any;
+  const sb = supabase;
 
   // Save transcript
   const { data: record, error } = await sb
@@ -55,15 +55,15 @@ function buildStructuredData(
 
   switch (type) {
     case "story":
-      return { type: "story", data: data as any };
+      return { type: "story", data: data as unknown as StoryData };
     case "recipe":
-      return { type: "recipe", data: data as any };
+      return { type: "recipe", data: data as unknown as RecipeData };
     case "lesson":
-      return { type: "lesson", data: data as any };
+      return { type: "lesson", data: data as unknown as LessonData };
     case "skill":
-      return { type: "skill", data: data as any };
+      return { type: "skill", data: data as unknown as SkillData };
     case "connection":
-      return { type: "connection", data: data as any };
+      return { type: "connection", data: data as unknown as ConnectionData };
     default:
       return null;
   }
@@ -81,7 +81,7 @@ export async function saveExtractedEntries(
     if (!ctx) return { error: "You must be signed in." };
     const { userId, familyId, supabase } = ctx;
 
-    const sb = supabase as any;
+    const sb = supabase;
     const createdEntryIds: string[] = [];
 
     // 1. Create entries
@@ -91,22 +91,17 @@ export async function saveExtractedEntries(
         entry.structured_data
       );
 
-      const insertData: Record<string, unknown> = {
-        family_id: familyId,
-        author_id: userId,
-        title: entry.title,
-        content: entry.content,
-        type: entry.type,
-        tags: entry.tags,
-      };
-
-      if (structuredData) {
-        insertData.structured_data = structuredData;
-      }
-
       const { data: created, error: insertError } = await sb
         .from("entries")
-        .insert(insertData)
+        .insert({
+          family_id: familyId,
+          author_id: userId,
+          title: entry.title,
+          content: entry.content,
+          type: entry.type,
+          tags: entry.tags,
+          ...(structuredData ? { structured_data: structuredData } : {}),
+        })
         .select()
         .single();
 

@@ -213,7 +213,7 @@ export async function generateMetadata({
 
   try {
     const supabase = await createClient();
-    const { data: entry } = await (supabase as any)
+    const { data: entry } = await supabase
       .from("entries")
       .select("title, type")
       .eq("id", id)
@@ -272,10 +272,12 @@ async function getEntry(id: string) {
       return MOCK_ENTRIES[id] ?? null;
     }
 
-    const sb = supabase as any;
+    const sb = supabase;
 
     // Try with audio columns first, fall back without them if migration hasn't run
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let entry: any = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let entryError: any = null;
 
     const { data: d1, error: e1 } = await sb

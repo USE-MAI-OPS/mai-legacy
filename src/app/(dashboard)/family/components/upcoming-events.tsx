@@ -5,6 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   CalendarDays,
   MapPin,
   Plus,
@@ -143,6 +153,7 @@ export function UpcomingEvents({
   currentUserId,
 }: UpcomingEventsProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // Optimistic RSVP state
@@ -174,9 +185,15 @@ export function UpcomingEvents({
   }
 
   function handleDeleteEvent(eventId: string) {
-    if (!confirm("Delete this event?")) return;
+    setEventToDelete(eventId);
+  }
+
+  function confirmDeleteEvent() {
+    if (!eventToDelete) return;
+    const id = eventToDelete;
+    setEventToDelete(null);
     startTransition(async () => {
-      const result = await deleteEvent(eventId);
+      const result = await deleteEvent(id);
       if (!result.success) {
         toast.error(result.error ?? "Failed to delete event");
       } else {
@@ -341,6 +358,26 @@ export function UpcomingEvents({
         onOpenChange={setDialogOpen}
         familyId={familyId}
       />
+
+      <AlertDialog open={!!eventToDelete} onOpenChange={(open) => { if (!open) setEventToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the event and all RSVPs. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteEvent}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Event
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

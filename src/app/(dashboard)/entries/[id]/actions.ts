@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import type { EntryType, EntryVisibility } from "@/types/database";
+import type { EntryType, EntryVisibility, EntryStructuredData } from "@/types/database";
 
 // ---------------------------------------------------------------------------
 // Copy entry to other families
@@ -25,7 +25,7 @@ export async function copyEntryToFamilies(
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     // Fetch the source entry
     const { data: sourceEntry, error: fetchError } = await sb
@@ -52,20 +52,15 @@ export async function copyEntryToFamilies(
     }
 
     // Build insert rows for each target family
-    const insertRows = filteredIds.map((familyId: string) => {
-      const row: Record<string, unknown> = {
-        family_id: familyId,
-        author_id: sourceEntry.author_id,
-        title: sourceEntry.title,
-        content: sourceEntry.content,
-        type: sourceEntry.type,
-        tags: sourceEntry.tags ?? [],
-      };
-      if (sourceEntry.structured_data) {
-        row.structured_data = sourceEntry.structured_data;
-      }
-      return row;
-    });
+    const insertRows = filteredIds.map((familyId: string) => ({
+      family_id: familyId,
+      author_id: sourceEntry.author_id,
+      title: sourceEntry.title,
+      content: sourceEntry.content,
+      type: sourceEntry.type,
+      tags: sourceEntry.tags ?? [],
+      ...(sourceEntry.structured_data ? { structured_data: sourceEntry.structured_data } : {}),
+    }));
 
     const { data: newEntries, error: insertError } = await sb
       .from("entries")
@@ -121,7 +116,7 @@ export async function deleteEntry(entryId: string) {
 
     // Delete the entry (cascade will handle embeddings via FK)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: deleteError } = await (supabase as any)
+    const { error: deleteError } = await supabase
       .from("entries")
       .delete()
       .eq("id", entryId);
@@ -147,7 +142,7 @@ interface UpdateEntryInput {
   content: string;
   type: EntryType;
   tags: string[];
-  structured_data?: { type: string; data: Record<string, unknown> };
+  structured_data?: EntryStructuredData;
   visibility?: EntryVisibility;
 }
 
@@ -185,7 +180,7 @@ export async function updateEntry(entryId: string, input: UpdateEntryInput) {
 
     // Update the entry
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: entry, error: updateError } = await (supabase as any)
+    const { data: entry, error: updateError } = await supabase
       .from("entries")
       .update(updatePayload)
       .eq("id", entryId)

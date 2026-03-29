@@ -8,7 +8,7 @@ import type { GoalStatus } from "@/types/database";
 async function getUserFamily() {
   const ctx = await getFamilyContext();
   if (!ctx) return null;
-  return { userId: ctx.userId, familyId: ctx.familyId, sb: ctx.supabase as any };
+  return { userId: ctx.userId, familyId: ctx.familyId, sb: ctx.supabase };
 }
 
 export interface FamilyGoal {

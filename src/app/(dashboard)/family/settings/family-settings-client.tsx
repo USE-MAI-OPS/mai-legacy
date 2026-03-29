@@ -23,6 +23,16 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -102,6 +112,7 @@ export function FamilySettingsClient({
   const [exportingJson, setExportingJson] = useState(false);
   const [exportingZip, setExportingZip] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<{ id: string; name: string } | null>(null);
 
   const handleManageBilling = async () => {
     setPortalLoading(true);
@@ -157,9 +168,15 @@ export function FamilySettingsClient({
     }
   };
 
-  const handleRemoveMember = async (memberId: string, memberName: string) => {
-    if (!confirm(`Remove ${memberName} from the family?`)) return;
-    const result = await removeMember(memberId);
+  const handleRemoveMember = (memberId: string, memberName: string) => {
+    setMemberToRemove({ id: memberId, name: memberName });
+  };
+
+  const confirmRemoveMember = async () => {
+    if (!memberToRemove) return;
+    const { id } = memberToRemove;
+    setMemberToRemove(null);
+    const result = await removeMember(id);
     if (!result.success) {
       alert(result.error || "Failed to remove member");
     }
@@ -481,6 +498,26 @@ export function FamilySettingsClient({
           ))}
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!memberToRemove} onOpenChange={(open) => { if (!open) setMemberToRemove(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {memberToRemove?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove {memberToRemove?.name} from your family. They will lose access to all shared stories, entries, and memories. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRemoveMember}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove Member
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

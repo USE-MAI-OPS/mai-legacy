@@ -81,8 +81,7 @@ export async function GET(req: NextRequest) {
 
   // Resolve family
   const cookieFamilyId = await getActiveFamilyIdFromCookie();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any;
+  const sb = supabase;
 
   let familyId = cookieFamilyId;
   if (!familyId) {

@@ -194,6 +194,7 @@ export interface Database {
           stripe_subscription_id: string | null;
           stripe_price_id: string | null;
           subscription_status: SubscriptionStatus;
+          last_export_at: string | null;
           created_at: string;
         };
         Insert: {
@@ -205,6 +206,7 @@ export interface Database {
           stripe_subscription_id?: string | null;
           stripe_price_id?: string | null;
           subscription_status?: SubscriptionStatus;
+          last_export_at?: string | null;
           created_at?: string;
         };
         Update: {
@@ -216,6 +218,7 @@ export interface Database {
           stripe_subscription_id?: string | null;
           stripe_price_id?: string | null;
           subscription_status?: SubscriptionStatus;
+          last_export_at?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -286,6 +289,8 @@ export interface Database {
           structured_data: EntryStructuredData;
           is_mature: boolean;
           visibility: EntryVisibility;
+          audio_url: string | null;
+          audio_duration: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -300,6 +305,8 @@ export interface Database {
           structured_data?: EntryStructuredData;
           is_mature?: boolean;
           visibility?: EntryVisibility;
+          audio_url?: string | null;
+          audio_duration?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -314,6 +321,8 @@ export interface Database {
           structured_data?: EntryStructuredData;
           is_mature?: boolean;
           visibility?: EntryVisibility;
+          audio_url?: string | null;
+          audio_duration?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -443,6 +452,10 @@ export interface Database {
           name: string;
           description: string;
           frequency: string;
+          next_occurrence: string | null;
+          last_celebrated: string | null;
+          cover_image: string | null;
+          participants: string[];
           created_by: string;
           created_at: string;
         };
@@ -452,6 +465,10 @@ export interface Database {
           name: string;
           description?: string;
           frequency?: string;
+          next_occurrence?: string | null;
+          last_celebrated?: string | null;
+          cover_image?: string | null;
+          participants?: string[];
           created_by: string;
           created_at?: string;
         };
@@ -461,8 +478,105 @@ export interface Database {
           name?: string;
           description?: string;
           frequency?: string;
+          next_occurrence?: string | null;
+          last_celebrated?: string | null;
+          cover_image?: string | null;
+          participants?: string[];
           created_by?: string;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      tradition_memories: {
+        Row: {
+          id: string;
+          tradition_id: string;
+          family_id: string;
+          content: string;
+          images: string[];
+          created_by: string | null;
+          celebrated_on: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tradition_id: string;
+          family_id: string;
+          content?: string;
+          images?: string[];
+          created_by?: string | null;
+          celebrated_on?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tradition_id?: string;
+          family_id?: string;
+          content?: string;
+          images?: string[];
+          created_by?: string | null;
+          celebrated_on?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      entry_reactions: {
+        Row: {
+          id: string;
+          entry_id: string;
+          user_id: string;
+          family_id: string;
+          reaction_type: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          entry_id: string;
+          user_id: string;
+          family_id: string;
+          reaction_type: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          entry_id?: string;
+          user_id?: string;
+          family_id?: string;
+          reaction_type?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      entry_comments: {
+        Row: {
+          id: string;
+          entry_id: string;
+          user_id: string;
+          family_id: string;
+          parent_comment_id: string | null;
+          content: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          entry_id: string;
+          user_id: string;
+          family_id: string;
+          parent_comment_id?: string | null;
+          content: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          entry_id?: string;
+          user_id?: string;
+          family_id?: string;
+          parent_comment_id?: string | null;
+          content?: string;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };

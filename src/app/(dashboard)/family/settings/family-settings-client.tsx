@@ -8,6 +8,12 @@ import {
   Trash2,
   Copy,
   Check,
+  CreditCard,
+  Loader2,
+  ArrowUpRight,
+  Download,
+  FileJson,
+  FolderArchive,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,8 +29,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import Link from "next/link";
 import { updateFamilyName, sendInvite, createInviteLink, removeMember } from "./actions";
-import type { FamilyRole } from "@/types/database";
+import type { FamilyRole, PlanTier, SubscriptionStatus } from "@/types/database";
 
 interface Member {
   id: string;
@@ -46,7 +53,24 @@ interface FamilySettingsClientProps {
   initialFamilyName: string;
   members: Member[];
   pendingInvites: PendingInvite[];
+  planTier: PlanTier;
+  subscriptionStatus: SubscriptionStatus;
+  isAdmin: boolean;
 }
+
+const TIER_LABELS: Record<PlanTier, string> = {
+  seedling: "Seedling (Free)",
+  roots: "Roots ($9/mo)",
+  legacy: "Legacy ($19/mo)",
+};
+
+const STATUS_LABELS: Record<SubscriptionStatus, { label: string; variant: "default" | "outline" | "secondary" | "destructive" }> = {
+  none: { label: "No subscription", variant: "outline" },
+  active: { label: "Active", variant: "default" },
+  past_due: { label: "Past due", variant: "destructive" },
+  canceled: { label: "Canceled", variant: "secondary" },
+  trialing: { label: "Trial", variant: "outline" },
+};
 
 function getInitials(name: string) {
   return name
@@ -62,6 +86,9 @@ export function FamilySettingsClient({
   initialFamilyName,
   members,
   pendingInvites,
+  planTier,
+  subscriptionStatus,
+  isAdmin,
 }: FamilySettingsClientProps) {
   const [familyName, setFamilyName] = useState(initialFamilyName);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -71,6 +98,23 @@ export function FamilySettingsClient({
   const [generatingLink, setGeneratingLink] = useState(false);
   const [saving, setSaving] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [exportingJson, setExportingJson] = useState(false);
+  const [exportingZip, setExportingZip] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const handleManageBilling = async () => {
+    setPortalLoading(true);
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } finally {
+      setPortalLoading(false);
+    }
+  };
 
   const handleCopyLink = async () => {
     setGeneratingLink(true);
@@ -121,6 +165,39 @@ export function FamilySettingsClient({
     }
   };
 
+  const handleExport = async (format: "json" | "zip") => {
+    const setLoading = format === "json" ? setExportingJson : setExportingZip;
+    setLoading(true);
+    setExportError(null);
+    try {
+      const res = await fetch("/api/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ format, familyId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setExportError(data.error ?? "Export failed. Please try again.");
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const match = disposition.match(/filename="([^"]+)"/);
+      a.href = url;
+      a.download = match?.[1] ?? `family_export.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      setExportError("Export failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div>
@@ -147,6 +224,64 @@ export function FamilySettingsClient({
           <Button onClick={handleSave} disabled={saving}>
             {saving ? "Saving..." : "Save"}
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Billing & Plan */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Plan & Billing
+          </CardTitle>
+          <CardDescription>
+            Manage your family&apos;s subscription plan.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Current Plan</p>
+              <p className="text-lg font-semibold">{TIER_LABELS[planTier]}</p>
+            </div>
+            {subscriptionStatus !== "none" && (
+              <Badge variant={STATUS_LABELS[subscriptionStatus].variant}>
+                {STATUS_LABELS[subscriptionStatus].label}
+              </Badge>
+            )}
+          </div>
+
+          {isAdmin && (
+            <div className="flex gap-3">
+              {planTier === "seedling" ? (
+                <Link href="/pricing">
+                  <Button>
+                    <ArrowUpRight className="mr-2 h-4 w-4" />
+                    Upgrade Plan
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={handleManageBilling}
+                  disabled={portalLoading}
+                >
+                  {portalLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CreditCard className="mr-2 h-4 w-4" />
+                  )}
+                  Manage Billing
+                </Button>
+              )}
+            </div>
+          )}
+
+          {!isAdmin && planTier === "seedling" && (
+            <p className="text-sm text-muted-foreground">
+              Ask a family admin to upgrade your plan for more features.
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -234,6 +369,62 @@ export function FamilySettingsClient({
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Your Data */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5" />
+            Your Data
+          </CardTitle>
+          <CardDescription>
+            Download a full export of your family&apos;s stories, entries, and media. Limited to once every 24 hours.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {exportError && (
+            <p className="text-sm text-destructive">{exportError}</p>
+          )}
+          <div className="flex flex-wrap gap-3">
+            <div title={!isAdmin ? "Only family admins can export data" : undefined}>
+              <Button
+                variant="outline"
+                onClick={() => handleExport("json")}
+                disabled={!isAdmin || exportingJson || exportingZip}
+              >
+                {exportingJson ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileJson className="mr-2 h-4 w-4" />
+                )}
+                Export as JSON
+              </Button>
+            </div>
+            <div title={!isAdmin ? "Only family admins can export data" : undefined}>
+              <Button
+                variant="outline"
+                onClick={() => handleExport("zip")}
+                disabled={!isAdmin || exportingJson || exportingZip}
+              >
+                {exportingZip ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FolderArchive className="mr-2 h-4 w-4" />
+                )}
+                Export as ZIP (with media)
+              </Button>
+            </div>
+          </div>
+          {!isAdmin && (
+            <p className="text-sm text-muted-foreground">
+              Ask a family admin to export your family&apos;s data.
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Exports include entries, stories, family tree, events, traditions, and conversations. Raw user IDs and internal metadata are excluded.
+          </p>
         </CardContent>
       </Card>
 

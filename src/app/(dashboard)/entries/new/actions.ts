@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getFamilyContext } from "@/lib/get-family-context";
+import { checkTierLimit } from "@/lib/tier-check";
 import type { EntryType, EntryStructuredData, EntryVisibility } from "@/types/database";
 
 interface CreateEntryInput {
@@ -19,6 +20,14 @@ export async function createEntry(input: CreateEntryInput) {
     const ctx = await getFamilyContext();
     if (!ctx) return { error: "You must be signed in to create an entry." };
     const { userId, familyId, supabase } = ctx;
+
+    // Enforce entry limit based on plan tier
+    const tierCheck = await checkTierLimit(familyId, "entries");
+    if (!tierCheck.allowed) {
+      return {
+        error: `You've reached the ${tierCheck.limit} entry limit on your ${tierCheck.currentTier} plan. Upgrade to add more entries.`,
+      };
+    }
 
     const sb = supabase as any;
 

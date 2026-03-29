@@ -10,6 +10,8 @@ export type FamilyRole = "admin" | "member";
 
 export type PlanTier = "seedling" | "roots" | "legacy";
 
+export type SubscriptionStatus = "none" | "active" | "past_due" | "canceled" | "trialing";
+
 export type MemberSpecialty =
   | "cook"
   | "storyteller"
@@ -188,6 +190,10 @@ export interface Database {
           name: string;
           created_by: string;
           plan_tier: PlanTier;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          stripe_price_id: string | null;
+          subscription_status: SubscriptionStatus;
           created_at: string;
         };
         Insert: {
@@ -195,6 +201,10 @@ export interface Database {
           name: string;
           created_by: string;
           plan_tier?: PlanTier;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          stripe_price_id?: string | null;
+          subscription_status?: SubscriptionStatus;
           created_at?: string;
         };
         Update: {
@@ -202,6 +212,10 @@ export interface Database {
           name?: string;
           created_by?: string;
           plan_tier?: PlanTier;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          stripe_price_id?: string | null;
+          subscription_status?: SubscriptionStatus;
           created_at?: string;
         };
         Relationships: [];

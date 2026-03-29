@@ -70,9 +70,9 @@ const SUGGESTED_TAGS = [
 ];
 
 const DIFFICULTY_OPTIONS = [
-  { value: "easy" as const, label: "Easy", color: "bg-green-500" },
-  { value: "medium" as const, label: "Medium", color: "bg-yellow-500" },
-  { value: "hard" as const, label: "Hard", color: "bg-red-500" },
+  { value: "easy" as const, label: "Easy", activeClass: "bg-green-500 text-white hover:opacity-90" },
+  { value: "medium" as const, label: "Medium", activeClass: "bg-yellow-500 text-white hover:opacity-90" },
+  { value: "hard" as const, label: "Hard", activeClass: "bg-red-500 text-white hover:opacity-90" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -414,11 +414,7 @@ export default function RecipeForm({ onSubmit, saving = false, familyId, mode = 
                 variant={difficulty === opt.value ? "default" : "outline"}
                 size="sm"
                 onClick={() => setDifficulty(opt.value)}
-                className={
-                  difficulty === opt.value
-                    ? `${opt.color} text-white hover:opacity-90`
-                    : ""
-                }
+                className={difficulty === opt.value ? opt.activeClass : ""}
               >
                 {opt.label}
               </Button>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Share2, Copy, Download, Check } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -59,8 +60,8 @@ export function ShareButton({ entryId, entryTitle }: ShareButtonProps) {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("Failed to download share image:", err);
+    } catch {
+      toast.error("Failed to download image. Please try again.");
     }
   }
 

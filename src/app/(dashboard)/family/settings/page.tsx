@@ -1,5 +1,6 @@
 import { getFamilyContext } from "@/lib/get-family-context";
 import { FamilySettingsClient } from "./family-settings-client";
+import type { PlanTier, SubscriptionStatus } from "@/types/database";
 
 // Mock data fallback
 interface MemberData {
@@ -100,6 +101,9 @@ export default async function FamilySettingsPage() {
   let familyName = MOCK_FAMILY_NAME;
   let members = MOCK_MEMBERS;
   let pendingInvites = MOCK_PENDING_INVITES;
+  let planTier: PlanTier = "seedling";
+  let subscriptionStatus: SubscriptionStatus = "none";
+  let isAdmin = false;
 
   try {
     const ctx = await getFamilyContext();
@@ -109,15 +113,29 @@ export default async function FamilySettingsPage() {
       familyId = ctx.familyId;
 
       {
-        // Fetch family name
+        // Fetch family name + billing info
         const { data: family } = await supabase
           .from("families")
-          .select("name")
+          .select("name, plan_tier, subscription_status")
           .eq("id", familyId)
           .single();
 
         if (family) {
           familyName = family.name;
+          planTier = family.plan_tier;
+          subscriptionStatus = family.subscription_status;
+        }
+
+        // Check if current user is admin
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: membership } = await supabase
+            .from("family_members")
+            .select("role")
+            .eq("family_id", familyId)
+            .eq("user_id", user.id)
+            .single();
+          isAdmin = membership?.role === "admin";
         }
 
         // Fetch members
@@ -165,6 +183,9 @@ export default async function FamilySettingsPage() {
       initialFamilyName={familyName}
       members={members}
       pendingInvites={pendingInvites}
+      planTier={planTier}
+      subscriptionStatus={subscriptionStatus}
+      isAdmin={isAdmin}
     />
   );
 }

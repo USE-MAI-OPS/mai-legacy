@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -22,14 +23,12 @@ interface DeleteEntryButtonProps {
 
 export function DeleteEntryButton({ entryId }: DeleteEntryButtonProps) {
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
   function handleDelete() {
-    setError(null);
     startTransition(async () => {
       const result = await deleteEntry(entryId);
       if (result?.error) {
-        setError(result.error);
+        toast.error(result.error);
       }
       // On success, the server action redirects to /entries
     });
@@ -55,9 +54,6 @@ export function DeleteEntryButton({ entryId }: DeleteEntryButtonProps) {
             including embeddings. This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        {error && (
-          <p className="text-sm text-destructive">{error}</p>
-        )}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
           <AlertDialogAction

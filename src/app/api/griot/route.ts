@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { searchFamilyKnowledge } from "@/lib/rag/search";
 import { getConnectionChain } from "@/lib/connection-chain";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { requireTier } from "@/lib/tier-check";
 import { buildPiiContext, sanitize, restore, type KnownMember } from "@/lib/pii/sanitizer";
 import type { ConversationMessage } from "@/types/database";
 

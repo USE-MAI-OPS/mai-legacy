@@ -52,9 +52,9 @@ interface SkillFormProps {
 // Constants
 // ---------------------------------------------------------------------------
 const DIFFICULTY_OPTIONS = [
-  { value: "beginner" as const, label: "Beginner", color: "bg-green-500" },
-  { value: "intermediate" as const, label: "Intermediate", color: "bg-yellow-500" },
-  { value: "advanced" as const, label: "Advanced", color: "bg-red-500" },
+  { value: "beginner" as const, label: "Beginner", activeClass: "rounded-xl px-6 bg-green-500 text-white border-transparent hover:opacity-90 shadow-sm" },
+  { value: "intermediate" as const, label: "Intermediate", activeClass: "rounded-xl px-6 bg-yellow-500 text-white border-transparent hover:opacity-90 shadow-sm" },
+  { value: "advanced" as const, label: "Advanced", activeClass: "rounded-xl px-6 bg-red-500 text-white border-transparent hover:opacity-90 shadow-sm" },
 ];
 
 const SUGGESTED_SKILL_TAGS = [
@@ -380,10 +380,7 @@ export default function SkillForm({ onSubmit, saving = false, familyId, mode = "
                 variant={difficulty === opt.value ? "default" : "outline"}
                 size="lg"
                 onClick={() => setDifficulty(opt.value)}
-                className={`rounded-xl px-6 ${difficulty === opt.value
-                    ? `${opt.color} text-white border-transparent hover:opacity-90 shadow-sm`
-                    : "bg-background border-border hover:bg-muted"
-                  }`}
+                className={difficulty === opt.value ? opt.activeClass : "rounded-xl px-6 bg-background border-border hover:bg-muted"}
               >
                 {opt.label}
               </Button>

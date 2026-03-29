@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { sendInviteEmail } from "@/lib/email";
+import { checkTierLimit } from "@/lib/tier-check";
 import { revalidatePath } from "next/cache";
 
 export async function updateFamilyName(familyId: string, name: string) {
@@ -48,6 +49,24 @@ export async function sendInvite(
     } = await supabase.auth.getUser();
 
     if (!user) throw new Error("Not authenticated");
+
+    // Check member limit before sending invite
+    const { data: membership } = await supabase
+      .from("family_members")
+      .select("family_id")
+      .eq("user_id", user.id)
+      .eq("family_id", familyId)
+      .single();
+
+    if (membership) {
+      const tierCheck = await checkTierLimit(familyId, "members");
+      if (!tierCheck.allowed) {
+        return {
+          success: false,
+          error: `You've reached the ${tierCheck.limit} member limit on your ${tierCheck.currentTier} plan. Upgrade to invite more members.`,
+        };
+      }
+    }
 
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7-day expiry

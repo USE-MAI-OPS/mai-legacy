@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { getFamilyContext } from "@/lib/get-family-context";
 import { LegacyCarousel } from "@/components/legacy-carousel";
 import { GriotWidget } from "@/components/griot-widget";
+import { GriotGapSuggestions } from "@/components/griot-gap-suggestions";
 
 // ---------------------------------------------------------------------------
 // Mock fallback data
@@ -554,6 +555,19 @@ export default async function DashboardPage() {
 
       {/* Griot Widget */}
       <GriotWidget />
+
+      {/* Griot Gap Suggestions — surfaces missing entry types */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-amber-500" />
+            Your family&apos;s knowledge gaps
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <GriotGapSuggestions showHeading={false} />
+        </CardContent>
+      </Card>
 
       {/* Recent Entries + Family Members — side by side, equal height */}
       <div className="grid lg:grid-cols-2 gap-6">

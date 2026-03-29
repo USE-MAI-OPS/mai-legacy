@@ -18,6 +18,7 @@ import {
   Settings,
   ChevronDown,
   Rss,
+  BookMarked,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -212,6 +213,14 @@ export function DashboardNav() {
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/entries?type=lesson" className="w-full cursor-pointer">Lessons</Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/legacy-book" className="w-full cursor-pointer flex items-center gap-2">
+                  <BookMarked className="h-4 w-4 text-amber-600" />
+                  Legacy Book
+                  <span className="ml-auto text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-medium">Pro</span>
+                </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -426,6 +435,11 @@ export function DashboardNav() {
                 </Link>
                 <Link href="/entries?type=lesson" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
                   Lessons
+                </Link>
+                <Link href="/legacy-book" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
+                  <BookMarked className="h-4 w-4 text-amber-600" />
+                  Legacy Book
+                  <span className="ml-auto text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-medium">Pro</span>
                 </Link>
               </div>
             )}

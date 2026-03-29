@@ -28,6 +28,7 @@ import {
 } from "@/lib/griot";
 import type { ConversationMessage } from "@/types/database";
 import { cn } from "@/lib/utils";
+import { GriotGapSuggestions } from "@/components/griot-gap-suggestions";
 
 // -------------------------------------------------------------------------
 // Types
@@ -301,6 +302,12 @@ export default function GriotPage() {
     [responseIndex]
   );
 
+  // -- Gap suggestion callback (pre-fills input from gap card) ----------------
+  const handleGapAskGriot = useCallback((prompt: string) => {
+    setInput(prompt);
+    textareaRef.current?.focus();
+  }, []);
+
   // -- Unified send --------------------------------------------------------
   const handleSend = async () => {
     const trimmed = input.trim();
@@ -562,6 +569,16 @@ export default function GriotPage() {
                       </button>
                     ))}
                   </div>
+
+                  {/* Gap suggestions — shown in empty state when family has missing entry types */}
+                  {isConnected && (
+                    <div className="mt-8 max-w-sm mx-auto text-left">
+                      <GriotGapSuggestions
+                        onAskGriot={handleGapAskGriot}
+                        showHeading
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (

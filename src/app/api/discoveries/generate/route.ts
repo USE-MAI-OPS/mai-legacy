@@ -95,7 +95,7 @@ export async function POST() {
   // 3. Family tree members (for relationship context)
   const { data: treeMembers } = await sb
     .from("family_tree_members")
-    .select("id, first_name, last_name, relationship_label")
+    .select("id, display_name, relationship_label")
     .eq("family_id", familyId)
     .limit(50);
 
@@ -105,9 +105,8 @@ export async function POST() {
     if (m.display_name) piiMembers.push({ displayName: m.display_name });
   }
   for (const tm of treeMembers ?? []) {
-    const fullName = `${tm.first_name} ${tm.last_name}`.trim();
-    if (fullName && !piiMembers.some((p) => p.displayName === fullName)) {
-      piiMembers.push({ displayName: fullName });
+    if (tm.display_name && !piiMembers.some((p) => p.displayName === tm.display_name)) {
+      piiMembers.push({ displayName: tm.display_name });
     }
   }
   const piiCtx = buildPiiContext(piiMembers);
@@ -128,8 +127,8 @@ export async function POST() {
     .join("\n");
 
   const treeMemberList = (treeMembers ?? [])
-    .map((m: { first_name: string; last_name: string; relationship_label: string }) =>
-      `${m.first_name} ${m.last_name}${m.relationship_label ? ` (${m.relationship_label})` : ""}`
+    .map((m) =>
+      `${m.display_name}${m.relationship_label ? ` (${m.relationship_label})` : ""}`
     )
     .join(", ");
 

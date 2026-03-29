@@ -126,7 +126,7 @@ export async function getNotifications(
 
   const notifications: NotificationData[] = (notifs ?? []).map((n) => ({
       id: n.id,
-      type: n.type,
+      type: n.type as NotificationType,
       title: n.title,
       body: n.body,
       reference_type: n.reference_type,

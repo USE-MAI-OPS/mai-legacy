@@ -28,7 +28,7 @@ import { ImageUpload } from "@/components/image-upload";
 import { VisibilitySelect } from "@/components/entry-forms/visibility-select";
 import { CharacterCount } from "@/components/ui/character-count";
 import { updateEntry } from "@/app/(dashboard)/entries/[id]/actions";
-import type { EntryType, EntryVisibility } from "@/types/database";
+import type { EntryType, EntryVisibility, EntryStructuredData } from "@/types/database";
 
 const TITLE_MAX = 200;
 const CONTENT_MAX = 10_000;
@@ -151,7 +151,7 @@ export default function EditEntryForm({ entry }: EditEntryFormProps) {
         content: content.trim(),
         type,
         tags,
-        structured_data: structured_data as { type: string; data: Record<string, unknown> } | undefined,
+        structured_data: structured_data as EntryStructuredData | undefined,
         visibility,
       });
 

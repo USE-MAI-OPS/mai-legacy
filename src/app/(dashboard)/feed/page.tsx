@@ -2,6 +2,7 @@ import { getFamilyContext } from "@/lib/get-family-context";
 import { FeedList } from "./components/feed-list";
 import { OnThisDayCard } from "@/components/on-this-day-card";
 import type { FeedItem, FeedEntry, FeedEvent, FeedPrompt, FeedDiscovery } from "@/app/api/feed/route";
+import type { EntryType } from "@/types/database";
 
 // ---------------------------------------------------------------------------
 // Data fetching — loads the initial page server-side
@@ -127,7 +128,7 @@ async function getInitialFeed(): Promise<{ items: FeedItem[]; nextCursor: string
         .from("entries")
         .select("id", { count: "exact", head: true })
         .eq("family_id", familyId)
-        .eq("type", t);
+        .eq("type", t as EntryType);
 
       if ((count ?? 0) === 0) {
         const labels: Record<string, { title: string; body: string; icon: string }> = {

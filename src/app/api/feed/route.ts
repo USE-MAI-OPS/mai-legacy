@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getConnectionChain } from "@/lib/connection-chain";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { getActiveFamilyIdFromCookie } from "@/lib/active-family-server";
+import type { EntryType } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -234,7 +235,7 @@ export async function GET(req: NextRequest) {
         .from("entries")
         .select("id", { count: "exact", head: true })
         .eq("family_id", familyId)
-        .eq("type", t);
+        .eq("type", t as EntryType);
 
       if ((count ?? 0) === 0) {
         const labels: Record<string, { title: string; body: string; icon: string }> = {

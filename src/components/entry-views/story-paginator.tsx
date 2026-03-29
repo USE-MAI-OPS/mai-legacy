@@ -25,19 +25,6 @@ export function StoryPaginator({ paragraphs }: StoryPaginatorProps) {
   const pages = chunk(paragraphs, PARAGRAPHS_PER_PAGE);
   const totalPages = pages.length;
 
-  // No pagination needed for short stories
-  if (totalPages <= 1) {
-    return (
-      <div className="max-w-none">
-        {paragraphs.map((p, i) => (
-          <p key={i} className="mb-6 text-lg leading-relaxed text-foreground/90 last:mb-0">
-            {p}
-          </p>
-        ))}
-      </div>
-    );
-  }
-
   const goToPage = useCallback(
     (page: number) => {
       if (page < 0 || page >= totalPages || page === currentPage || fading) return;
@@ -52,13 +39,27 @@ export function StoryPaginator({ paragraphs }: StoryPaginatorProps) {
 
   // Keyboard navigation
   useEffect(() => {
+    if (totalPages <= 1) return;
     function handleKey(e: KeyboardEvent) {
       if (e.key === "ArrowLeft") goToPage(currentPage - 1);
       if (e.key === "ArrowRight") goToPage(currentPage + 1);
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [goToPage, currentPage]);
+  }, [goToPage, currentPage, totalPages]);
+
+  // No pagination needed for short stories
+  if (totalPages <= 1) {
+    return (
+      <div className="max-w-none">
+        {paragraphs.map((p, i) => (
+          <p key={i} className="mb-6 text-lg leading-relaxed text-foreground/90 last:mb-0">
+            {p}
+          </p>
+        ))}
+      </div>
+    );
+  }
 
   const currentParagraphs = pages[currentPage];
 

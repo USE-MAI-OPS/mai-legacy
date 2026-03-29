@@ -115,7 +115,7 @@ async function getFamilyData() {
     }
 
     // Entry counts by type
-    let entryCounts: Record<string, number> = {};
+    const entryCounts: Record<string, number> = {};
     try {
       const { data: countData, error: rpcError } = await sb.rpc("get_entry_counts_by_type", {
         p_family_id: familyId,

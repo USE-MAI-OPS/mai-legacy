@@ -11,6 +11,7 @@
     "seed:embed": "tsx src/scripts/seed.ts --embed",
     "seed:clean": "tsx src/scripts/seed.ts --clean",
     "seed:fresh": "tsx src/scripts/seed.ts --clean --embed",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },

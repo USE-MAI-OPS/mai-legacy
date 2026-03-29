@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { DemoVideoSection } from "@/components/landing/DemoVideoSection";
 import {
   BookOpen,
   MessageCircle,
@@ -29,26 +30,6 @@ import {
 // Static data
 // ---------------------------------------------------------------------------
 
-const TESTIMONIALS = [
-  {
-    quote: "We documented over 40 of my grandmother's recipes before she passed. Now the whole family can cook her dishes. That's priceless.",
-    family: "The Williams Family",
-    location: "Atlanta, GA",
-    initials: "WF",
-  },
-  {
-    quote: "My kids finally know the stories I grew up hearing. The Griot even helped my daughter write a school project about our family history.",
-    family: "The Martinez Family",
-    location: "Houston, TX",
-    initials: "MF",
-  },
-  {
-    quote: "Uncle James can't type well, but he told his stories and we added them. Now his wisdom lives on for generations to come.",
-    family: "The Johnson Family",
-    location: "Chicago, IL",
-    initials: "JF",
-  },
-];
 
 const GRIOT_PREVIEW_PROMPTS = [
   {
@@ -164,16 +145,21 @@ export default function HomePage() {
       </section>
 
       {/* ----------------------------------------------------------------- */}
+      {/* Product Demo Video (renders null until DEMO_VIDEO_ENABLED = true)  */}
+      {/* ----------------------------------------------------------------- */}
+      <DemoVideoSection />
+
+      {/* ----------------------------------------------------------------- */}
       {/* Social Proof Banner                                                 */}
       {/* ----------------------------------------------------------------- */}
       <section className="border-y border-border/50 bg-muted/30">
         <div className="max-w-6xl mx-auto px-6 py-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center divide-x divide-border/50">
             {[
-              { label: "Families Protected", value: "2,500+" },
-              { label: "Stories Preserved", value: "15,000+" },
-              { label: "Recipes Saved", value: "8,400+" },
               { label: "Data Ownership", value: "100%" },
+              { label: "Encrypted at Rest", value: "Always" },
+              { label: "Ads Served", value: "Zero" },
+              { label: "Family-Only Access", value: "By Design" },
             ].map((stat) => (
               <div key={stat.label} className="flex flex-col items-center justify-center">
                 <span className="text-3xl font-serif font-bold text-foreground mb-1">{stat.value}</span>
@@ -392,40 +378,20 @@ export default function HomePage() {
       </section>
 
       {/* ----------------------------------------------------------------- */}
-      {/* Social Proof & Testimonials                                       */}
+      {/* Early Access CTA                                                  */}
       {/* ----------------------------------------------------------------- */}
       <section className="px-6 py-24 max-w-7xl mx-auto">
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <Badge variant="secondary" className="mb-4">Community</Badge>
-          <h2 className="font-serif text-3xl sm:text-4xl font-bold">
-            Trusted by generations
+        <div className="text-center max-w-2xl mx-auto">
+          <Badge variant="secondary" className="mb-4">Early Access</Badge>
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold mb-4">
+            Be among the first families
           </h2>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8">
-          {TESTIMONIALS.map((t) => (
-            <Card key={t.family} className="bg-card border-border/50 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col">
-              <CardContent className="pt-8 pb-6 px-8 flex-grow flex flex-col">
-                <Quote className="h-8 w-8 text-primary/20 mb-4" />
-                <p className="text-lg leading-relaxed text-foreground flex-grow">
-                  "{t.quote}"
-                </p>
-                <div className="flex items-center gap-4 mt-8 pt-6 border-t border-border/30">
-                  <Avatar className="h-12 w-12 border">
-                    <AvatarFallback className="text-sm font-semibold text-white bg-primary">
-                      {t.initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-base font-semibold font-serif">{t.family}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {t.location}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          <p className="text-lg text-muted-foreground mb-8">
+            MAI Legacy is just getting started. Join early and help shape the product — your family&apos;s story deserves to be told right.
+          </p>
+          <Button size="lg" asChild>
+            <Link href="/signup">Start Your Legacy</Link>
+          </Button>
         </div>
       </section>
 

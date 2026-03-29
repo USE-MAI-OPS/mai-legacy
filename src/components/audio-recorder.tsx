@@ -212,6 +212,7 @@ export function AudioRecorder({
           <button
             type="button"
             onClick={togglePlayback}
+            aria-label={playing ? "Pause" : "Play"}
             className="h-10 w-10 rounded-full bg-primary/10 hover:bg-primary/20 flex items-center justify-center text-primary transition-colors shrink-0"
           >
             {playing ? (

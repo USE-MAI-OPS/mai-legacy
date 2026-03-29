@@ -59,6 +59,7 @@ export function AudioPlayer({
       {/* Play button */}
       <button
         onClick={togglePlay}
+        aria-label={playing ? "Pause" : "Play"}
         className={cn(
           "h-10 w-10 rounded-full flex items-center justify-center shrink-0 transition-all",
           playing

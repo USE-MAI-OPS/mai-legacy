@@ -270,7 +270,7 @@ export function DashboardNav() {
           {/* User menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 rounded-full hover:bg-accent transition-colors p-1">
+              <button aria-label="Open user menu" className="flex items-center gap-2 rounded-full hover:bg-accent transition-colors p-1">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="text-xs">
                     {userInfo.initials || "??"}

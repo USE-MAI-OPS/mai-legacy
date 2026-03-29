@@ -69,6 +69,7 @@ export function EntryReviewCard({
           {/* Checkbox */}
           <button
             onClick={() => onToggleSelect(entry.id)}
+            aria-label={entry.selected ? "Deselect entry" : "Select entry"}
             className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
               entry.selected
                 ? "bg-primary border-primary text-primary-foreground"

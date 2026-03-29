@@ -146,7 +146,7 @@ export function FamilyTreeNode({
       <div className="absolute -top-1 -right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="h-5 w-5 flex items-center justify-center rounded-full bg-background/90 border shadow-sm hover:bg-accent">
+            <button aria-label="Open member menu" className="h-5 w-5 flex items-center justify-center rounded-full bg-background/90 border shadow-sm hover:bg-accent">
               <MoreVertical className="h-2.5 w-2.5" />
             </button>
           </DropdownMenuTrigger>

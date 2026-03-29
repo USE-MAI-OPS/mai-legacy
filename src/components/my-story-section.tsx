@@ -259,6 +259,7 @@ export function MyStorySection({
                         career: s.career.filter((_, idx) => idx !== i),
                       }))
                     }
+                    aria-label="Remove career entry"
                     className="text-muted-foreground hover:text-destructive transition-colors"
                   >
                     <X className="size-3" />
@@ -337,6 +338,7 @@ export function MyStorySection({
                         places: s.places.filter((_, idx) => idx !== i),
                       }))
                     }
+                    aria-label="Remove place"
                     className="text-muted-foreground hover:text-destructive transition-colors"
                   >
                     <X className="size-3" />
@@ -411,6 +413,7 @@ export function MyStorySection({
                         education: s.education.filter((_, idx) => idx !== i),
                       }))
                     }
+                    aria-label="Remove education entry"
                     className="text-muted-foreground hover:text-destructive transition-colors"
                   >
                     <X className="size-3" />
@@ -525,6 +528,7 @@ export function MyStorySection({
                   </button>
                   <button
                     onClick={() => update((s) => ({ ...s, military: null }))}
+                    aria-label="Remove military service"
                     className="text-muted-foreground hover:text-destructive transition-colors"
                   >
                     <X className="size-3" />
@@ -595,6 +599,7 @@ export function MyStorySection({
                           ),
                         }))
                       }
+                      aria-label="Remove milestone"
                       className="text-muted-foreground hover:text-destructive transition-colors"
                     >
                       <X className="size-3" />

@@ -250,15 +250,18 @@ async function getDashboardData() {
         id: string;
         title: string;
         content: string;
-        structured_data?: { data?: { images?: string[] } } | null;
+        structured_data?: unknown;
       }>
     ) {
-      return (rawEntries ?? []).map((e) => ({
-        id: e.id,
-        title: e.title,
-        content: e.content?.slice(0, 200) ?? "",
-        image: e.structured_data?.data?.images?.[0] ?? null,
-      }));
+      return (rawEntries ?? []).map((e) => {
+        const sd = e.structured_data as { data?: { images?: string[] } } | null;
+        return {
+          id: e.id,
+          title: e.title,
+          content: e.content?.slice(0, 200) ?? "",
+          image: sd?.data?.images?.[0] ?? null,
+        };
+      });
     }
 
     return {

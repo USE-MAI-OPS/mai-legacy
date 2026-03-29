@@ -57,7 +57,28 @@ export interface FeedDiscovery {
   created_at: string;
 }
 
-export type FeedItem = FeedEntry | FeedPrompt | FeedEvent | FeedDiscovery;
+export interface FeedGoal {
+  kind: "goal";
+  id: string;
+  title: string;
+  description: string;
+  target_count: number;
+  current_count: number;
+  status: string;
+  due_date: string | null;
+  created_at: string;
+}
+
+export interface FeedGriotInsight {
+  kind: "griot_insight";
+  id: string;
+  title: string;
+  body: string;
+  related_members: string[];
+  created_at: string;
+}
+
+export type FeedItem = FeedEntry | FeedPrompt | FeedEvent | FeedDiscovery | FeedGoal | FeedGriotInsight;
 
 // ---------------------------------------------------------------------------
 // GET /api/feed?cursor=<iso>&limit=<n>
@@ -300,12 +321,67 @@ export async function GET(req: NextRequest) {
     } catch { /* table may not exist yet */ }
   }
 
+  // --- Fetch active family goals (only on first page) ---
+  const goalItems: FeedGoal[] = [];
+  if (!cursor) {
+    try {
+      const { data: goals } = await sb
+        .from("family_goals")
+        .select("id, title, description, target_count, current_count, status, due_date, created_at")
+        .eq("family_id", familyId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      for (const g of goals ?? []) {
+        goalItems.push({
+          kind: "goal",
+          id: g.id,
+          title: g.title,
+          description: g.description ?? "",
+          target_count: g.target_count,
+          current_count: g.current_count,
+          status: g.status,
+          due_date: g.due_date,
+          created_at: g.created_at,
+        });
+      }
+    } catch { /* table may not exist yet */ }
+  }
+
+  // --- Fetch Griot gap suggestions as insight cards (only on first page) ---
+  const insightItems: FeedGriotInsight[] = [];
+  if (!cursor) {
+    try {
+      const { data: gaps } = await sb
+        .from("griot_discoveries")
+        .select("id, title, body, related_members, created_at")
+        .eq("family_id", familyId)
+        .eq("discovery_type", "missing_piece")
+        .order("created_at", { ascending: false })
+        .limit(2);
+
+      for (const g of gaps ?? []) {
+        insightItems.push({
+          kind: "griot_insight",
+          id: `insight-${g.id}`,
+          title: g.title,
+          body: g.body,
+          related_members: g.related_members ?? [],
+          created_at: g.created_at,
+        });
+      }
+    } catch { /* table may not exist yet */ }
+  }
+
   // --- Merge & interleave ---
-  // 60% entries, 25% discoveries, 15% events/prompts — interleaved naturally
+  // Entries are the backbone; discoveries, events, prompts, goals, insights interleaved
   const items: FeedItem[] = [];
   let eventIdx = 0;
   let promptIdx = 0;
   let discoveryIdx = 0;
+  let goalIdx = 0;
+  let insightIdx = 0;
 
   for (let i = 0; i < feedEntries.length; i++) {
     items.push(feedEntries[i]);
@@ -313,6 +389,11 @@ export async function GET(req: NextRequest) {
     // After every 3rd entry, insert a discovery card
     if ((i + 1) % 3 === 0 && discoveryIdx < discoveryItems.length) {
       items.push(discoveryItems[discoveryIdx++]);
+    }
+
+    // After every 4th entry, insert a goal card
+    if ((i + 1) % 4 === 0 && goalIdx < goalItems.length) {
+      items.push(goalItems[goalIdx++]);
     }
 
     // After every 5th entry, interleave an event or prompt
@@ -323,12 +404,19 @@ export async function GET(req: NextRequest) {
         items.push(promptItems[promptIdx++]);
       }
     }
+
+    // After every 7th entry, insert a griot insight
+    if ((i + 1) % 7 === 0 && insightIdx < insightItems.length) {
+      items.push(insightItems[insightIdx++]);
+    }
   }
 
-  // Append remaining discoveries, events, prompts at the end
+  // Append remaining items at the end
   while (discoveryIdx < discoveryItems.length) items.push(discoveryItems[discoveryIdx++]);
+  while (goalIdx < goalItems.length) items.push(goalItems[goalIdx++]);
   while (eventIdx < eventItems.length) items.push(eventItems[eventIdx++]);
   while (promptIdx < promptItems.length) items.push(promptItems[promptIdx++]);
+  while (insightIdx < insightItems.length) items.push(insightItems[insightIdx++]);
 
   // Next cursor
   const lastEntry = feedEntries[feedEntries.length - 1];

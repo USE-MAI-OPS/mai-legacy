@@ -28,8 +28,10 @@ import { cn } from "@/lib/utils";
 import { typeConfig } from "@/lib/entry-type-config";
 import { toggleReaction, addComment } from "@/app/(dashboard)/entries/social-actions";
 import type { ReactionType } from "@/app/(dashboard)/entries/social-actions";
-import type { FeedItem, FeedEntry, FeedPrompt, FeedEvent, FeedDiscovery } from "@/app/api/feed/route";
+import type { FeedItem, FeedEntry, FeedPrompt, FeedEvent, FeedDiscovery, FeedGoal, FeedGriotInsight } from "@/app/api/feed/route";
 import type { EntryType, EntryStructuredData } from "@/types/database";
+import { GoalCard } from "./goal-card";
+import { GriotInsightCard } from "./griot-insight-card";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -592,6 +594,10 @@ export function FeedList({ initialItems, initialCursor }: FeedListProps) {
             return <FeedPromptCard key={item.id} item={item} />;
           case "discovery":
             return <FeedDiscoveryCard key={`discovery-${item.id}`} item={item} />;
+          case "goal":
+            return <GoalCard key={`goal-${item.id}`} item={item} />;
+          case "griot_insight":
+            return <GriotInsightCard key={`insight-${item.id}`} item={item} />;
           default:
             return null;
         }

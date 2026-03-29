@@ -1,19 +1,95 @@
 import { getFamilyContext } from "@/lib/get-family-context";
 import { FeedList } from "./components/feed-list";
 import { OnThisDayCard } from "@/components/on-this-day-card";
-import type { FeedItem, FeedEntry, FeedEvent, FeedPrompt, FeedDiscovery } from "@/app/api/feed/route";
+import { FeedPageClient } from "./components/feed-page-client";
+import type { FeedItem, FeedEntry, FeedEvent, FeedPrompt, FeedDiscovery, FeedGoal, FeedGriotInsight } from "@/app/api/feed/route";
 import type { EntryType } from "@/types/database";
+import type { FamilyMember } from "./components/family-strip";
+import type { FeedStats } from "./components/stats-strip";
 
 // ---------------------------------------------------------------------------
 // Data fetching — loads the initial page server-side
 // ---------------------------------------------------------------------------
-async function getInitialFeed(): Promise<{ items: FeedItem[]; nextCursor: string | null }> {
+async function getInitialFeed(): Promise<{
+  items: FeedItem[];
+  nextCursor: string | null;
+  members: FamilyMember[];
+  stats: FeedStats;
+  familyName: string;
+}> {
   try {
     const ctx = await getFamilyContext();
-    if (!ctx) return { items: [], nextCursor: null };
+    if (!ctx)
+      return {
+        items: [],
+        nextCursor: null,
+        members: [],
+        stats: { entries: 0, members: 0, traditions: 0, goals: 0, events: 0 },
+        familyName: "",
+      };
     const { familyId, supabase, connectedUserIds } = ctx;
 
     const sb = supabase;
+
+    // Fetch family name
+    let familyName = "";
+    try {
+      const { data: family } = await sb
+        .from("families")
+        .select("name")
+        .eq("id", familyId)
+        .maybeSingle();
+      familyName = family?.name ?? "";
+    } catch { /* ignore */ }
+
+    // Fetch family members for the strip
+    const { data: memberData } = await sb
+      .from("family_members")
+      .select("id, user_id, display_name, avatar_url")
+      .eq("family_id", familyId)
+      .order("joined_at", { ascending: true });
+
+    const members: FamilyMember[] = (memberData ?? []).map(
+      (m: { id: string; user_id: string; display_name: string; avatar_url: string | null }) => ({
+        id: m.id,
+        user_id: m.user_id,
+        display_name: m.display_name,
+        avatar_url: m.avatar_url,
+      })
+    );
+
+    // Fetch stats in parallel
+    const safeCount = async (query: PromiseLike<{ count: number | null }>): Promise<number> => {
+      try {
+        const r = await query;
+        return r.count ?? 0;
+      } catch {
+        return 0;
+      }
+    };
+
+    const [entriesCount, traditionsCount, goalsCount, eventsCount] = await Promise.all([
+      safeCount(
+        sb.from("entries").select("id", { count: "exact", head: true }).eq("family_id", familyId)
+      ),
+      safeCount(
+        sb.from("traditions").select("id", { count: "exact", head: true }).eq("family_id", familyId)
+      ),
+      safeCount(
+        sb.from("family_goals").select("id", { count: "exact", head: true }).eq("family_id", familyId).eq("status", "active")
+      ),
+      safeCount(
+        sb.from("family_events").select("id", { count: "exact", head: true }).eq("family_id", familyId)
+      ),
+    ]);
+
+    const stats: FeedStats = {
+      entries: entriesCount,
+      members: members.length,
+      traditions: traditionsCount,
+      goals: goalsCount,
+      events: eventsCount,
+    };
 
     // Fetch recent entries
     const { data: entries } = await sb
@@ -34,12 +110,12 @@ async function getInitialFeed(): Promise<{ items: FeedItem[]; nextCursor: string
     ];
     const authorMap: Record<string, string> = {};
     if (authorIds.length > 0) {
-      const { data: members } = await sb
+      const { data: authorMembers } = await sb
         .from("family_members")
         .select("user_id, display_name")
         .eq("family_id", familyId)
         .in("user_id", authorIds);
-      for (const m of members ?? []) {
+      for (const m of authorMembers ?? []) {
         if (m.user_id && m.display_name) authorMap[m.user_id] = m.display_name;
       }
     }
@@ -190,15 +266,70 @@ async function getInitialFeed(): Promise<{ items: FeedItem[]; nextCursor: string
       }
     } catch { /* table may not exist yet */ }
 
-    // Interleave: entries + discoveries every 3rd + events/prompts every 5th
+    // Fetch active goals
+    const goalItems: FeedGoal[] = [];
+    try {
+      const { data: goals } = await sb
+        .from("family_goals")
+        .select("id, title, description, target_count, current_count, status, due_date, created_at")
+        .eq("family_id", familyId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      for (const g of goals ?? []) {
+        goalItems.push({
+          kind: "goal",
+          id: g.id,
+          title: g.title,
+          description: g.description ?? "",
+          target_count: g.target_count,
+          current_count: g.current_count,
+          status: g.status,
+          due_date: g.due_date,
+          created_at: g.created_at,
+        });
+      }
+    } catch { /* table may not exist yet */ }
+
+    // Fetch griot insight cards (missing_piece type)
+    const insightItems: FeedGriotInsight[] = [];
+    try {
+      const { data: gaps } = await sb
+        .from("griot_discoveries")
+        .select("id, title, body, related_members, created_at")
+        .eq("family_id", familyId)
+        .eq("discovery_type", "missing_piece")
+        .order("created_at", { ascending: false })
+        .limit(2);
+
+      for (const g of gaps ?? []) {
+        insightItems.push({
+          kind: "griot_insight",
+          id: `insight-${g.id}`,
+          title: g.title,
+          body: g.body,
+          related_members: g.related_members ?? [],
+          created_at: g.created_at,
+        });
+      }
+    } catch { /* table may not exist yet */ }
+
+    // Interleave: entries + discoveries every 3rd + goals every 4th + events/prompts every 5th + insights every 7th
     const items: FeedItem[] = [];
     let eventIdx = 0;
     let promptIdx = 0;
     let discoveryIdx = 0;
+    let goalIdx = 0;
+    let insightIdx = 0;
+
     for (let i = 0; i < feedEntries.length; i++) {
       items.push(feedEntries[i]);
       if ((i + 1) % 3 === 0 && discoveryIdx < discoveryItems.length) {
         items.push(discoveryItems[discoveryIdx++]);
+      }
+      if ((i + 1) % 4 === 0 && goalIdx < goalItems.length) {
+        items.push(goalItems[goalIdx++]);
       }
       if ((i + 1) % 5 === 0) {
         if (eventIdx < eventItems.length) {
@@ -207,19 +338,30 @@ async function getInitialFeed(): Promise<{ items: FeedItem[]; nextCursor: string
           items.push(promptItems[promptIdx++]);
         }
       }
+      if ((i + 1) % 7 === 0 && insightIdx < insightItems.length) {
+        items.push(insightItems[insightIdx++]);
+      }
     }
     while (discoveryIdx < discoveryItems.length) items.push(discoveryItems[discoveryIdx++]);
+    while (goalIdx < goalItems.length) items.push(goalItems[goalIdx++]);
     while (eventIdx < eventItems.length) items.push(eventItems[eventIdx++]);
     while (promptIdx < promptItems.length) items.push(promptItems[promptIdx++]);
+    while (insightIdx < insightItems.length) items.push(insightItems[insightIdx++]);
 
     const lastEntry = feedEntries[feedEntries.length - 1];
     const nextCursor =
       feedEntries.length >= 20 ? lastEntry?.created_at ?? null : null;
 
-    return { items, nextCursor };
+    return { items, nextCursor, members, stats, familyName };
   } catch (err) {
     console.error("Feed fetch error:", err);
-    return { items: [], nextCursor: null };
+    return {
+      items: [],
+      nextCursor: null,
+      members: [],
+      stats: { entries: 0, members: 0, traditions: 0, goals: 0, events: 0 },
+      familyName: "",
+    };
   }
 }
 
@@ -227,19 +369,17 @@ async function getInitialFeed(): Promise<{ items: FeedItem[]; nextCursor: string
 // Page
 // ---------------------------------------------------------------------------
 export default async function FeedPage() {
-  const { items, nextCursor } = await getInitialFeed();
+  const { items, nextCursor, members, stats, familyName } = await getInitialFeed();
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold font-serif">Family Feed</h1>
-        <p className="text-muted-foreground mt-1">
-          See what your family has been sharing and discover new stories.
-        </p>
-      </div>
-
-      <OnThisDayCard />
-      <FeedList initialItems={items} initialCursor={nextCursor} />
+    <div className="max-w-2xl mx-auto px-4 py-6">
+      <FeedPageClient
+        initialItems={items}
+        initialCursor={nextCursor}
+        members={members}
+        stats={stats}
+        familyName={familyName}
+      />
     </div>
   );
 }

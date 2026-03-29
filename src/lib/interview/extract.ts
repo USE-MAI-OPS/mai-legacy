@@ -7,6 +7,7 @@
 
 import { queryAI } from "./ai-client";
 import { cleanTranscript, chunkTranscript, mergeExtractionResults } from "./chunker";
+import { buildPiiContext, sanitize, restore } from "@/lib/pii/sanitizer";
 import type { ExtractionResult, ExtractedEntry, ExtractedProfileUpdates } from "./types";
 
 /**
@@ -184,6 +185,9 @@ export async function extractFromTranscript(
     );
   }
 
+  // 1b. Build PII context for sanitization before sending to LLM
+  const piiCtx = buildPiiContext([{ displayName: subjectName }]);
+
   // 2. Chunk if needed
   const chunks = chunkTranscript(cleaned);
   onProgress?.(
@@ -210,14 +214,19 @@ export async function extractFromTranscript(
       chunks.length > 1 ? { index: i, total: chunks.length } : undefined
     );
 
+    // Sanitize the prompt before sending to external LLM
+    const sanitizedPrompt = sanitize(prompt, piiCtx);
+
     // Call the AI with retry on parse failure
     let parsed: ExtractionResult | null = null;
 
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const { response, provider } = await queryAI(prompt);
+        const { response, provider } = await queryAI(sanitizedPrompt);
         lastProvider = provider;
-        parsed = parseExtractionResponse(response);
+        // Restore PII tokens in the response before parsing
+        const restoredResponse = restore(response, piiCtx);
+        parsed = parseExtractionResponse(restoredResponse);
         break;
       } catch (error) {
         if (attempt === 0) {

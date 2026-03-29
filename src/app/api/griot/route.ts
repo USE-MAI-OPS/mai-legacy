@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { searchFamilyKnowledge } from "@/lib/rag/search";
 import { getConnectionChain } from "@/lib/connection-chain";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
+import { buildPiiContext, sanitize, restore, type KnownMember } from "@/lib/pii/sanitizer";
 import type { ConversationMessage } from "@/types/database";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -273,6 +274,50 @@ export async function POST(request: NextRequest) {
     }
 
     // ------------------------------------------------------------------
+    // 1c. Build PII context from family members for sanitization.
+    // ------------------------------------------------------------------
+    const piiMembers: KnownMember[] = [];
+    try {
+      // Re-query just the PII-relevant fields (members already fetched above
+      // but scoped inside the try — pull what we need for the sanitizer).
+      const { data: piiRows } = await supabase
+        .from("family_members")
+        .select("display_name, email, phone, nickname")
+        .eq("family_id", familyId)
+        .in("user_id", chain.connectedUserIds);
+
+      if (piiRows) {
+        for (const r of piiRows) {
+          piiMembers.push({
+            displayName: r.display_name,
+            email: r.email,
+            phone: r.phone,
+            nickname: r.nickname,
+          });
+        }
+      }
+
+      // Also include unlinked tree members (name-only)
+      const { data: treePii } = await supabase
+        .from("family_tree_members")
+        .select("display_name")
+        .eq("family_id", familyId);
+
+      if (treePii) {
+        for (const t of treePii) {
+          // Avoid duplicates with the members we already have
+          if (!piiMembers.some((m) => m.displayName === t.display_name)) {
+            piiMembers.push({ displayName: t.display_name });
+          }
+        }
+      }
+    } catch (err) {
+      console.error("[griot] Failed to build PII context:", err);
+    }
+
+    const piiCtx = buildPiiContext(piiMembers);
+
+    // ------------------------------------------------------------------
     // 2. RAG: search for relevant family knowledge.
     // ------------------------------------------------------------------
     const searchResults = await searchFamilyKnowledge(message, familyId, 6, chain.connectedUserIds);
@@ -290,19 +335,22 @@ export async function POST(request: NextRequest) {
     // ------------------------------------------------------------------
     const systemPrompt = buildSystemPrompt(familyName, knowledgeContext, familyRoster);
 
+    // Sanitize the system prompt and all user-provided messages before
+    // sending to the external LLM to prevent PII from leaking into
+    // provider logs.
     const messages: { role: string; content: string }[] = [
-      { role: "system", content: systemPrompt },
+      { role: "system", content: sanitize(systemPrompt, piiCtx) },
     ];
 
     // Append prior conversation history if provided.
     if (history && history.length > 0) {
       for (const msg of history) {
-        messages.push({ role: msg.role, content: msg.content });
+        messages.push({ role: msg.role, content: sanitize(msg.content, piiCtx) });
       }
     }
 
     // Append the current user message.
-    messages.push({ role: "user", content: message });
+    messages.push({ role: "user", content: sanitize(message, piiCtx) });
 
     // ------------------------------------------------------------------
     // 4. Call MiniMax M2.5 via OpenRouter with streaming enabled.
@@ -371,8 +419,11 @@ export async function POST(request: NextRequest) {
                 const parsed = JSON.parse(data) as OpenRouterStreamChunk;
                 const content = parsed.choices?.[0]?.delta?.content;
                 if (content) {
-                  fullResponse += content;
-                  controller.enqueue(encoder.encode(content));
+                  // Restore PII tokens in the streamed chunk so the
+                  // user sees real names, not [PERSON_N] placeholders.
+                  const restored = restore(content, piiCtx);
+                  fullResponse += restored;
+                  controller.enqueue(encoder.encode(restored));
                 }
               } catch {
                 // Skip malformed SSE lines.

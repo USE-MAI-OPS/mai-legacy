@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { getActiveFamilyIdFromCookie } from "@/lib/active-family-server";
+import { buildPiiContext, sanitize, restore, type KnownMember } from "@/lib/pii/sanitizer";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -99,6 +100,19 @@ export async function POST() {
     .eq("family_id", familyId)
     .limit(50);
 
+  // --- Build PII context for sanitization ---
+  const piiMembers: KnownMember[] = [];
+  for (const m of members ?? []) {
+    if (m.display_name) piiMembers.push({ displayName: m.display_name });
+  }
+  for (const tm of treeMembers ?? []) {
+    const fullName = `${tm.first_name} ${tm.last_name}`.trim();
+    if (fullName && !piiMembers.some((p) => p.displayName === fullName)) {
+      piiMembers.push({ displayName: fullName });
+    }
+  }
+  const piiCtx = buildPiiContext(piiMembers);
+
   // --- Build context for LLM ---
   const entryDescriptions = (entries ?? [])
     .map((e: { id: string; title: string; type: string; content: string; author_id: string; tags: string[]; created_at: string }) => {
@@ -123,7 +137,7 @@ export async function POST() {
   const today = new Date();
   const todayStr = today.toLocaleDateString("en-US", { month: "long", day: "numeric" });
 
-  const prompt = `You are Griot, the AI family historian for this family. Analyze the family's entries and generate 2-4 discovery cards — insightful connections, patterns, or interesting observations that the family might not have noticed.
+  const rawPrompt = `You are Griot, the AI family historian for this family. Analyze the family's entries and generate 2-4 discovery cards — insightful connections, patterns, or interesting observations that the family might not have noticed.
 
 FAMILY MEMBERS: ${treeMemberList || "Not provided"}
 
@@ -146,9 +160,12 @@ Rules:
 - "missing_piece" = a gap in the family knowledge (e.g., "No one has shared stories about your grandmother")
 - "milestone" = a celebration (e.g., "Your family just hit 50 entries!")
 
-Be warm, specific, and culturally aware. Reference real entry titles and member names.
+Be warm, specific, and culturally aware. Reference entry titles and member names.
 
 Return ONLY a valid JSON array. No markdown, no explanation.`;
+
+  // Sanitize the prompt to strip PII before sending to external LLM
+  const prompt = sanitize(rawPrompt, piiCtx);
 
   // --- Call LLM ---
   if (!OPENROUTER_API_KEY) {
@@ -204,6 +221,17 @@ Return ONLY a valid JSON array. No markdown, no explanation.`;
 
     if (!Array.isArray(discoveries) || discoveries.length === 0) {
       return NextResponse.json({ success: true, generated: 0 });
+    }
+
+    // Restore PII tokens in discovery text before persisting
+    for (const d of discoveries) {
+      if (d.title) d.title = restore(d.title, piiCtx);
+      if (d.body) d.body = restore(d.body, piiCtx);
+      if (Array.isArray(d.related_members)) {
+        d.related_members = d.related_members.map((name: string) =>
+          restore(name, piiCtx)
+        );
+      }
     }
 
     // --- Insert into griot_discoveries ---

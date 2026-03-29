@@ -1,6 +1,17 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+
+/** Lazily initialize Resend so builds succeed without RESEND_API_KEY at compile time */
+function getResend(): Resend {
+  if (!_resend) {
+    if (!process.env.RESEND_API_KEY) {
+      throw new Error("RESEND_API_KEY is not set");
+    }
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
 
 export async function sendInviteEmail(opts: {
   to: string;
@@ -73,7 +84,7 @@ export async function sendInviteEmail(opts: {
 </body>
 </html>`;
 
-  return resend.emails.send({
+  return getResend().emails.send({
     from: "MAI Legacy <noreply@usemai.com>",
     to,
     subject: `You're invited to join ${familyName} on MAI Legacy`,
@@ -235,7 +246,7 @@ export async function sendWeeklyDigest(opts: {
 </body>
 </html>`;
 
-  return resend.emails.send({
+  return getResend().emails.send({
     from: "MAI Legacy <noreply@usemai.com>",
     to,
     subject: `Your weekly digest from ${familyName}`,
@@ -316,7 +327,7 @@ export async function sendWaitlistConfirmation(opts: {
 </body>
 </html>`;
 
-  return resend.emails.send({
+  return getResend().emails.send({
     from: "MAI Legacy <noreply@usemai.com>",
     to,
     subject: "You're on the MAI Legacy list!",
@@ -406,7 +417,7 @@ export async function sendDripWelcome(opts: {
 </body>
 </html>`;
 
-  return resend.emails.send({
+  return getResend().emails.send({
     from: "MAI Legacy <noreply@usemai.com>",
     to,
     subject: "Your family's knowledge base is ready — here's how to start",
@@ -502,7 +513,7 @@ export async function sendDripDay3(opts: {
 </body>
 </html>`;
 
-  return resend.emails.send({
+  return getResend().emails.send({
     from: "MAI Legacy <noreply@usemai.com>",
     to,
     subject: "Your family archive + AI Griot: how they work together",
@@ -611,7 +622,7 @@ export async function sendDripDay7(opts: {
 </body>
 </html>`;
 
-  return resend.emails.send({
+  return getResend().emails.send({
     from: "MAI Legacy <noreply@usemai.com>",
     to,
     subject: "One week of family history preserved — what's next?",

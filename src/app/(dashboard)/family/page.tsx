@@ -8,7 +8,7 @@ import { UpcomingEvents } from "./components/upcoming-events";
 import { FeatureCards } from "./components/feature-cards";
 import { TraditionsSection } from "@/components/traditions-section";
 import { FamilyCoverPhoto } from "./components/family-cover-photo";
-import type { RsvpStatus } from "@/types/database";
+import type { RsvpStatus, EntryType } from "@/types/database";
 
 // ---------------------------------------------------------------------------
 // Types for raw DB rows
@@ -135,7 +135,7 @@ async function getFamilyData() {
             .from("entries")
             .select("id", { count: "exact", head: true })
             .eq("family_id", familyId)
-            .eq("type", t);
+            .eq("type", t as EntryType);
           entryCounts[t] = count ?? 0;
         }
       } catch {

@@ -81,7 +81,12 @@ export interface FeedGriotInsight {
 export type FeedItem = FeedEntry | FeedPrompt | FeedEvent | FeedDiscovery | FeedGoal | FeedGriotInsight;
 
 // ---------------------------------------------------------------------------
-// GET /api/feed?cursor=<iso>&limit=<n>
+// Valid entry types for the ?type= filter
+// ---------------------------------------------------------------------------
+const VALID_ENTRY_TYPES = new Set(["story", "recipe", "skill", "lesson", "connection", "general"]);
+
+// ---------------------------------------------------------------------------
+// GET /api/feed?cursor=<iso>&limit=<n>&type=<csv>&q=<search>
 // ---------------------------------------------------------------------------
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -100,6 +105,17 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const cursor = searchParams.get("cursor"); // ISO timestamp
   const limit = Math.min(Number(searchParams.get("limit") || "20"), 50);
+  const typeFilter = searchParams.get("type"); // comma-separated entry types, e.g. "story,recipe"
+  const searchQuery = searchParams.get("q")?.trim() || null; // free-text search
+
+  // Parse & validate type filter
+  const filterTypes: string[] = [];
+  if (typeFilter) {
+    for (const t of typeFilter.split(",")) {
+      const trimmed = t.trim().toLowerCase();
+      if (VALID_ENTRY_TYPES.has(trimmed)) filterTypes.push(trimmed);
+    }
+  }
 
   // Resolve family
   const cookieFamilyId = await getActiveFamilyIdFromCookie();
@@ -135,6 +151,18 @@ export async function GET(req: NextRequest) {
 
   if (cursor) {
     entryQuery = entryQuery.lt("created_at", cursor);
+  }
+
+  // Apply type filter
+  if (filterTypes.length > 0) {
+    entryQuery = entryQuery.in("type", filterTypes as EntryType[]);
+  }
+
+  // Apply search query to entries (title or content ilike)
+  if (searchQuery) {
+    entryQuery = entryQuery.or(
+      `title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`
+    );
   }
 
   const { data: entries, error: entriesError } = await entryQuery;
@@ -222,16 +250,24 @@ export async function GET(req: NextRequest) {
     })
   );
 
-  // --- Interleave upcoming events (only on first page) ---
+  // --- Interleave upcoming events (only on first page, or when searching) ---
   const eventItems: FeedEvent[] = [];
-  if (!cursor) {
-    const { data: events } = await sb
+  if (!cursor && filterTypes.length === 0) {
+    let eventQuery = sb
       .from("family_events")
       .select("id, title, description, event_date, location, created_at")
       .eq("family_id", familyId)
       .gte("event_date", new Date().toISOString())
       .order("event_date", { ascending: true })
       .limit(3);
+
+    if (searchQuery) {
+      eventQuery = eventQuery.or(
+        `title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`
+      );
+    }
+
+    const { data: events } = await eventQuery;
 
     for (const ev of events ?? []) {
       eventItems.push({
@@ -246,9 +282,9 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // --- Generate content prompts (only on first page) ---
+  // --- Generate content prompts (only on first page, skip when filtering/searching) ---
   const promptItems: FeedPrompt[] = [];
-  if (!cursor) {
+  if (!cursor && filterTypes.length === 0 && !searchQuery) {
     // Check what entry types the family is missing
     const types = ["recipe", "skill", "story", "lesson"];
     for (const t of types) {
@@ -297,7 +333,7 @@ export async function GET(req: NextRequest) {
 
   // --- Fetch Griot discoveries (recent, up to 5) ---
   const discoveryItems: FeedDiscovery[] = [];
-  if (!cursor) {
+  if (!cursor && filterTypes.length === 0 && !searchQuery) {
     try {
       const { data: discoveries } = await sb
         .from("griot_discoveries")
@@ -323,15 +359,23 @@ export async function GET(req: NextRequest) {
 
   // --- Fetch active family goals (only on first page) ---
   const goalItems: FeedGoal[] = [];
-  if (!cursor) {
+  if (!cursor && filterTypes.length === 0) {
     try {
-      const { data: goals } = await sb
+      let goalQuery = sb
         .from("family_goals")
         .select("id, title, description, target_count, current_count, status, due_date, created_at")
         .eq("family_id", familyId)
         .eq("status", "active")
         .order("created_at", { ascending: false })
         .limit(3);
+
+      if (searchQuery) {
+        goalQuery = goalQuery.or(
+          `title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`
+        );
+      }
+
+      const { data: goals } = await goalQuery;
 
       for (const g of goals ?? []) {
         goalItems.push({
@@ -351,7 +395,7 @@ export async function GET(req: NextRequest) {
 
   // --- Fetch Griot gap suggestions as insight cards (only on first page) ---
   const insightItems: FeedGriotInsight[] = [];
-  if (!cursor) {
+  if (!cursor && filterTypes.length === 0 && !searchQuery) {
     try {
       const { data: gaps } = await sb
         .from("griot_discoveries")

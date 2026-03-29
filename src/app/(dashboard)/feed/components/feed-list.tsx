@@ -39,6 +39,9 @@ import { GriotInsightCard } from "./griot-insight-card";
 interface FeedListProps {
   initialItems: FeedItem[];
   initialCursor: string | null;
+  filterType?: string;
+  searchQuery?: string;
+  filterEventOnly?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -523,28 +526,74 @@ function FeedDiscoveryCard({ item }: { item: FeedDiscovery }) {
 // ---------------------------------------------------------------------------
 // Feed List (with infinite scroll)
 // ---------------------------------------------------------------------------
-export function FeedList({ initialItems, initialCursor }: FeedListProps) {
+export function FeedList({ initialItems, initialCursor, filterType, searchQuery, filterEventOnly }: FeedListProps) {
   const [items, setItems] = useState<FeedItem[]>(initialItems);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(
+    // If we got no initial items but have a filter/search, we need to fetch
+    initialItems.length === 0 && (!!filterType || !!searchQuery || !!filterEventOnly)
+  );
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const hasFetchedRef = useRef(false);
+
+  // Build the query string for API calls
+  const buildUrl = useCallback(
+    (pageCursor?: string) => {
+      const params = new URLSearchParams();
+      if (pageCursor) params.set("cursor", pageCursor);
+      params.set("limit", "20");
+      if (filterType) params.set("type", filterType);
+      if (searchQuery) params.set("q", searchQuery);
+      return `/api/feed?${params.toString()}`;
+    },
+    [filterType, searchQuery]
+  );
+
+  // Initial fetch when filter/search is active (since we start with empty items)
+  useEffect(() => {
+    if (!initialLoading || hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
+
+    (async () => {
+      try {
+        const res = await fetch(buildUrl());
+        if (!res.ok) throw new Error("Feed fetch failed");
+        const data = await res.json();
+        let fetchedItems: FeedItem[] = data.items;
+        if (filterEventOnly) {
+          fetchedItems = fetchedItems.filter((item: FeedItem) => item.kind === "event");
+        }
+        setItems(fetchedItems);
+        setCursor(filterEventOnly ? null : data.nextCursor);
+      } catch (err) {
+        console.error("Initial filter fetch error:", err);
+      } finally {
+        setInitialLoading(false);
+      }
+    })();
+  }, [initialLoading, buildUrl, filterEventOnly]);
 
   const loadMore = useCallback(async () => {
     if (loading || !cursor) return;
     setLoading(true);
 
     try {
-      const res = await fetch(`/api/feed?cursor=${encodeURIComponent(cursor)}&limit=20`);
+      const res = await fetch(buildUrl(cursor));
       if (!res.ok) throw new Error("Feed fetch failed");
       const data = await res.json();
-      setItems((prev) => [...prev, ...data.items]);
-      setCursor(data.nextCursor);
+      let newItems: FeedItem[] = data.items;
+      if (filterEventOnly) {
+        newItems = newItems.filter((item: FeedItem) => item.kind === "event");
+      }
+      setItems((prev) => [...prev, ...newItems]);
+      setCursor(filterEventOnly ? null : data.nextCursor);
     } catch (err) {
       console.error("Load more error:", err);
     } finally {
       setLoading(false);
     }
-  }, [cursor, loading]);
+  }, [cursor, loading, buildUrl, filterEventOnly]);
 
   // IntersectionObserver for infinite scroll
   useEffect(() => {
@@ -564,19 +613,36 @@ export function FeedList({ initialItems, initialCursor }: FeedListProps) {
     return () => observer.disconnect();
   }, [cursor, loadMore]);
 
+  if (initialLoading) {
+    return (
+      <div className="flex justify-center py-16">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading...
+        </div>
+      </div>
+    );
+  }
+
   if (items.length === 0) {
+    const isSearching = !!filterType || !!searchQuery || !!filterEventOnly;
     return (
       <Card>
         <CardContent className="flex flex-col items-center justify-center py-16">
           <BookOpen className="h-12 w-12 text-muted-foreground/40 mb-4" />
-          <h2 className="text-lg font-semibold mb-1">Your feed is empty</h2>
+          <h2 className="text-lg font-semibold mb-1">
+            {isSearching ? "No results found" : "Your feed is empty"}
+          </h2>
           <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">
-            Start by adding entries to your family legacy. Your family's
-            stories, recipes, skills, and lessons will appear here.
+            {isSearching
+              ? "Try adjusting your search or filters to find what you're looking for."
+              : "Start by adding entries to your family legacy. Your family's stories, recipes, skills, and lessons will appear here."}
           </p>
-          <Button asChild>
-            <Link href="/entries/new">Add your first entry</Link>
-          </Button>
+          {!isSearching && (
+            <Button asChild>
+              <Link href="/entries/new">Add your first entry</Link>
+            </Button>
+          )}
         </CardContent>
       </Card>
     );

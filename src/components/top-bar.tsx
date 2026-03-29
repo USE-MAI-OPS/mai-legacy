@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Search, Bell, Users } from "lucide-react";
+import { Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveFamilyIdClient } from "@/lib/active-family";
+import { NotificationBell } from "@/components/notification-bell";
 
 export function TopBar() {
   const [visible, setVisible] = useState(true);
@@ -76,19 +77,13 @@ export function TopBar() {
       {/* Right: Search + Notifications */}
       <div className="flex items-center gap-1 shrink-0">
         <Link
-          href="/entries"
+          href="/feed"
           className="p-2 rounded-full hover:bg-accent transition-colors"
-          aria-label="Search entries"
+          aria-label="Search feed"
         >
           <Search className="h-5 w-5 text-muted-foreground" />
         </Link>
-        <Link
-          href="/notifications"
-          className="p-2 rounded-full hover:bg-accent transition-colors relative"
-          aria-label="Notifications"
-        >
-          <Bell className="h-5 w-5 text-muted-foreground" />
-        </Link>
+        <NotificationBell />
       </div>
     </header>
   );

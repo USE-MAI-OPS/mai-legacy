@@ -8,7 +8,7 @@ import type { BackgroundJob } from "@/lib/jobs/queue";
  * GET /api/cron/process-embedding-jobs
  *
  * Processes pending background embedding jobs in batches.
- * Triggered by Vercel Cron every minute.
+ * Triggered by cron every minute.
  *
  * Auth: CRON_SECRET header required.
  *

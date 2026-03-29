@@ -8,7 +8,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://usemai.com";
  * POST /api/digest/send
  *
  * Sends the weekly digest email to all eligible family members.
- * Triggered by Vercel Cron (every Sunday at 20:00 UTC).
+ * Triggered by cron (every Sunday at 20:00 UTC).
  *
  * Auth: CRON_SECRET header required.
  * Skips: families with 0 new entries this week, members with digest_opt_out=true.

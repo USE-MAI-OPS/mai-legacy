@@ -8,7 +8,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://usemai.com";
  * POST /api/drip/send
  *
  * Sends Day 3 and Day 7 drip onboarding emails to eligible users.
- * Triggered by Vercel Cron (daily at 14:00 UTC).
+ * Triggered by cron (daily at 14:00 UTC).
  *
  * Eligibility:
  *   - Day 3: user enrolled (has 'welcome' log entry) >= 3 days ago, no 'day3' log entry

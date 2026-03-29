@@ -1,4 +1,6 @@
 import { DashboardNav } from "@/components/dashboard-nav";
+import { TopBar } from "@/components/top-bar";
+import { BottomNav } from "@/components/bottom-nav";
 import { TourProvider } from "@/components/tour/tour-provider";
 import { TourOverlay } from "@/components/tour/tour-overlay";
 
@@ -17,8 +19,13 @@ export default function DashboardLayout({
         >
           Skip to content
         </a>
+        {/* Desktop: existing top navbar */}
         <DashboardNav />
-        <main id="main-content" className="pt-14">{children}</main>
+        {/* Mobile: new top bar with family name + icons */}
+        <TopBar />
+        <main id="main-content" className="pt-14 pb-16 md:pb-0">{children}</main>
+        {/* Mobile: bottom tab navigation */}
+        <BottomNav />
         <TourOverlay />
       </div>
     </TourProvider>

@@ -3,24 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  BookOpen,
-  MessageCircle,
   Mail,
   User,
   Users,
   LogOut,
-  Menu,
-  X,
-  Target,
   Sparkles,
   HelpCircle,
   Settings,
   ChevronDown,
-  Rss,
   BookMarked,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -29,7 +21,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/app/(auth)/actions";
@@ -56,9 +47,6 @@ const tourStepMap: Record<string, string> = {
 export function DashboardNav() {
   const pathname = usePathname();
   const tour = useTourOptional();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [legacyOpen, setLegacyOpen] = useState(false);
-  const [familyOpen, setFamilyOpen] = useState(false);
   const [userInfo, setUserInfo] = useState<UserInfo>({
     displayName: "",
     initials: "",
@@ -350,185 +338,6 @@ export function DashboardNav() {
           </DropdownMenu>
         </div>
       </header>
-
-      {/* Mobile header */}
-      <div
-        className={cn(
-          "md:hidden flex items-center justify-between h-14 px-4 border-b bg-card/95 backdrop-blur-sm fixed top-0 left-0 right-0 z-50 transition-transform duration-300",
-          visible ? "translate-y-0" : "-translate-y-full"
-        )}
-      >
-        <Link href="/dashboard" className="text-lg font-bold">
-          MAI Legacy
-        </Link>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setMobileOpen(!mobileOpen)}
-        >
-          {mobileOpen ? (
-            <X className="h-5 w-5" />
-          ) : (
-            <Menu className="h-5 w-5" />
-          )}
-        </Button>
-      </div>
-
-      {/* Mobile nav overlay */}
-      {mobileOpen && (
-        <div className="md:hidden fixed inset-0 top-14 z-40 bg-background/80 backdrop-blur-sm">
-          <nav className="bg-card border-b p-4 space-y-1 h-full overflow-y-auto pb-20">
-            <Link
-              href="/dashboard"
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                pathname === "/dashboard"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              Dashboard
-            </Link>
-
-            <Link
-              href="/feed"
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                pathname === "/feed"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              <Rss className="h-4 w-4" />
-              Family Feed
-            </Link>
-
-            <Separator className="my-2" />
-
-            {/* Our Legacy — collapsible */}
-            <button
-              onClick={() => setLegacyOpen(!legacyOpen)}
-              className="flex items-center justify-between w-full px-3 py-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider font-serif hover:text-foreground transition-colors"
-            >
-              <span className="flex items-center gap-3">
-                <BookOpen className="h-4 w-4" />
-                Our Legacy
-              </span>
-              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", legacyOpen && "rotate-180")} />
-            </button>
-            {legacyOpen && (
-              <div className="ml-4 space-y-0.5">
-                <Link href="/entries" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                  All Entries
-                </Link>
-                <Link href="/entries?type=recipe" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                  Recipes
-                </Link>
-                <Link href="/entries?type=skill" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                  Skills
-                </Link>
-                <Link href="/entries?type=story" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                  Stories
-                </Link>
-                <Link href="/entries?type=lesson" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                  Lessons
-                </Link>
-                <Link href="/legacy-book" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                  <BookMarked className="h-4 w-4 text-amber-600" />
-                  Legacy Book
-                  <span className="ml-auto text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-medium">Pro</span>
-                </Link>
-              </div>
-            )}
-
-            <Separator className="my-2" />
-
-            {/* Our Family — collapsible */}
-            <button
-              onClick={() => setFamilyOpen(!familyOpen)}
-              className="flex items-center justify-between w-full px-3 py-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider font-serif hover:text-foreground transition-colors"
-            >
-              <span className="flex items-center gap-3">
-                <Users className="h-4 w-4" />
-                Our Family
-              </span>
-              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", familyOpen && "rotate-180")} />
-            </button>
-            {familyOpen && (
-              <div className="ml-4 space-y-0.5">
-                <Link href="/family" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                  Family Hub
-                </Link>
-                <Link href="/family/tree" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                  Family Tree
-                </Link>
-                <Link href="/goals" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                  Family Goals
-                </Link>
-                <Link href="/messages" onClick={() => setMobileOpen(false)} className={cn("flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors", pathname.startsWith("/messages") ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-accent-foreground")}>
-                  <Mail className="h-4 w-4" />
-                  Messages
-                </Link>
-                <Link href="/family#traditions" onClick={() => setMobileOpen(false)} className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground">
-                  Traditions
-                </Link>
-              </div>
-            )}
-
-            <Separator className="my-2" />
-
-            <Link
-              href="/griot"
-              onClick={() => setMobileOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 rounded-full text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 font-serif"
-            >
-              <Sparkles className="h-4 w-4" /> The Griot
-            </Link>
-
-            <Separator className="my-2" />
-
-            <Link
-              href="/help"
-              onClick={() => setMobileOpen(false)}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                pathname === "/help"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              )}
-            >
-              <HelpCircle className="h-4 w-4" /> Help & Support
-            </Link>
-
-            {tour && (
-              <button
-                onClick={() => {
-                  setMobileOpen(false);
-                  tour.startTour();
-                }}
-                className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
-              >
-                <Sparkles className="h-4 w-4" />
-                Replay Tour
-              </button>
-            )}
-
-            <Separator className="my-2" />
-            <form action={signOut}>
-              <button
-                type="submit"
-                className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm font-medium text-destructive hover:bg-accent transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                Sign Out
-              </button>
-            </form>
-          </nav>
-        </div>
-      )}
     </>
   );
 }

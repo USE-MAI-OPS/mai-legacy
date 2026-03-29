@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import type { RelationshipLabel } from "@/types/database";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -120,7 +121,7 @@ export async function updateTreeMember(
 
   const update: {
     display_name?: string;
-    relationship_label?: string | null;
+    relationship_label?: RelationshipLabel | null;
     parent_id?: string | null;
     parent2_id?: string | null;
     spouse_id?: string | null;
@@ -131,7 +132,7 @@ export async function updateTreeMember(
   } = {};
   if (data.displayName !== undefined) update.display_name = capitalizeName(data.displayName);
   if (data.relationshipLabel !== undefined)
-    update.relationship_label = clean(data.relationshipLabel);
+    update.relationship_label = clean(data.relationshipLabel) as RelationshipLabel | null;
   if (data.parentId !== undefined) update.parent_id = clean(data.parentId);
   if (data.parent2Id !== undefined) update.parent2_id = clean(data.parent2Id);
   if (data.spouseId !== undefined) update.spouse_id = clean(data.spouseId);

@@ -150,30 +150,25 @@ export async function createFamily(
     return { error: familyError.message };
   }
 
-  const memberData: Record<string, unknown> = {
-    family_id: family.id,
-    user_id: user.id,
-    role: "admin",
-    display_name: displayName.trim(),
-    life_story: {
-      career: [],
-      places: [],
-      education: [],
-      skills: [],
-      hobbies: [],
-      military: null,
-      milestones: [],
-    },
-  };
-
-  if (nickname?.trim()) {
-    memberData.nickname = nickname.trim();
-  }
-
   // Add the current user as admin member
   const { error: memberError } = await admin
     .from("family_members")
-    .insert(memberData);
+    .insert({
+      family_id: family.id,
+      user_id: user.id,
+      role: "admin",
+      display_name: displayName.trim(),
+      ...(nickname?.trim() ? { nickname: nickname.trim() } : {}),
+      life_story: {
+        career: [],
+        places: [],
+        education: [],
+        skills: [],
+        hobbies: [],
+        military: null,
+        milestones: [],
+      },
+    });
 
   if (memberError) {
     return { error: memberError.message };

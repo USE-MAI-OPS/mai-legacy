@@ -7,6 +7,21 @@ import { revalidatePath } from "next/cache";
 export async function updateFamilyName(familyId: string, name: string) {
   try {
     const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "Not authenticated" };
+
+    // Verify the caller is an admin of this family
+    const { data: membership } = await supabase
+      .from("family_members")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("family_id", familyId)
+      .single();
+    if (!membership || membership.role !== "admin")
+      return { success: false, error: "Not authorized" };
+
     const { error } = await supabase
       .from("families")
       .update({ name })
@@ -134,6 +149,33 @@ export async function createInviteLink(familyId: string) {
 export async function removeMember(memberId: string) {
   try {
     const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: "Not authenticated" };
+
+    // Look up the target member to find their family
+    const { data: target } = await supabase
+      .from("family_members")
+      .select("family_id, user_id")
+      .eq("id", memberId)
+      .single();
+    if (!target) return { success: false, error: "Member not found" };
+
+    // Prevent removing yourself
+    if (target.user_id === user.id)
+      return { success: false, error: "Cannot remove yourself" };
+
+    // Verify the caller is an admin of the same family
+    const { data: callerMembership } = await supabase
+      .from("family_members")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("family_id", target.family_id)
+      .single();
+    if (!callerMembership || callerMembership.role !== "admin")
+      return { success: false, error: "Not authorized" };
+
     const { error } = await supabase
       .from("family_members")
       .delete()

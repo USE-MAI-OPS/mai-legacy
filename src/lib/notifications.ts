@@ -54,6 +54,14 @@ export async function createNotification({
 }): Promise<void> {
   try {
     const supabase = await createClient();
+
+    // Guard: require an authenticated session even though this is an internal helper,
+    // because the file-level "use server" makes it callable as a server action.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return;
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase as any;
 

@@ -123,6 +123,11 @@ export async function updateTreeMember(
   }>
 ) {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Not authenticated" };
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;
 

@@ -1,6 +1,20 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+
+export const metadata: Metadata = {
+  title: "Terms of Service",
+  description:
+    "Read the MAI Legacy Terms of Service. Understand your rights and responsibilities when using our family knowledge platform.",
+  openGraph: {
+    title: "Terms of Service | MAI Legacy",
+    description:
+      "Read the MAI Legacy Terms of Service.",
+    url: "/terms",
+  },
+  robots: { index: true, follow: false },
+};
 
 export default function TermsPage() {
   return (

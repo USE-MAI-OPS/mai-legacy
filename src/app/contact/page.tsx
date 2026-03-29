@@ -7,8 +7,17 @@ import { Mail, MessageSquare } from "lucide-react";
 import Link from "next/link";
 
 export const metadata = {
-  title: "Contact Us | MAI Legacy",
+  title: "Contact Us",
   description: "Get in touch with the MAI Legacy team.",
+  openGraph: {
+    title: "Contact Us | MAI Legacy",
+    description: "Get in touch with the MAI Legacy team.",
+    url: "/contact",
+  },
+  twitter: {
+    title: "Contact Us | MAI Legacy",
+    description: "Get in touch with the MAI Legacy team.",
+  },
 };
 
 export default function ContactPage() {

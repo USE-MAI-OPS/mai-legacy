@@ -17,9 +17,20 @@ import type { EntryType } from "@/types/database";
 // Metadata
 // ---------------------------------------------------------------------------
 export const metadata: Metadata = {
-  title: "Explore | MAI Legacy",
+  title: "Explore",
   description:
     "Discover family stories, recipes, skills, and wisdom shared by families on MAI Legacy.",
+  openGraph: {
+    title: "Explore Family Stories | MAI Legacy",
+    description:
+      "Discover family stories, recipes, skills, and wisdom shared by families on MAI Legacy.",
+    url: "/explore",
+  },
+  twitter: {
+    title: "Explore Family Stories | MAI Legacy",
+    description:
+      "Discover family stories, recipes, skills, and wisdom shared by families on MAI Legacy.",
+  },
 };
 
 // ---------------------------------------------------------------------------

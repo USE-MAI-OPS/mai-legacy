@@ -1,6 +1,20 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy",
+  description:
+    "Learn how MAI Legacy collects, uses, and protects your family's data. Your stories stay private — always.",
+  openGraph: {
+    title: "Privacy Policy | MAI Legacy",
+    description:
+      "Learn how MAI Legacy collects, uses, and protects your family's data.",
+    url: "/privacy",
+  },
+  robots: { index: true, follow: false },
+};
 
 export default function PrivacyPage() {
   return (

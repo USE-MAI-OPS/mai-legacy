@@ -18,10 +18,36 @@ const lora = Lora({
   subsets: ["latin"],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://mailegacy.com";
+const defaultTitle = "MAI Legacy — The Family Knowledge Platform";
+const defaultDescription =
+  "Build your family's living knowledge base. Document stories, skills, recipes, and wisdom. Ask the Griot anything.";
+
 export const metadata: Metadata = {
-  title: "MAI Legacy — The Family Knowledge Platform",
-  description:
-    "Build your family's living knowledge base. Document stories, skills, recipes, and wisdom. Ask the Griot anything.",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: defaultTitle,
+    template: "%s | MAI Legacy",
+  },
+  description: defaultDescription,
+  openGraph: {
+    type: "website",
+    siteName: "MAI Legacy",
+    title: defaultTitle,
+    description: defaultDescription,
+    url: "/",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: defaultTitle,
+    description: defaultDescription,
+    site: "@mailegacy",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({

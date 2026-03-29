@@ -67,6 +67,7 @@ async function getTreeData() {
       ]);
 
     // If position columns don't exist yet, retry without them
+    let treeMembersData: TreeMemberRow[] | null = treeMembersResult.data as TreeMemberRow[] | null;
     if (treeMembersResult.error?.message?.includes("does not exist")) {
       let fallbackQuery = sb
         .from("family_tree_members")
@@ -77,8 +78,7 @@ async function getTreeData() {
         fallbackQuery = fallbackQuery.in("id", connectedTreeMemberIds);
       }
       const fallback = await fallbackQuery;
-      treeMembersResult.data = fallback.data;
-      treeMembersResult.error = fallback.error;
+      treeMembersData = (fallback.data as TreeMemberRow[] | null);
     }
 
     const realMembers = (realMembersResult.data as RealMemberRow[]) ?? [];
@@ -86,7 +86,7 @@ async function getTreeData() {
 
     return {
       familyName: familyResult.data?.name ?? "Your Family",
-      treeMembers: (treeMembersResult.data as TreeMemberRow[]) ?? [],
+      treeMembers: treeMembersData ?? [],
       realMembers,
       currentUserId: userId,
       currentUserMemberId: currentUserMember?.id ?? null,

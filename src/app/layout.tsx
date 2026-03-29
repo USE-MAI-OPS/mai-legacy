@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Lora } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { PostHogProvider } from "@/components/posthog-provider";
+import { PostHogPageView } from "@/components/posthog-pageview";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -60,8 +62,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} antialiased`}
       >
-        {children}
-        <Toaster />
+        <PostHogProvider>
+          <PostHogPageView />
+          {children}
+          <Toaster />
+        </PostHogProvider>
       </body>
     </html>
   );

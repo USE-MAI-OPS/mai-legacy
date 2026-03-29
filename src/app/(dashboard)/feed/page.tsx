@@ -1,5 +1,6 @@
 import { getFamilyContext } from "@/lib/get-family-context";
 import { FeedList } from "./components/feed-list";
+import { OnThisDayCard } from "@/components/on-this-day-card";
 import type { FeedItem, FeedEntry, FeedEvent, FeedPrompt, FeedDiscovery } from "@/app/api/feed/route";
 
 // ---------------------------------------------------------------------------
@@ -11,8 +12,7 @@ async function getInitialFeed(): Promise<{ items: FeedItem[]; nextCursor: string
     if (!ctx) return { items: [], nextCursor: null };
     const { familyId, supabase, connectedUserIds } = ctx;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const sb = supabase as any;
+    const sb = supabase;
 
     // Fetch recent entries
     const { data: entries } = await sb
@@ -237,6 +237,7 @@ export default async function FeedPage() {
         </p>
       </div>
 
+      <OnThisDayCard />
       <FeedList initialItems={items} initialCursor={nextCursor} />
     </div>
   );

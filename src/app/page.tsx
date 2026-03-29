@@ -594,6 +594,7 @@ export default function HomePage() {
               <li><Link href="/" className="hover:text-primary transition-colors">Home</Link></li>
               <li><Link href="/demo" className="hover:text-primary transition-colors">Interactive Demo</Link></li>
               <li><Link href="#features" className="hover:text-primary transition-colors">Features</Link></li>
+              <li><Link href="/blog" className="hover:text-primary transition-colors">Blog</Link></li>
               <li><Link href="/signup" className="hover:text-primary transition-colors">Sign Up</Link></li>
             </ul>
           </div>

@@ -81,39 +81,52 @@ export async function getConversations(): Promise<ConversationPreview[]> {
       }
     }
 
-    // For each conversation, get the last message and unread count
-    const previews: ConversationPreview[] = [];
-    for (const conv of conversations) {
+    // Batch-fetch last messages and unread counts in parallel (avoid N+1)
+    const convIds = conversations.map((c) => c.id);
+
+    const [lastMessagesResult, unreadResult] = await Promise.all([
+      // Single query: latest message per conversation via descending order
+      ctx.sb
+        .from("direct_messages")
+        .select("conversation_id, content, created_at")
+        .in("conversation_id", convIds)
+        .order("created_at", { ascending: false }),
+      // Single query: all unread messages from others across all conversations
+      ctx.sb
+        .from("direct_messages")
+        .select("conversation_id")
+        .in("conversation_id", convIds)
+        .eq("read", false)
+        .neq("sender_id", ctx.userId),
+    ]);
+
+    // Build last-message map (first occurrence per conversation_id is the latest)
+    const lastMsgMap: Record<string, string | null> = {};
+    for (const msg of lastMessagesResult.data ?? []) {
+      if (!(msg.conversation_id in lastMsgMap)) {
+        lastMsgMap[msg.conversation_id] = msg.content;
+      }
+    }
+
+    // Build unread-count map
+    const unreadMap: Record<string, number> = {};
+    for (const msg of unreadResult.data ?? []) {
+      unreadMap[msg.conversation_id] = (unreadMap[msg.conversation_id] ?? 0) + 1;
+    }
+
+    const previews: ConversationPreview[] = conversations.map((conv) => {
       const otherId = conv.participant_ids.find(
         (id: string) => id !== ctx.userId
       ) ?? "";
-
-      // Last message
-      const { data: lastMsg } = await ctx.sb
-        .from("direct_messages")
-        .select("content")
-        .eq("conversation_id", conv.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      // Unread count
-      const { count } = await ctx.sb
-        .from("direct_messages")
-        .select("id", { count: "exact", head: true })
-        .eq("conversation_id", conv.id)
-        .eq("read", false)
-        .neq("sender_id", ctx.userId);
-
-      previews.push({
+      return {
         id: conv.id,
         otherParticipantName: nameMap[otherId] ?? "Unknown",
         otherParticipantId: otherId,
-        lastMessageContent: lastMsg?.content ?? null,
+        lastMessageContent: lastMsgMap[conv.id] ?? null,
         lastMessageAt: conv.last_message_at,
-        unreadCount: count ?? 0,
-      });
-    }
+        unreadCount: unreadMap[conv.id] ?? 0,
+      };
+    });
 
     return previews;
   } catch (err) {

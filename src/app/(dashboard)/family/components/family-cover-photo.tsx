@@ -5,6 +5,8 @@ import { Camera, Upload, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { uploadFamilyCover, getFamilyCoverUrl } from "@/lib/supabase/storage";
+import { validateImageFile } from "@/lib/upload-validation";
+import { toast } from "sonner";
 
 interface FamilyCoverPhotoProps {
   familyId: string;
@@ -34,7 +36,11 @@ export function FamilyCoverPhoto({
 
   const handleFile = useCallback(
     async (file: File) => {
-      if (!file.type.startsWith("image/")) return;
+      const check = validateImageFile(file);
+      if (!check.valid) {
+        toast.error(check.error);
+        return;
+      }
       setUploading(true);
 
       const url = await uploadFamilyCover(file, familyId);
@@ -101,7 +107,7 @@ export function FamilyCoverPhoto({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -168,7 +174,7 @@ export function FamilyCoverPhoto({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];

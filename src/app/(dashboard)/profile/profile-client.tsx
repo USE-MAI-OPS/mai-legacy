@@ -23,6 +23,7 @@ import {
 import type { LifeStory } from "@/types/database";
 import { createBrowserClient } from "@supabase/ssr";
 import { uploadAvatar } from "@/lib/supabase/storage";
+import { validateImageFile, MAX_AVATAR_SIZE_BYTES } from "@/lib/upload-validation";
 import { toast } from "sonner";
 
 export interface ProfileUser {
@@ -167,13 +168,9 @@ export function ProfileClient({
     const file = e.target.files?.[0];
     if (!file || !userId) return;
 
-    // Validate file type and size
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be less than 5MB");
+    const check = validateImageFile(file, MAX_AVATAR_SIZE_BYTES);
+    if (!check.valid) {
+      toast.error(check.error);
       return;
     }
 
@@ -259,7 +256,7 @@ export function ProfileClient({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
                 className="hidden"
                 onChange={handleAvatarUpload}
               />

@@ -1,4 +1,8 @@
 import { createClient } from "./client";
+import {
+  validateImageFile,
+  MAX_AVATAR_SIZE_BYTES,
+} from "@/lib/upload-validation";
 
 const BUCKET_NAME = "entry-images";
 
@@ -10,6 +14,12 @@ export async function uploadEntryImage(
   file: File,
   familyId: string
 ): Promise<string | null> {
+  const check = validateImageFile(file);
+  if (!check.valid) {
+    console.error("Image validation failed:", check.error);
+    return null;
+  }
+
   const supabase = createClient();
 
   // Generate a unique path: family_id/timestamp_randomId.ext
@@ -45,6 +55,12 @@ export async function uploadAvatar(
   file: File,
   userId: string
 ): Promise<string | null> {
+  const check = validateImageFile(file, MAX_AVATAR_SIZE_BYTES);
+  if (!check.valid) {
+    console.error("Avatar validation failed:", check.error);
+    return null;
+  }
+
   const supabase = createClient();
 
   const ext = file.name.split(".").pop() || "jpg";
@@ -79,6 +95,12 @@ export async function uploadFamilyCover(
   file: File,
   familyId: string
 ): Promise<string | null> {
+  const check = validateImageFile(file);
+  if (!check.valid) {
+    console.error("Cover validation failed:", check.error);
+    return null;
+  }
+
   const supabase = createClient();
 
   const ext = file.name.split(".").pop() || "jpg";

@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { uploadEntryImage } from "@/lib/supabase/storage";
+import { validateImageFile } from "@/lib/upload-validation";
+import { toast } from "sonner";
 
 interface ImageUploadProps {
   images: string[];
@@ -30,9 +32,15 @@ export function ImageUpload({
 
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
-      const fileArray = Array.from(files).filter((f) =>
-        f.type.startsWith("image/")
-      );
+      const fileArray: File[] = [];
+      for (const f of Array.from(files)) {
+        const check = validateImageFile(f);
+        if (!check.valid) {
+          toast.error(check.error);
+        } else {
+          fileArray.push(f);
+        }
+      }
       if (fileArray.length === 0) return;
 
       const remaining = maxImages - images.length;
@@ -154,7 +162,7 @@ export function ImageUpload({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/gif,image/webp,image/avif"
         multiple
         className="hidden"
         onChange={(e) => {

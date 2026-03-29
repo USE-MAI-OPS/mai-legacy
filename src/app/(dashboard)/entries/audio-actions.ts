@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getFamilyContext } from "@/lib/get-family-context";
 import { revalidatePath } from "next/cache";
+import { validateAudioFile } from "@/lib/upload-validation";
 
 // ---------------------------------------------------------------------------
 // Upload audio for an entry
@@ -23,6 +24,9 @@ export async function uploadEntryAudio(
   const duration = durationStr ? parseInt(durationStr, 10) : null;
 
   if (!audioFile) return { success: false, error: "No audio file provided" };
+
+  const check = validateAudioFile(audioFile);
+  if (!check.valid) return { success: false, error: check.error };
 
   // Verify entry ownership
   const { data: entry } = await sb

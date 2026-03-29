@@ -24,7 +24,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MatureToggle } from "@/components/entry-forms/mature-toggle";
+import { CharacterCount } from "@/components/ui/character-count";
 import type { ConnectionData } from "@/types/database";
+
+const NAME_MAX = 200;
+const NOTES_MAX = 2_000;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -157,6 +161,8 @@ export default function ConnectionForm({
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
     if (!fullName.trim()) newErrors.fullName = "Full name is required.";
+    else if (fullName.length > NAME_MAX) newErrors.fullName = `Name must be ${NAME_MAX} characters or less.`;
+    if (notes.length > NOTES_MAX) newErrors.notes = `Notes must be ${NOTES_MAX} characters or less.`;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -228,15 +234,22 @@ export default function ConnectionForm({
             placeholder="e.g., Aunt Dorothy Mae Johnson"
             className="text-lg py-6 rounded-xl border-accent-foreground/20 bg-background"
             value={fullName}
+            maxLength={NAME_MAX}
             onChange={(e) => {
               setFullName(e.target.value);
               if (errors.fullName) setErrors((p) => ({ ...p, fullName: "" }));
             }}
+            onBlur={() => {
+              if (!fullName.trim()) setErrors((p) => ({ ...p, fullName: "Full name is required." }));
+            }}
             aria-invalid={!!errors.fullName}
           />
-          {errors.fullName && (
-            <p className="text-sm text-destructive font-medium">{errors.fullName}</p>
-          )}
+          <div className="flex justify-between items-start gap-2">
+            {errors.fullName ? (
+              <p className="text-sm text-destructive font-medium">{errors.fullName}</p>
+            ) : <span />}
+            <CharacterCount current={fullName.length} max={NAME_MAX} />
+          </div>
         </div>
 
         {/* Relationship */}
@@ -318,9 +331,20 @@ export default function ConnectionForm({
             placeholder="How do you know this person? What makes them special to your family?"
             rows={5}
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            maxLength={NOTES_MAX}
+            onChange={(e) => {
+              setNotes(e.target.value);
+              if (errors.notes) setErrors((p) => ({ ...p, notes: "" }));
+            }}
+            aria-invalid={!!errors.notes}
             className="resize-y text-base p-6 rounded-2xl border-accent-foreground/30 leading-relaxed"
           />
+          <div className="flex justify-between items-start gap-2">
+            {errors.notes ? (
+              <p className="text-sm text-destructive font-medium">{errors.notes}</p>
+            ) : <span />}
+            <CharacterCount current={notes.length} max={NOTES_MAX} />
+          </div>
         </div>
 
         {/* Tags */}

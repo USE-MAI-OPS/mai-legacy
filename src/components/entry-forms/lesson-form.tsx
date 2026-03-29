@@ -18,7 +18,13 @@ import {
 } from "@/components/ui/card";
 import { ImageUpload } from "@/components/image-upload";
 import { MatureToggle } from "@/components/entry-forms/mature-toggle";
+import { CharacterCount } from "@/components/ui/character-count";
 import type { LessonData } from "@/types/database";
+
+const TITLE_MAX = 200;
+const SHORT_MAX = 150;
+const CONTEXT_MAX = 2_000;
+const LESSON_MAX = 10_000;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -150,7 +156,12 @@ export default function LessonForm({ onSubmit, saving = false, familyId, mode = 
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
     if (!title.trim()) newErrors.title = "Title is required.";
+    else if (title.length > TITLE_MAX) newErrors.title = `Title must be ${TITLE_MAX} characters or less.`;
+    if (taughtBy.length > SHORT_MAX) newErrors.taughtBy = `Must be ${SHORT_MAX} characters or less.`;
+    if (whenLearned.length > SHORT_MAX) newErrors.whenLearned = `Must be ${SHORT_MAX} characters or less.`;
+    if (context.length > CONTEXT_MAX) newErrors.context = `Context must be ${CONTEXT_MAX} characters or less.`;
     if (!lessonText.trim()) newErrors.lessonText = "The lesson is required.";
+    else if (lessonText.length > LESSON_MAX) newErrors.lessonText = `Lesson must be ${LESSON_MAX} characters or less.`;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -216,15 +227,22 @@ export default function LessonForm({ onSubmit, saving = false, familyId, mode = 
             placeholder="e.g., Always save before you spend, Measure twice cut once"
             className="text-lg py-6 rounded-xl border-accent-foreground/20 bg-background"
             value={title}
+            maxLength={TITLE_MAX}
             onChange={(e) => {
               setTitle(e.target.value);
               if (errors.title) setErrors((p) => ({ ...p, title: "" }));
             }}
+            onBlur={() => {
+              if (!title.trim()) setErrors((p) => ({ ...p, title: "Title is required." }));
+            }}
             aria-invalid={!!errors.title}
           />
-          {errors.title && (
-            <p className="text-sm text-destructive font-medium">{errors.title}</p>
-          )}
+          <div className="flex justify-between items-start gap-2">
+            {errors.title ? (
+              <p className="text-sm text-destructive font-medium">{errors.title}</p>
+            ) : <span />}
+            <CharacterCount current={title.length} max={TITLE_MAX} />
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 bg-muted/20 p-6 rounded-2xl border border-border/40">
@@ -236,8 +254,19 @@ export default function LessonForm({ onSubmit, saving = false, familyId, mode = 
               placeholder="Grandpa, Mom, Coach Williams, life itself..."
               className="text-base py-5 rounded-xl border-accent-foreground/20 bg-background"
               value={taughtBy}
-              onChange={(e) => setTaughtBy(e.target.value)}
+              maxLength={SHORT_MAX}
+              onChange={(e) => {
+                setTaughtBy(e.target.value);
+                if (errors.taughtBy) setErrors((p) => ({ ...p, taughtBy: "" }));
+              }}
+              aria-invalid={!!errors.taughtBy}
             />
+            <div className="flex justify-between items-start gap-2">
+              {errors.taughtBy ? (
+                <p className="text-sm text-destructive font-medium">{errors.taughtBy}</p>
+              ) : <span />}
+              <CharacterCount current={taughtBy.length} max={SHORT_MAX} />
+            </div>
           </div>
 
           {/* When */}
@@ -248,8 +277,19 @@ export default function LessonForm({ onSubmit, saving = false, familyId, mode = 
               placeholder="During college, after the move to Chicago, 2003..."
               className="text-base py-5 rounded-xl border-accent-foreground/20 bg-background"
               value={whenLearned}
-              onChange={(e) => setWhenLearned(e.target.value)}
+              maxLength={SHORT_MAX}
+              onChange={(e) => {
+                setWhenLearned(e.target.value);
+                if (errors.whenLearned) setErrors((p) => ({ ...p, whenLearned: "" }));
+              }}
+              aria-invalid={!!errors.whenLearned}
             />
+            <div className="flex justify-between items-start gap-2">
+              {errors.whenLearned ? (
+                <p className="text-sm text-destructive font-medium">{errors.whenLearned}</p>
+              ) : <span />}
+              <CharacterCount current={whenLearned.length} max={SHORT_MAX} />
+            </div>
           </div>
         </div>
 
@@ -261,9 +301,20 @@ export default function LessonForm({ onSubmit, saving = false, familyId, mode = 
             placeholder="What was happening at the time? What led up to this lesson?"
             rows={4}
             value={context}
-            onChange={(e) => setContext(e.target.value)}
+            maxLength={CONTEXT_MAX}
+            onChange={(e) => {
+              setContext(e.target.value);
+              if (errors.context) setErrors((p) => ({ ...p, context: "" }));
+            }}
+            aria-invalid={!!errors.context}
             className="resize-y text-base p-5 rounded-2xl border-accent-foreground/20 leading-relaxed"
           />
+          <div className="flex justify-between items-start gap-2">
+            {errors.context ? (
+              <p className="text-sm text-destructive font-medium">{errors.context}</p>
+            ) : <span />}
+            <CharacterCount current={context.length} max={CONTEXT_MAX} />
+          </div>
         </div>
 
         {/* The Lesson */}
@@ -276,16 +327,23 @@ export default function LessonForm({ onSubmit, saving = false, familyId, mode = 
             placeholder="Explain the lesson in your own words. What did you learn? Why does it matter?"
             rows={8}
             value={lessonText}
+            maxLength={LESSON_MAX}
             onChange={(e) => {
               setLessonText(e.target.value);
               if (errors.lessonText) setErrors((p) => ({ ...p, lessonText: "" }));
             }}
+            onBlur={() => {
+              if (!lessonText.trim()) setErrors((p) => ({ ...p, lessonText: "The lesson is required." }));
+            }}
             aria-invalid={!!errors.lessonText}
             className="resize-y min-h-[160px] text-lg p-6 rounded-2xl border-accent-foreground/30 leading-relaxed"
           />
-          {errors.lessonText && (
-            <p className="text-sm text-destructive font-medium">{errors.lessonText}</p>
-          )}
+          <div className="flex justify-between items-start gap-2">
+            {errors.lessonText ? (
+              <p className="text-sm text-destructive font-medium">{errors.lessonText}</p>
+            ) : <span />}
+            <CharacterCount current={lessonText.length} max={LESSON_MAX} />
+          </div>
         </div>
 
         {/* Key Takeaways */}

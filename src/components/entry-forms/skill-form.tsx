@@ -18,7 +18,11 @@ import {
 } from "@/components/ui/card";
 import { ImageUpload } from "@/components/image-upload";
 import { MatureToggle } from "@/components/entry-forms/mature-toggle";
+import { CharacterCount } from "@/components/ui/character-count";
 import type { SkillData } from "@/types/database";
+
+const TITLE_MAX = 200;
+const CONTEXT_MAX = 2_000;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -212,6 +216,9 @@ export default function SkillForm({ onSubmit, saving = false, familyId, mode = "
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
     if (!title.trim()) newErrors.title = "Skill title is required.";
+    else if (title.length > TITLE_MAX) newErrors.title = `Title must be ${TITLE_MAX} characters or less.`;
+    if (exercises.length > CONTEXT_MAX) newErrors.exercises = `Must be ${CONTEXT_MAX} characters or less.`;
+    if (story.length > CONTEXT_MAX) newErrors.story = `Must be ${CONTEXT_MAX} characters or less.`;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -358,15 +365,22 @@ export default function SkillForm({ onSubmit, saving = false, familyId, mode = "
             placeholder="e.g., How to patch drywall, Canning peaches, Braiding hair"
             className="text-lg py-6 rounded-xl border-accent-foreground/20 bg-background"
             value={title}
+            maxLength={TITLE_MAX}
             onChange={(e) => {
               setTitle(e.target.value);
               if (errors.title) setErrors((p) => ({ ...p, title: "" }));
             }}
+            onBlur={() => {
+              if (!title.trim()) setErrors((p) => ({ ...p, title: "Skill title is required." }));
+            }}
             aria-invalid={!!errors.title}
           />
-          {errors.title && (
-            <p className="text-sm text-destructive font-medium">{errors.title}</p>
-          )}
+          <div className="flex justify-between items-start gap-2">
+            {errors.title ? (
+              <p className="text-sm text-destructive font-medium">{errors.title}</p>
+            ) : <span />}
+            <CharacterCount current={title.length} max={TITLE_MAX} />
+          </div>
         </div>
 
         {/* Difficulty */}
@@ -474,9 +488,20 @@ export default function SkillForm({ onSubmit, saving = false, familyId, mode = "
             placeholder="Suggest exercises to practice this skill (one per line)"
             rows={4}
             value={exercises}
-            onChange={(e) => setExercises(e.target.value)}
+            maxLength={CONTEXT_MAX}
+            onChange={(e) => {
+              setExercises(e.target.value);
+              if (errors.exercises) setErrors((p) => ({ ...p, exercises: "" }));
+            }}
+            aria-invalid={!!errors.exercises}
             className="resize-y text-base p-5 rounded-2xl border-accent-foreground/20 leading-relaxed"
           />
+          <div className="flex justify-between items-start gap-2">
+            {errors.exercises ? (
+              <p className="text-sm text-destructive font-medium">{errors.exercises}</p>
+            ) : <span />}
+            <CharacterCount current={exercises.length} max={CONTEXT_MAX} />
+          </div>
         </div>
 
         {/* Story / Context */}
@@ -487,9 +512,20 @@ export default function SkillForm({ onSubmit, saving = false, familyId, mode = "
             placeholder="How did you learn this skill? Who taught you? What makes it important to your family?"
             rows={4}
             value={story}
-            onChange={(e) => setStory(e.target.value)}
+            maxLength={CONTEXT_MAX}
+            onChange={(e) => {
+              setStory(e.target.value);
+              if (errors.story) setErrors((p) => ({ ...p, story: "" }));
+            }}
+            aria-invalid={!!errors.story}
             className="resize-y text-base p-5 rounded-2xl border-accent-foreground/20 leading-relaxed"
           />
+          <div className="flex justify-between items-start gap-2">
+            {errors.story ? (
+              <p className="text-sm text-destructive font-medium">{errors.story}</p>
+            ) : <span />}
+            <CharacterCount current={story.length} max={CONTEXT_MAX} />
+          </div>
         </div>
 
         {/* Tags */}

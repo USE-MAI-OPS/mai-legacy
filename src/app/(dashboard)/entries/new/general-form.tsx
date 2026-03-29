@@ -17,7 +17,11 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { MatureToggle } from "@/components/entry-forms/mature-toggle";
+import { CharacterCount } from "@/components/ui/character-count";
 import type { EntryType } from "@/types/database";
+
+const TITLE_MAX = 200;
+const CONTENT_MAX = 10_000;
 
 interface GeneralFormProps {
   onSubmit: (data: {
@@ -71,7 +75,9 @@ export default function GeneralForm({ onSubmit, saving = false }: GeneralFormPro
   function validate(): boolean {
     const newErrors: { title?: string; content?: string } = {};
     if (!title.trim()) newErrors.title = "Title is required.";
+    else if (title.length > TITLE_MAX) newErrors.title = `Title must be ${TITLE_MAX} characters or less.`;
     if (!content.trim()) newErrors.content = "Content is required.";
+    else if (content.length > CONTENT_MAX) newErrors.content = `Content must be ${CONTENT_MAX} characters or less.`;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -119,16 +125,23 @@ export default function GeneralForm({ onSubmit, saving = false }: GeneralFormPro
             id="title"
             placeholder="Give your entry a meaningful title"
             value={title}
+            maxLength={TITLE_MAX}
             onChange={(e) => {
               setTitle(e.target.value);
               if (errors.title)
                 setErrors((prev) => ({ ...prev, title: undefined }));
             }}
+            onBlur={() => {
+              if (!title.trim()) setErrors((prev) => ({ ...prev, title: "Title is required." }));
+            }}
             aria-invalid={!!errors.title}
           />
-          {errors.title && (
-            <p className="text-sm text-destructive">{errors.title}</p>
-          )}
+          <div className="flex justify-between items-start gap-2">
+            {errors.title ? (
+              <p className="text-sm text-destructive">{errors.title}</p>
+            ) : <span />}
+            <CharacterCount current={title.length} max={TITLE_MAX} />
+          </div>
         </div>
 
         {/* Content */}
@@ -141,17 +154,24 @@ export default function GeneralForm({ onSubmit, saving = false }: GeneralFormPro
             placeholder="Tell the story, share the recipe, describe the skill..."
             rows={8}
             value={content}
+            maxLength={CONTENT_MAX}
             onChange={(e) => {
               setContent(e.target.value);
               if (errors.content)
                 setErrors((prev) => ({ ...prev, content: undefined }));
             }}
+            onBlur={() => {
+              if (!content.trim()) setErrors((prev) => ({ ...prev, content: "Content is required." }));
+            }}
             aria-invalid={!!errors.content}
             className="resize-y min-h-[160px]"
           />
-          {errors.content && (
-            <p className="text-sm text-destructive">{errors.content}</p>
-          )}
+          <div className="flex justify-between items-start gap-2">
+            {errors.content ? (
+              <p className="text-sm text-destructive">{errors.content}</p>
+            ) : <span />}
+            <CharacterCount current={content.length} max={CONTENT_MAX} />
+          </div>
         </div>
 
         {/* Tags */}

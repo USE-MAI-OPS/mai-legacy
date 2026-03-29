@@ -18,7 +18,12 @@ import {
 } from "@/components/ui/card";
 import { ImageUpload } from "@/components/image-upload";
 import { MatureToggle } from "@/components/entry-forms/mature-toggle";
+import { CharacterCount } from "@/components/ui/character-count";
 import type { StoryData } from "@/types/database";
+
+const TITLE_MAX = 200;
+const SHORT_MAX = 150;
+const NARRATIVE_MAX = 10_000;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -149,7 +154,11 @@ export default function StoryForm({ onSubmit, saving = false, familyId, mode = "
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
     if (!title.trim()) newErrors.title = "Title is required.";
+    else if (title.length > TITLE_MAX) newErrors.title = `Title must be ${TITLE_MAX} characters or less.`;
+    if (when.length > SHORT_MAX) newErrors.when = `Must be ${SHORT_MAX} characters or less.`;
+    if (where.length > SHORT_MAX) newErrors.where = `Must be ${SHORT_MAX} characters or less.`;
     if (!narrative.trim()) newErrors.narrative = "The story is required.";
+    else if (narrative.length > NARRATIVE_MAX) newErrors.narrative = `Story must be ${NARRATIVE_MAX} characters or less.`;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -213,15 +222,22 @@ export default function StoryForm({ onSubmit, saving = false, familyId, mode = "
             placeholder="e.g. The Summer We Drove to Memphis"
             className="text-lg py-6 rounded-xl border-accent-foreground/20 bg-background"
             value={title}
+            maxLength={TITLE_MAX}
             onChange={(e) => {
               setTitle(e.target.value);
               if (errors.title) setErrors((p) => ({ ...p, title: "" }));
             }}
+            onBlur={() => {
+              if (!title.trim()) setErrors((p) => ({ ...p, title: "Title is required." }));
+            }}
             aria-invalid={!!errors.title}
           />
-          {errors.title && (
-            <p className="text-sm text-destructive font-medium">{errors.title}</p>
-          )}
+          <div className="flex justify-between items-start gap-2">
+            {errors.title ? (
+              <p className="text-sm text-destructive font-medium">{errors.title}</p>
+            ) : <span />}
+            <CharacterCount current={title.length} max={TITLE_MAX} />
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 bg-muted/20 p-6 rounded-2xl border border-border/40">
@@ -233,8 +249,19 @@ export default function StoryForm({ onSubmit, saving = false, familyId, mode = "
               placeholder="Summer of 1995, Christmas 2010..."
               className="text-base py-5 rounded-xl border-accent-foreground/20 bg-background"
               value={when}
-              onChange={(e) => setWhen(e.target.value)}
+              maxLength={SHORT_MAX}
+              onChange={(e) => {
+                setWhen(e.target.value);
+                if (errors.when) setErrors((p) => ({ ...p, when: "" }));
+              }}
+              aria-invalid={!!errors.when}
             />
+            <div className="flex justify-between items-start gap-2">
+              {errors.when ? (
+                <p className="text-sm text-destructive font-medium">{errors.when}</p>
+              ) : <span />}
+              <CharacterCount current={when.length} max={SHORT_MAX} />
+            </div>
           </div>
 
           {/* Where */}
@@ -245,8 +272,19 @@ export default function StoryForm({ onSubmit, saving = false, familyId, mode = "
               placeholder="Grandma's kitchen, Lake Michigan..."
               className="text-base py-5 rounded-xl border-accent-foreground/20 bg-background"
               value={where}
-              onChange={(e) => setWhere(e.target.value)}
+              maxLength={SHORT_MAX}
+              onChange={(e) => {
+                setWhere(e.target.value);
+                if (errors.where) setErrors((p) => ({ ...p, where: "" }));
+              }}
+              aria-invalid={!!errors.where}
             />
+            <div className="flex justify-between items-start gap-2">
+              {errors.where ? (
+                <p className="text-sm text-destructive font-medium">{errors.where}</p>
+              ) : <span />}
+              <CharacterCount current={where.length} max={SHORT_MAX} />
+            </div>
           </div>
         </div>
 
@@ -293,16 +331,23 @@ export default function StoryForm({ onSubmit, saving = false, familyId, mode = "
             placeholder="It was a warm summer evening..."
             rows={12}
             value={narrative}
+            maxLength={NARRATIVE_MAX}
             onChange={(e) => {
               setNarrative(e.target.value);
               if (errors.narrative) setErrors((p) => ({ ...p, narrative: "" }));
             }}
+            onBlur={() => {
+              if (!narrative.trim()) setErrors((p) => ({ ...p, narrative: "The story is required." }));
+            }}
             aria-invalid={!!errors.narrative}
             className="resize-y min-h-[250px] text-lg p-6 rounded-2xl border-accent-foreground/30 leading-relaxed"
           />
-          {errors.narrative && (
-            <p className="text-sm text-destructive font-medium">{errors.narrative}</p>
-          )}
+          <div className="flex justify-between items-start gap-2">
+            {errors.narrative ? (
+              <p className="text-sm text-destructive font-medium">{errors.narrative}</p>
+            ) : <span />}
+            <CharacterCount current={narrative.length} max={NARRATIVE_MAX} />
+          </div>
         </div>
 
         {/* Tags */}

@@ -25,7 +25,11 @@ import {
 } from "@/components/ui/select";
 import { ImageUpload } from "@/components/image-upload";
 import { MatureToggle } from "@/components/entry-forms/mature-toggle";
+import { CharacterCount } from "@/components/ui/character-count";
 import type { RecipeData } from "@/types/database";
+
+const TITLE_MAX = 200;
+const STORY_MAX = 2_000;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -199,6 +203,8 @@ export default function RecipeForm({ onSubmit, saving = false, familyId, mode = 
   function validate(): boolean {
     const newErrors: Record<string, string> = {};
     if (!title.trim()) newErrors.title = "Recipe title is required.";
+    else if (title.length > TITLE_MAX) newErrors.title = `Title must be ${TITLE_MAX} characters or less.`;
+    if (story.length > STORY_MAX) newErrors.story = `Story must be ${STORY_MAX} characters or less.`;
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -278,15 +284,22 @@ export default function RecipeForm({ onSubmit, saving = false, familyId, mode = 
             placeholder="e.g. Grandma's Sunday Mac & Cheese"
             className="text-lg py-6 rounded-xl border-accent-foreground/20"
             value={title}
+            maxLength={TITLE_MAX}
             onChange={(e) => {
               setTitle(e.target.value);
               if (errors.title) setErrors((p) => ({ ...p, title: "" }));
             }}
+            onBlur={() => {
+              if (!title.trim()) setErrors((p) => ({ ...p, title: "Recipe title is required." }));
+            }}
             aria-invalid={!!errors.title}
           />
-          {errors.title && (
-            <p className="text-sm text-destructive font-medium">{errors.title}</p>
-          )}
+          <div className="flex justify-between items-start gap-2">
+            {errors.title ? (
+              <p className="text-sm text-destructive font-medium">{errors.title}</p>
+            ) : <span />}
+            <CharacterCount current={title.length} max={TITLE_MAX} />
+          </div>
         </div>
 
         {/* Story behind the recipe */}
@@ -297,9 +310,20 @@ export default function RecipeForm({ onSubmit, saving = false, familyId, mode = 
             placeholder="Who taught you this? What memories does it bring? Where was it first cooked?"
             rows={4}
             value={story}
-            onChange={(e) => setStory(e.target.value)}
+            maxLength={STORY_MAX}
+            onChange={(e) => {
+              setStory(e.target.value);
+              if (errors.story) setErrors((p) => ({ ...p, story: "" }));
+            }}
+            aria-invalid={!!errors.story}
             className="resize-y text-base p-4 rounded-xl border-accent-foreground/20"
           />
+          <div className="flex justify-between items-start gap-2">
+            {errors.story ? (
+              <p className="text-sm text-destructive font-medium">{errors.story}</p>
+            ) : <span />}
+            <CharacterCount current={story.length} max={STORY_MAX} />
+          </div>
         </div>
 
         {/* Ingredients */}

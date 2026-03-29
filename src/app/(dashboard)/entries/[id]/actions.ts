@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { enqueueEmbedJob } from "@/lib/jobs/queue";
 import type { EntryType, EntryVisibility, EntryStructuredData } from "@/types/database";
 
 // ---------------------------------------------------------------------------
@@ -71,21 +72,9 @@ export async function copyEntryToFamilies(
       return { error: (insertError as { message: string }).message };
     }
 
-    // Trigger embedding generation for each new entry (fire-and-forget)
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    // Enqueue background embedding jobs for each new entry
     for (const entry of newEntries ?? []) {
-      try {
-        fetch(`${baseUrl}/api/entries/embed`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ entryId: entry.id }),
-        }).catch((err) => {
-          console.error("Failed to trigger embedding:", err);
-        });
-      } catch {
-        console.error("Failed to trigger embedding for entry:", entry.id);
-      }
+      await enqueueEmbedJob(entry.id, entry.family_id);
     }
 
     revalidatePath("/entries");
@@ -191,19 +180,9 @@ export async function updateEntry(entryId: string, input: UpdateEntryInput) {
       return { error: (updateError as { message: string }).message };
     }
 
-    // Re-trigger embedding generation (fire-and-forget)
-    try {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-      fetch(`${baseUrl}/api/entries/embed`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entryId }),
-      }).catch((err) => {
-        console.error("Failed to trigger re-embedding:", err);
-      });
-    } catch {
-      // Non-critical: embedding will happen eventually or can be re-triggered
-      console.error("Failed to trigger re-embedding for entry:", entryId);
+    // Enqueue background re-embedding job
+    if (entry) {
+      await enqueueEmbedJob(entry.id, entry.family_id);
     }
 
     revalidatePath("/entries");

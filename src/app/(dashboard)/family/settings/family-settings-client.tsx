@@ -14,6 +14,10 @@ import {
   Download,
   FileJson,
   FolderArchive,
+  Database,
+  RefreshCw,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -113,6 +117,9 @@ export function FamilySettingsClient({
   const [exportingZip, setExportingZip] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [memberToRemove, setMemberToRemove] = useState<{ id: string; name: string } | null>(null);
+  const [reindexing, setReindexing] = useState(false);
+  const [reindexJobId, setReindexJobId] = useState<string | null>(null);
+  const [reindexStatus, setReindexStatus] = useState<"pending" | "processing" | "done" | "failed" | null>(null);
 
   const handleManageBilling = async () => {
     setPortalLoading(true);
@@ -179,6 +186,43 @@ export function FamilySettingsClient({
     const result = await removeMember(id);
     if (!result.success) {
       alert(result.error || "Failed to remove member");
+    }
+  };
+
+  const handleReindex = async () => {
+    setReindexing(true);
+    setReindexJobId(null);
+    setReindexStatus(null);
+    try {
+      const res = await fetch("/api/entries/re-embed-all", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.jobId) {
+        alert(data.error || "Failed to start re-indexing");
+        return;
+      }
+      setReindexJobId(data.jobId);
+      setReindexStatus("pending");
+
+      // Poll job status every 5s until done or failed
+      const poll = setInterval(async () => {
+        try {
+          const statusRes = await fetch(`/api/jobs/${data.jobId}`);
+          const statusData = await statusRes.json();
+          if (statusData.status === "done" || statusData.status === "failed") {
+            setReindexStatus(statusData.status);
+            clearInterval(poll);
+            setReindexing(false);
+          } else {
+            setReindexStatus(statusData.status);
+          }
+        } catch {
+          clearInterval(poll);
+          setReindexing(false);
+        }
+      }, 5000);
+    } catch {
+      alert("Failed to start re-indexing");
+      setReindexing(false);
     }
   };
 
@@ -444,6 +488,58 @@ export function FamilySettingsClient({
           </p>
         </CardContent>
       </Card>
+
+      {/* Knowledge Base */}
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              Knowledge Base
+            </CardTitle>
+            <CardDescription>
+              Re-index all entries to refresh the AI search index. Use this if
+              Griot seems to be missing recent stories.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button
+              variant="outline"
+              onClick={handleReindex}
+              disabled={reindexing || reindexStatus === "pending" || reindexStatus === "processing"}
+            >
+              {reindexing || reindexStatus === "pending" || reindexStatus === "processing" ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              {reindexing || reindexStatus === "pending" || reindexStatus === "processing"
+                ? "Re-indexing..."
+                : "Re-index Knowledge Base"}
+            </Button>
+            {reindexStatus === "pending" || reindexStatus === "processing" ? (
+              <p className="text-sm text-muted-foreground">
+                Re-indexing in the background. This may take a few minutes.
+              </p>
+            ) : reindexStatus === "done" ? (
+              <p className="text-sm text-green-600 flex items-center gap-1">
+                <CheckCircle2 className="h-4 w-4" />
+                Re-indexing complete.
+              </p>
+            ) : reindexStatus === "failed" ? (
+              <p className="text-sm text-destructive flex items-center gap-1">
+                <XCircle className="h-4 w-4" />
+                Re-indexing failed. Please try again.
+              </p>
+            ) : null}
+            {reindexJobId && (
+              <p className="text-xs text-muted-foreground font-mono">
+                Job ID: {reindexJobId}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Members List */}
       <Card>

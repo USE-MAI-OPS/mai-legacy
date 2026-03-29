@@ -2,6 +2,7 @@
 
 import { getFamilyContext } from "@/lib/get-family-context";
 import { revalidatePath } from "next/cache";
+import { enqueueEmbedJob } from "@/lib/jobs/queue";
 import type {
   ReviewableEntry,
   ExtractedProfileUpdates,
@@ -115,20 +116,8 @@ export async function saveExtractedEntries(
 
       createdEntryIds.push(created.id);
 
-      // Trigger embedding (fire-and-forget)
-      try {
-        const baseUrl =
-          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-        fetch(`${baseUrl}/api/entries/embed`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ entryId: created.id }),
-        }).catch((err) => {
-          console.error("[interview] Embedding trigger failed:", err);
-        });
-      } catch {
-        // non-critical
-      }
+      // Enqueue background embedding job
+      await enqueueEmbedJob(created.id, created.family_id);
     }
 
     // 2. Update profile (merge new data into existing life_story)

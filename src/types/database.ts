@@ -967,6 +967,48 @@ export interface Database {
         };
         Relationships: [];
       };
+      background_jobs: {
+        Row: {
+          id: string;
+          type: "embed_entry" | "re_embed_family";
+          payload: Record<string, unknown>;
+          status: "pending" | "processing" | "done" | "failed";
+          attempts: number;
+          max_attempts: number;
+          error: string | null;
+          family_id: string | null;
+          created_at: string;
+          updated_at: string;
+          processed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          type: "embed_entry" | "re_embed_family";
+          payload?: Record<string, unknown>;
+          status?: "pending" | "processing" | "done" | "failed";
+          attempts?: number;
+          max_attempts?: number;
+          error?: string | null;
+          family_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          processed_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          type?: "embed_entry" | "re_embed_family";
+          payload?: Record<string, unknown>;
+          status?: "pending" | "processing" | "done" | "failed";
+          attempts?: number;
+          max_attempts?: number;
+          error?: string | null;
+          family_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          processed_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -991,6 +1033,24 @@ export interface Database {
         Returns: {
           type: string;
           count: number;
+        }[];
+      };
+      claim_embedding_jobs: {
+        Args: {
+          batch_size?: number;
+        };
+        Returns: {
+          id: string;
+          type: "embed_entry" | "re_embed_family";
+          payload: Record<string, unknown>;
+          status: "pending" | "processing" | "done" | "failed";
+          attempts: number;
+          max_attempts: number;
+          error: string | null;
+          family_id: string | null;
+          created_at: string;
+          updated_at: string;
+          processed_at: string | null;
         }[];
       };
     };

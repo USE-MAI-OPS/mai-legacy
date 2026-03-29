@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getFamilyContext } from "@/lib/get-family-context";
 import { checkTierLimit } from "@/lib/tier-check";
+import { enqueueEmbedJob } from "@/lib/jobs/queue";
 import type { EntryType, EntryStructuredData, EntryVisibility } from "@/types/database";
 
 interface CreateEntryInput {
@@ -49,16 +50,9 @@ export async function createEntry(input: CreateEntryInput) {
       return { error: insertError.message };
     }
 
-    // Trigger embedding generation (fire-and-forget)
+    // Enqueue background embedding job
     if (entry) {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-      fetch(`${baseUrl}/api/entries/embed`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entryId: entry.id }),
-      }).catch((err) => {
-        console.error("Failed to trigger embedding:", err);
-      });
+      await enqueueEmbedJob(entry.id, entry.family_id);
     }
 
     revalidatePath("/entries");

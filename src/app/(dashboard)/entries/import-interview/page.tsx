@@ -14,13 +14,14 @@ import type {
   ReviewableEntry,
   ExtractedProfileUpdates,
 } from "@/lib/interview/types";
+import type { LifeStory } from "@/types/database";
 
 type Step = "input" | "processing" | "review" | "success";
 
 interface FamilyMember {
   id: string;
   display_name: string;
-  life_story: Record<string, unknown> | null;
+  life_story: LifeStory | null;
 }
 
 export default function ImportInterviewPage() {

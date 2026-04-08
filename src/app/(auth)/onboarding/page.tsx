@@ -13,9 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { createFamily } from "../actions";
-import { createEntry } from "@/app/(dashboard)/entries/new/actions";
 
 // ---------------------------------------------------------------------------
 // Progress bar
@@ -51,8 +49,10 @@ export default function OnboardingPage() {
   const [displayName, setDisplayName] = useState("");
   const [nickname, setNickname] = useState("");
   const [familyName, setFamilyName] = useState("");
-  const [entryTitle, setEntryTitle] = useState("");
-  const [entryContent, setEntryContent] = useState("");
+  const [occupation, setOccupation] = useState("");
+  const [birthday, setBirthday] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,24 +76,20 @@ export default function OnboardingPage() {
     setError(null);
 
     try {
-      const result = await createFamily(familyName, displayName, nickname || undefined);
+      const profileInfo = skip
+        ? undefined
+        : { occupation, birthday, city, state };
+
+      const result = await createFamily(
+        familyName,
+        displayName,
+        nickname || undefined,
+        profileInfo
+      );
       if (result.error) {
         setError(result.error);
         setLoading(false);
         return;
-      }
-
-      if (!skip && entryTitle.trim()) {
-        try {
-          await createEntry({
-            title: entryTitle.trim(),
-            content: entryContent.trim(),
-            type: "story",
-            tags: [],
-          });
-        } catch {
-          // Swallow — family was created, entry failure is non-critical
-        }
       }
 
       // Use full page reload to ensure cookies/session are picked up
@@ -173,35 +169,54 @@ export default function OnboardingPage() {
           </Card>
         )}
 
-        {/* Step 2 — First Entry */}
+        {/* Step 2 — About You */}
         {step === 2 && (
           <Card>
             <CardHeader>
-              <CardTitle>What&apos;s a story worth saving?</CardTitle>
+              <CardTitle>Tell us a little about yourself</CardTitle>
               <CardDescription>
-                Start with one memory — big or small.
+                This helps personalize your family archive. All fields are optional.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="entryTitle">Title</Label>
+                <Label htmlFor="occupation">Occupation</Label>
                 <Input
-                  id="entryTitle"
-                  placeholder="e.g. Sunday dinners at Grandma's"
-                  value={entryTitle}
-                  onChange={(e) => setEntryTitle(e.target.value)}
+                  id="occupation"
+                  placeholder="e.g. Teacher, Nurse, Retired"
+                  value={occupation}
+                  onChange={(e) => setOccupation(e.target.value)}
                   autoFocus
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="entryContent">Story</Label>
-                <Textarea
-                  id="entryContent"
-                  placeholder="Write your memory here…"
-                  value={entryContent}
-                  onChange={(e) => setEntryContent(e.target.value)}
-                  rows={5}
+                <Label htmlFor="birthday">Birthday</Label>
+                <Input
+                  id="birthday"
+                  type="date"
+                  value={birthday}
+                  onChange={(e) => setBirthday(e.target.value)}
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    placeholder="e.g. Atlanta"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="state">State</Label>
+                  <Input
+                    id="state"
+                    placeholder="e.g. GA"
+                    value={state}
+                    onChange={(e) => setState(e.target.value)}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -243,7 +258,7 @@ export default function OnboardingPage() {
               {loading
                 ? "Saving…"
                 : step === 2
-                ? "Save My First Memory"
+                ? "Get Started"
                 : (
                   <>
                     Next

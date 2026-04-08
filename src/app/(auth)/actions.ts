@@ -119,7 +119,8 @@ export async function signInWithGoogle() {
 export async function createFamily(
   familyName: string,
   displayName: string,
-  nickname?: string
+  nickname?: string,
+  profileInfo?: { occupation?: string; birthday?: string; city?: string; state?: string }
 ) {
   // Use the normal client to verify the user is authenticated
   const supabase = await createClient();
@@ -151,24 +152,32 @@ export async function createFamily(
   }
 
   // Add the current user as admin member
+  const places = profileInfo?.city?.trim()
+    ? [`${profileInfo.city.trim()}${profileInfo.state?.trim() ? `, ${profileInfo.state.trim()}` : ""}`]
+    : [];
+
+  const memberInsert: Record<string, unknown> = {
+    family_id: family.id,
+    user_id: user.id,
+    role: "admin",
+    display_name: displayName.trim(),
+    life_story: {
+      career: profileInfo?.occupation?.trim() ? [profileInfo.occupation.trim()] : [],
+      places,
+      education: [],
+      skills: [],
+      hobbies: [],
+      military: null,
+      milestones: [],
+      ...(profileInfo?.birthday?.trim() ? { birthday: profileInfo.birthday.trim() } : {}),
+    },
+  };
+  if (nickname?.trim()) memberInsert.nickname = nickname.trim();
+  if (profileInfo?.occupation?.trim()) memberInsert.occupation = profileInfo.occupation.trim();
+
   const { error: memberError } = await admin
     .from("family_members")
-    .insert({
-      family_id: family.id,
-      user_id: user.id,
-      role: "admin",
-      display_name: displayName.trim(),
-      ...(nickname?.trim() ? { nickname: nickname.trim() } : {}),
-      life_story: {
-        career: [],
-        places: [],
-        education: [],
-        skills: [],
-        hobbies: [],
-        military: null,
-        milestones: [],
-      },
-    });
+    .insert(memberInsert as never);
 
   if (memberError) {
     return { error: memberError.message };

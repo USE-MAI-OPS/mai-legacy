@@ -4,23 +4,32 @@ import { useRef, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { StatsCard } from "@/components/stats-card";
 import { MyStorySection } from "@/components/my-story-section";
 import {
+  BookOpen,
+  Briefcase,
   CalendarDaysIcon,
   Camera,
   Check,
+  ChevronRight,
   FileTextIcon,
+  GraduationCap,
+  Heart,
   LayersIcon,
+  Lightbulb,
   Loader2,
+  MapPin,
+  Medal,
   Pencil,
-  TagIcon,
+  Utensils,
+  Wrench,
   X as XIcon,
 } from "lucide-react";
 import type { LifeStory } from "@/types/database";
+import { normalizeLifeStory } from "@/types/database";
 import { createBrowserClient } from "@supabase/ssr";
 import { uploadAvatar } from "@/lib/supabase/storage";
 import { validateImageFile, MAX_AVATAR_SIZE_BYTES } from "@/lib/upload-validation";
@@ -164,6 +173,21 @@ export function ProfileClient({
     if (error) throw error;
   };
 
+  // Entry type icons for recent entries
+  const typeIcons: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string }> = {
+    story: { icon: BookOpen, color: "text-orange-600 bg-orange-100 dark:bg-orange-900/40" },
+    recipe: { icon: Utensils, color: "text-red-600 bg-red-100 dark:bg-red-900/40" },
+    skill: { icon: Wrench, color: "text-green-600 bg-green-100 dark:bg-green-900/40" },
+    lesson: { icon: Lightbulb, color: "text-blue-600 bg-blue-100 dark:bg-blue-900/40" },
+  };
+
+  // Derive life journey data
+  const story = lifeStory ? normalizeLifeStory(lifeStory) : { career: [], places: [], education: [], milestones: [], skills: [], hobbies: [], military: null };
+  const skillsAndHobbies = [...story.skills, ...story.hobbies];
+  const hasLifeJourney = story.places.length > 0 || story.career.length > 0 || story.education.length > 0 || story.milestones.length > 0;
+  const firstName = displayName.split(" ")[0];
+  const familyName = displayName.split(" ").pop() ?? "";
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !userId) return;
@@ -224,20 +248,19 @@ export function ProfileClient({
   };
 
   return (
-    <div className="container mx-auto py-12 px-4 max-w-3xl">
-      {/* Profile header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-12">
-        <div className="relative group">
-          <Avatar className="size-20">
+    <div className="container mx-auto py-8 px-4 max-w-3xl">
+      {/* ─── Hero Section ─── */}
+      <div className="flex flex-col items-center text-center mb-8">
+        <div className="relative group mb-4">
+          <Avatar className="h-28 w-28 ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
             {avatarUrl ? (
               <AvatarImage src={avatarUrl} alt={displayName} />
             ) : null}
-            <AvatarFallback className="text-xl font-semibold bg-primary text-primary-foreground">
+            <AvatarFallback className="text-2xl font-bold bg-primary text-primary-foreground">
               {getInitials(displayName)}
             </AvatarFallback>
           </Avatar>
 
-          {/* Upload overlay */}
           {userId && (
             <>
               <button
@@ -263,170 +286,284 @@ export function ProfileClient({
             </>
           )}
         </div>
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            {editingName ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSaveDisplayName();
-                    if (e.key === "Escape") {
-                      setNameInput(displayName);
-                      setEditingName(false);
-                    }
-                  }}
-                  className="text-xl font-bold h-9 w-56"
-                  autoFocus
-                  disabled={savingName}
-                />
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="size-7"
-                  onClick={handleSaveDisplayName}
-                  disabled={savingName}
-                >
-                  <Check className="size-4 text-green-600" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="size-7"
-                  onClick={() => {
+
+        {/* Name with inline edit */}
+        <div className="flex items-center gap-2 mb-2">
+          {editingName ? (
+            <div className="flex items-center gap-2">
+              <Input
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveDisplayName();
+                  if (e.key === "Escape") {
                     setNameInput(displayName);
                     setEditingName(false);
-                  }}
-                  disabled={savingName}
+                  }
+                }}
+                className="text-xl font-bold h-9 w-56 text-center"
+                autoFocus
+                disabled={savingName}
+              />
+              <Button size="icon" variant="ghost" className="size-7" onClick={handleSaveDisplayName} disabled={savingName}>
+                <Check className="size-4 text-green-600" />
+              </Button>
+              <Button size="icon" variant="ghost" className="size-7" onClick={() => { setNameInput(displayName); setEditingName(false); }} disabled={savingName}>
+                <XIcon className="size-4" />
+              </Button>
+            </div>
+          ) : (
+            <>
+              <h1 className="text-2xl font-serif font-bold text-foreground">
+                {displayName}
+              </h1>
+              {userId && (
+                <button
+                  onClick={() => setEditingName(true)}
+                  className="text-muted-foreground hover:text-[#C17B54] transition-colors"
+                  aria-label="Edit display name"
                 >
-                  <XIcon className="size-4" />
-                </Button>
-              </div>
-            ) : (
-              <>
-                <h1 className="text-3xl font-serif font-bold tracking-tight text-stone-900 dark:text-stone-100">
-                  {displayName}
-                </h1>
-                {userId && (
-                  <button
-                    onClick={() => setEditingName(true)}
-                    className="text-stone-400 hover:text-amber-700 transition-colors"
-                    aria-label="Edit display name"
-                  >
-                    <Pencil className="size-4" />
-                  </button>
-                )}
-              </>
-            )}
-            <Badge
-              variant="outline"
-              className="capitalize text-xs rounded-full border-amber-700/30 text-amber-800 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/30"
-            >
-              {user.role}
-            </Badge>
-          </div>
-          <p className="text-sm font-medium text-stone-500 dark:text-stone-400">{user.email}</p>
-          <div className="flex items-center gap-1.5 text-xs tracking-widest uppercase font-semibold text-stone-400">
-            <CalendarDaysIcon className="size-3.5" />
-            Joined {formatDate(user.joined_at)}
-          </div>
+                  <Pencil className="size-4" />
+                </button>
+              )}
+            </>
+          )}
         </div>
+
+        <div className="flex items-center gap-2 mb-2">
+          <Badge className="bg-[#C17B54] text-white text-[10px] uppercase tracking-widest font-bold hover:bg-[#C17B54]/90 border-0">
+            {user.role}
+          </Badge>
+        </div>
+
+        <p className="text-sm text-muted-foreground">
+          {user.email} · Joined {new Date(user.joined_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+        </p>
       </div>
 
-      {/* Stats grid */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 mb-12">
-        <StatsCard
-          label="Entries Created"
-          value={user.stats.entries_created}
-          icon={<FileTextIcon className="size-5" />}
-        />
-        <StatsCard
-          label="Categories"
-          value={user.stats.types_contributed.length}
-          icon={<LayersIcon className="size-5" />}
-        />
+      {/* ─── Stats Row ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <Card className="text-center py-6">
+          <CardContent className="p-0 flex flex-col items-center gap-2">
+            <div className="h-9 w-9 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+              <FileTextIcon className="h-4 w-4 text-orange-600" />
+            </div>
+            <p className="text-2xl font-bold">{user.stats.entries_created}</p>
+            <p className="text-xs text-muted-foreground">Entries Created</p>
+          </CardContent>
+        </Card>
+
+        <Card className="text-center py-6">
+          <CardContent className="p-0 flex flex-col items-center gap-2">
+            <div className="h-9 w-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <LayersIcon className="h-4 w-4 text-amber-600" />
+            </div>
+            <p className="text-sm font-bold">{user.stats.types_contributed.length} Types Contributed</p>
+            <div className="flex flex-wrap justify-center gap-1">
+              {user.stats.types_contributed.map((type) => (
+                <Badge
+                  key={type}
+                  variant="secondary"
+                  className={`text-[9px] uppercase tracking-wider font-bold border-0 px-1.5 py-0 ${typeColors[type] || ""}`}
+                >
+                  {type}s
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="text-center py-6">
+          <CardContent className="p-0 flex flex-col items-center gap-2">
+            <div className="h-9 w-9 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+              <Wrench className="h-4 w-4 text-purple-600" />
+            </div>
+            <p className="text-sm font-bold">Skills & Hobbies</p>
+            <p className="text-xs text-muted-foreground">
+              {skillsAndHobbies.length > 0 ? skillsAndHobbies.join(", ") : "None listed yet"}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Categories contributed */}
-      {user.stats.types_contributed.length > 0 && (
-        <div className="mb-12">
-          <h3 className="text-xs tracking-widest uppercase font-semibold text-stone-500 mb-4 flex items-center gap-2">
-            <TagIcon className="size-3.5" />
-            Categories Contributed
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {user.stats.types_contributed.map((type) => (
-              <Badge
-                key={type}
-                variant="secondary"
-                className={`capitalize border-0 px-3 py-1 rounded-full text-xs font-medium shadow-sm ${typeColors[type] || ""}`}
-              >
-                {type}
-              </Badge>
-            ))}
-          </div>
-        </div>
+      {/* ─── Life Journey ─── */}
+      {hasLifeJourney && (
+        <Card className="mb-8">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold flex items-center gap-2 mb-5">
+              <span className="text-base">🗺️</span>
+              Life Journey
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {story.places.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+                      Places Lived
+                    </span>
+                  </div>
+                  <div className="space-y-0.5 ml-6">
+                    {story.places.map((p, i) => (
+                      <p key={i} className="text-sm">
+                        {p.city}, {p.state}
+                        {p.years && <span className="text-muted-foreground"> ({p.years})</span>}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {story.career.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Briefcase className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+                      Career
+                    </span>
+                  </div>
+                  <div className="space-y-0.5 ml-6">
+                    {story.career.map((job, i) => (
+                      <p key={i} className="text-sm">
+                        {job.title}
+                        {job.company && <span className="text-muted-foreground">, {job.years} at {job.company}</span>}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {story.education.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+                      Education
+                    </span>
+                  </div>
+                  <div className="space-y-0.5 ml-6">
+                    {story.education.map((edu, i) => (
+                      <p key={i} className="text-sm">
+                        {edu.school}
+                        {edu.degree && <span className="text-muted-foreground">, {edu.degree}</span>}
+                        {edu.year && <span className="text-muted-foreground"> ({edu.year})</span>}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {story.milestones.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <CalendarDaysIcon className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+                      Milestones
+                    </span>
+                  </div>
+                  <div className="space-y-0.5 ml-6">
+                    {story.milestones.map((m, i) => (
+                      <p key={i} className="text-sm">
+                        {m.event}
+                        {m.year && <span className="text-muted-foreground"> ({m.year})</span>}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {story.military && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Medal className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+                      Military Service
+                    </span>
+                  </div>
+                  <p className="text-sm ml-6">
+                    {story.military.branch}
+                    {story.military.rank && <span className="text-muted-foreground"> &mdash; {story.military.rank}</span>}
+                    {story.military.years && <span className="text-muted-foreground"> ({story.military.years})</span>}
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* My Story - Life Resume */}
-      <div className="mb-16">
+      {/* ─── My Story (Editable) ─── */}
+      <div className="mb-8">
         <MyStorySection
           initialData={lifeStory}
           onSave={memberId ? handleSaveLifeStory : undefined}
         />
       </div>
 
-      {/* Timeline Journey: Recent contributions */}
-      <div className="mt-8">
-        <h2 className="text-2xl font-serif font-semibold mb-8 text-stone-900 dark:text-stone-100">
-          Your Legacy Timeline
-        </h2>
-        
-        {recentEntries.length === 0 ? (
-          <p className="text-stone-500 italic font-serif">
-            Your journey begins here. Share your first memory or recipe.
-          </p>
-        ) : (
-          <div className="relative border-l border-stone-200 dark:border-stone-800 ml-3 md:ml-4 space-y-10 pb-8">
-            {recentEntries.map((entry) => (
-              <div key={entry.id} className="relative pl-8 md:pl-10">
-                {/* Timeline Node */}
-                <div className="absolute -left-[5px] top-2 size-2.5 rounded-full bg-amber-700 ring-4 ring-white dark:ring-[#161B17]" />
-                
-                {/* Content Card */}
-                <div className="group block">
-                  <span className="text-xs font-semibold tracking-widest uppercase text-stone-500 mb-2 block">
-                    {formatRelativeDate(entry.created_at)}
-                  </span>
-                  <div className="bg-white dark:bg-[#1A221C] border border-stone-200 dark:border-[#2C3B2F] rounded-2xl p-5 shadow-sm transition-all hover:shadow-md">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="font-serif text-lg font-medium text-stone-900 dark:text-stone-100 mb-2">
-                          {entry.title}
-                        </h3>
-                        <Badge
-                          variant="secondary"
-                          className={`text-[10px] uppercase tracking-wider font-semibold border-0 px-2.5 py-0.5 rounded-full ${
-                            typeColors[entry.type] || "bg-stone-100 text-stone-800 dark:bg-stone-800 dark:text-stone-300"
-                          }`}
-                        >
-                          {entry.type}
-                        </Badge>
-                      </div>
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-stone-50 dark:bg-[#232F26] text-stone-400 group-hover:text-amber-700 transition-colors">
-                        <FileTextIcon className="size-4" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-            
-            {/* End of Timeline Indicator */}
-            <div className="absolute -left-[5px] bottom-0 size-2.5 rounded-full border-2 border-stone-300 dark:border-stone-700 bg-white dark:bg-[#161B17]" />
+      {/* ─── Recent from [Name] ─── */}
+      <Card className="mb-8">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">
+              Recent from {firstName}
+            </h2>
           </div>
-        )}
+
+          {recentEntries.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              Your journey begins here. Share your first memory or recipe.
+            </p>
+          ) : (
+            <div>
+              {recentEntries.map((entry, i) => {
+                const typeInfo = typeIcons[entry.type] ?? {
+                  icon: FileTextIcon,
+                  color: "text-gray-600 bg-gray-100 dark:bg-gray-900/40",
+                };
+                const TypeIcon = typeInfo.icon;
+
+                return (
+                  <div key={entry.id}>
+                    <div className="flex items-center gap-3 py-3 -mx-2 px-2 rounded-lg">
+                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${typeInfo.color}`}>
+                        <TypeIcon className="h-4 w-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate">{entry.title}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <Badge
+                            variant="secondary"
+                            className={`text-[9px] uppercase tracking-wider font-bold border-0 px-1.5 py-0 ${typeColors[entry.type] || ""}`}
+                          >
+                            {entry.type}
+                          </Badge>
+                          <span className="text-[11px] text-muted-foreground">
+                            &middot; {formatRelativeDate(entry.created_at)}
+                          </span>
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    </div>
+                    {i < recentEntries.length - 1 && <Separator />}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ─── Footer ─── */}
+      <div className="flex flex-col items-center gap-2 py-6">
+        <div className="flex items-center gap-3">
+          <div className="h-px w-12 bg-[#C17B54]/30" />
+          <Heart className="h-3.5 w-3.5 text-[#C17B54]/40" />
+          <div className="h-px w-12 bg-[#C17B54]/30" />
+        </div>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
+          Preserving the {familyName} Legacy
+        </p>
       </div>
     </div>
   );

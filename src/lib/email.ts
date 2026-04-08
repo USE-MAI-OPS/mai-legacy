@@ -84,12 +84,18 @@ export async function sendInviteEmail(opts: {
 </body>
 </html>`;
 
-  return getResend().emails.send({
-    from: "MAI Legacy <noreply@usemai.com>",
+  const result = await getResend().emails.send({
+    from: "MAI Legacy <noreply@mailegacy.com>",
     to,
     subject: `You're invited to join ${familyName} on MAI Legacy`,
     html,
   });
+
+  if (result.error) {
+    console.error("Resend invite email error:", JSON.stringify(result.error));
+  }
+
+  return result;
 }
 
 export interface DigestEntry {
@@ -247,7 +253,7 @@ export async function sendWeeklyDigest(opts: {
 </html>`;
 
   return getResend().emails.send({
-    from: "MAI Legacy <noreply@usemai.com>",
+    from: "MAI Legacy <noreply@mailegacy.com>",
     to,
     subject: `Your weekly digest from ${familyName}`,
     html,
@@ -328,7 +334,7 @@ export async function sendWaitlistConfirmation(opts: {
 </html>`;
 
   return getResend().emails.send({
-    from: "MAI Legacy <noreply@usemai.com>",
+    from: "MAI Legacy <noreply@mailegacy.com>",
     to,
     subject: "You're on the MAI Legacy list!",
     html,
@@ -418,7 +424,7 @@ export async function sendDripWelcome(opts: {
 </html>`;
 
   return getResend().emails.send({
-    from: "MAI Legacy <noreply@usemai.com>",
+    from: "MAI Legacy <noreply@mailegacy.com>",
     to,
     subject: "Your family's knowledge base is ready — here's how to start",
     html,
@@ -514,7 +520,7 @@ export async function sendDripDay3(opts: {
 </html>`;
 
   return getResend().emails.send({
-    from: "MAI Legacy <noreply@usemai.com>",
+    from: "MAI Legacy <noreply@mailegacy.com>",
     to,
     subject: "Your family archive + AI Griot: how they work together",
     html,
@@ -623,7 +629,7 @@ export async function sendDripDay7(opts: {
 </html>`;
 
   return getResend().emails.send({
-    from: "MAI Legacy <noreply@usemai.com>",
+    from: "MAI Legacy <noreply@mailegacy.com>",
     to,
     subject: "One week of family history preserved — what's next?",
     html,

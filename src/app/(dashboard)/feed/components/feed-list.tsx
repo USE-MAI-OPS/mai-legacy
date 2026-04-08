@@ -20,11 +20,14 @@ import {
   Clock,
   HelpCircle,
   Trophy,
+  Share2,
+  Bookmark,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { typeConfig } from "@/lib/entry-type-config";
 import { toggleReaction, addComment } from "@/app/(dashboard)/entries/social-actions";
 import type { ReactionType } from "@/app/(dashboard)/entries/social-actions";
@@ -212,73 +215,71 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
     <Card className="overflow-hidden transition-all hover:shadow-lg hover:border-primary/20 duration-300">
       {/* Clickable hero + content area */}
       <Link href={`/entries/${item.id}`} className="block group">
-        {/* HERO IMAGE — every card has one */}
+        {/* TOP BAR — author avatar + name + timestamp | type badge */}
+        <CardContent className="p-3 pb-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
+                {item.author_name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+              </div>
+              <span className="font-medium text-foreground">{item.author_name}</span>
+              <span className="text-muted-foreground">{formatDate(item.created_at)}</span>
+            </div>
+            <Badge className={cn("text-xs px-2.5 py-0.5 rounded-full", config.color ?? "bg-primary/10 text-primary")}>
+              {config.emoji} {config.label}
+            </Badge>
+          </div>
+        </CardContent>
+
+        {/* HERO IMAGE */}
         {firstImage ? (
-          <div className="relative h-56 overflow-hidden">
+          <div className="relative h-56 overflow-hidden mt-3">
             <img
               src={firstImage}
               alt={item.title}
               className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-            <div className="absolute top-3 left-3">
-              <Badge className="bg-white/90 text-foreground backdrop-blur-sm text-xs px-2.5 py-0.5 rounded-full shadow-sm">
-                {config.emoji} {config.label}
-              </Badge>
-            </div>
             {item.is_mature && (
               <div className="absolute top-3 right-3">
                 <Badge variant="destructive" className="text-[10px] px-1.5 py-0 shadow-sm">21+</Badge>
               </div>
             )}
-            <div className="absolute bottom-0 left-0 right-0 p-5">
-              <h3 className="text-xl font-bold font-serif leading-snug text-white drop-shadow-md line-clamp-2">
-                {item.title}
-              </h3>
-            </div>
           </div>
         ) : (
-          <div className={`relative h-56 overflow-hidden ${gradient}`}>
+          <div className={`relative h-56 overflow-hidden mt-3 ${gradient}`}>
             <div className="absolute inset-0 opacity-[0.08]" style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
             }} />
             <div className="absolute top-4 right-4 text-5xl opacity-20 select-none">{emoji}</div>
-            <div className="absolute top-3 left-3">
-              <Badge className="bg-white/20 text-white backdrop-blur-sm border-white/20 text-xs px-2.5 py-0.5 rounded-full">
-                {config.emoji} {config.label}
-              </Badge>
-            </div>
             {item.is_mature && (
               <div className="absolute top-3 right-3">
                 <Badge variant="destructive" className="text-[10px] px-1.5 py-0 shadow-sm">21+</Badge>
               </div>
             )}
-            <div className="absolute inset-0 flex items-end p-6">
-              <div>
-                <h3 className="text-2xl font-bold font-serif leading-snug text-white drop-shadow-lg line-clamp-3">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-white/70 mt-1 font-serif italic line-clamp-1">
-                  {item.type === "recipe" ? "A family recipe" :
-                   item.type === "story" ? "A family story" :
-                   item.type === "skill" ? "A family skill" :
-                   item.type === "lesson" ? "A life lesson" :
-                   item.type === "connection" ? "A family connection" :
-                   "A family entry"}
-                </p>
-              </div>
+            <div className="absolute inset-0 flex items-center justify-center p-6">
+              <p className="text-lg text-white/70 font-serif italic text-center line-clamp-2">
+                {item.type === "recipe" ? "A family recipe" :
+                 item.type === "story" ? "A family story" :
+                 item.type === "skill" ? "A family skill" :
+                 item.type === "lesson" ? "A life lesson" :
+                 item.type === "connection" ? "A family connection" :
+                 "A family entry"}
+              </p>
             </div>
           </div>
         )}
 
-        {/* Content section */}
-        <CardContent className="p-5 pb-3">
-          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-3">
+        {/* Below image — title + preview */}
+        <CardContent className="p-4 pb-2">
+          <h3 className="text-lg font-semibold leading-snug mb-1 line-clamp-2">
+            {item.title}
+          </h3>
+          <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3 mb-2">
             {summary}
           </p>
 
           {item.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-3">
+            <div className="flex flex-wrap gap-1.5">
               {item.tags.slice(0, 3).map((tag) => (
                 <Badge key={tag} variant="outline" className="text-[10px] px-1.5 py-0 rounded-full">
                   {tag}
@@ -286,16 +287,6 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
               ))}
             </div>
           )}
-
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
-                {item.author_name.split(" ").map(n => n[0]).join("").slice(0, 2)}
-              </div>
-              <span className="font-medium">{item.author_name}</span>
-            </div>
-            <span className="text-xs text-muted-foreground">{formatDate(item.created_at)}</span>
-          </div>
         </CardContent>
       </Link>
 
@@ -317,7 +308,7 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
         </div>
       )}
 
-      {/* Inline reaction bar — NOT inside the Link */}
+      {/* Engagement row — reactions + share/bookmark */}
       <div className="px-3 py-2 border-t flex items-center justify-between">
         <div className="flex items-center gap-0.5">
           {FEED_REACTIONS.map(({ type, emoji: rxEmoji }) => (
@@ -337,13 +328,28 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
             </button>
           ))}
         </div>
-        <button
-          onClick={handleCommentToggle}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs text-muted-foreground hover:bg-muted transition-colors"
-        >
-          <MessageCircle className="h-4 w-4" />
-          Comment
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleCommentToggle}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs text-muted-foreground hover:bg-muted transition-colors"
+          >
+            <MessageCircle className="h-4 w-4" />
+          </button>
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            className="p-1.5 rounded-full text-muted-foreground hover:bg-muted transition-colors"
+            title="Share"
+          >
+            <Share2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            className="p-1.5 rounded-full text-muted-foreground hover:bg-muted transition-colors"
+            title="Bookmark"
+          >
+            <Bookmark className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* Quick comment input */}
@@ -382,37 +388,72 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
 // ---------------------------------------------------------------------------
 function FeedEventCard({ item }: { item: FeedEvent }) {
   return (
-    <Link href="/family" className="block group">
-      <Card className="overflow-hidden border-amber-200 dark:border-amber-900/40 bg-amber-50/50 dark:bg-amber-950/20 transition-all hover:shadow-md">
-        <CardContent className="p-5">
-          <div className="flex items-start gap-4">
-            <div className="h-12 w-12 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
-              <Calendar className="h-6 w-6 text-amber-700 dark:text-amber-400" />
+    <Card className="overflow-hidden transition-all hover:shadow-md">
+      <CardContent className="p-4">
+        {/* Top: System Notification label + EVENT badge */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center">
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">
-                Upcoming Event
-              </p>
-              <h3 className="text-lg font-bold font-serif leading-snug mb-1 line-clamp-1">
-                {item.title}
-              </h3>
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {formatEventDate(item.event_date)}
-                </span>
-                {item.location && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {item.location}
-                  </span>
-                )}
-              </div>
-            </div>
+            <span className="text-xs text-muted-foreground font-medium">System Notification</span>
           </div>
-        </CardContent>
-      </Card>
-    </Link>
+          <Badge className="bg-[#C17B54] text-white text-[10px] px-2 py-0.5 rounded-full border-0">
+            EVENT
+          </Badge>
+        </div>
+
+        {/* Center: event name + date/location */}
+        <Link href="/family" className="block group">
+          <h3 className="text-xl font-bold font-serif leading-snug mb-2 group-hover:text-[#C17B54] transition-colors line-clamp-2">
+            {item.title}
+          </h3>
+          <div className="flex items-center gap-3 text-sm text-[#C17B54] mb-4">
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5" />
+              {formatEventDate(item.event_date)}
+            </span>
+            {item.location && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" />
+                {item.location}
+              </span>
+            )}
+          </div>
+        </Link>
+
+        {/* Buttons: RSVP Yes + Details */}
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            onClick={() => toast("RSVP sent!", { description: `You RSVP'd Yes to ${item.title}` })}
+            className="bg-[#C17B54] text-white rounded-full px-4 py-1.5 text-xs font-semibold hover:bg-[#A8684A] transition-colors"
+          >
+            RSVP Yes
+          </button>
+          <button
+            onClick={() => toast("Event details coming soon!")}
+            className="rounded-full px-4 py-1.5 text-xs font-semibold border border-border hover:bg-muted transition-colors"
+          >
+            Details
+          </button>
+        </div>
+
+        {/* Bottom: engagement row */}
+        <div className="flex items-center gap-4 pt-3 border-t text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Heart className="h-3.5 w-3.5" />
+            0
+          </span>
+          <span className="flex items-center gap-1">
+            <MessageCircle className="h-3.5 w-3.5" />
+            0
+          </span>
+          <span className="flex items-center gap-1">
+            <Share2 className="h-3.5 w-3.5" />
+          </span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -649,7 +690,7 @@ export function FeedList({ initialItems, initialCursor, filterType, searchQuery,
   }
 
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {items.map((item) => {
         switch (item.kind) {
           case "entry":

@@ -22,6 +22,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Settings,
   Mail,
@@ -35,6 +43,8 @@ import {
   Loader2,
   Check,
   AlertTriangle,
+  Bell,
+  Globe,
 } from "lucide-react";
 import { toast } from "sonner";
 import { changePassword } from "./actions";
@@ -92,6 +102,7 @@ export function SettingsClient({
   const [showNew, setShowNew] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
 
   // Theme
   const [theme, setTheme] = useState<Theme>("light");
@@ -147,7 +158,7 @@ export function SettingsClient({
     <div className="p-6 md:p-10 max-w-4xl mx-auto space-y-10">
       {/* Page header */}
       <div className="flex items-center gap-4 border-b border-stone-200 dark:border-stone-800 pb-8">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-700/10 text-amber-700 dark:bg-amber-500/10 dark:text-amber-500 items-center justify-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-700/10 text-amber-700 dark:bg-amber-500/10 dark:text-amber-500">
           <Settings className="h-6 w-6" />
         </div>
         <div>
@@ -172,165 +183,264 @@ export function SettingsClient({
         <CardContent className="space-y-6">
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs tracking-widest uppercase font-semibold text-stone-500">
+              <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
                 Email Address
               </Label>
               <p className="text-base font-medium text-stone-900 dark:text-stone-100">{email || "Not available"}</p>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs tracking-widest uppercase font-semibold text-stone-500">
+              <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
                 Sign-in Method
               </Label>
-              <p className="text-base font-medium capitalize text-stone-900 dark:text-stone-100">
-                {isOAuth ? `${provider} (OAuth)` : "Email & Password"}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="text-base font-medium capitalize text-stone-900 dark:text-stone-100">
+                  {isOAuth ? `${provider} (OAuth)` : "Email & Password"}
+                </p>
+                {isOAuth && (
+                  <>
+                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200 text-xs">
+                      {provider.charAt(0).toUpperCase() + provider.slice(1)}
+                    </Badge>
+                    <span className="text-emerald-600 text-xs font-medium">&#9679; Connected</span>
+                  </>
+                )}
+              </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs tracking-widest uppercase font-semibold text-stone-500">
+              <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
                 Account Created
               </Label>
               <p className="text-base font-medium text-stone-900 dark:text-stone-100">{formatDate(createdAt)}</p>
             </div>
           </div>
+
+          {/* Change Password button — only for non-OAuth users */}
+          {!isOAuth && (
+            <div className="pt-2">
+              {!showPasswordForm ? (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowPasswordForm(true)}
+                  className="gap-2"
+                >
+                  <Lock className="h-4 w-4" />
+                  Change Password
+                </Button>
+              ) : (
+                <div className="space-y-4 border border-stone-200 dark:border-stone-700 rounded-lg p-5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-stone-900 dark:text-stone-100 flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-amber-700 dark:text-amber-500" />
+                      Change Password
+                    </h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowPasswordForm(false);
+                        setCurrentPassword("");
+                        setNewPassword("");
+                        setConfirmPassword("");
+                      }}
+                      className="text-xs text-muted-foreground"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                  <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                    {/* Current password */}
+                    <div className="space-y-2">
+                      <Label htmlFor="current-password">Current Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="current-password"
+                          type={showCurrent ? "text" : "password"}
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          placeholder="Enter current password"
+                          required
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrent(!showCurrent)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {showCurrent ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* New password */}
+                    <div className="space-y-2">
+                      <Label htmlFor="new-password">New Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="new-password"
+                          type={showNew ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Enter new password (min 6 characters)"
+                          required
+                          minLength={6}
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNew(!showNew)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {showNew ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Confirm new password */}
+                    <div className="space-y-2">
+                      <Label htmlFor="confirm-password">Confirm New Password</Label>
+                      <Input
+                        id="confirm-password"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Re-enter new password"
+                        required
+                        minLength={6}
+                      />
+                      {confirmPassword &&
+                        newPassword &&
+                        confirmPassword !== newPassword && (
+                          <p className="text-xs text-destructive">
+                            Passwords do not match
+                          </p>
+                        )}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Button
+                        type="submit"
+                        disabled={
+                          isPending ||
+                          !currentPassword ||
+                          !newPassword ||
+                          !confirmPassword
+                        }
+                      >
+                        {isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Updating...
+                          </>
+                        ) : passwordSuccess ? (
+                          <>
+                            <Check className="mr-2 h-4 w-4" />
+                            Updated!
+                          </>
+                        ) : (
+                          "Update Password"
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Change Password */}
-      <Card className="border-stone-200 dark:border-[#2C3B2F] shadow-sm">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl font-serif text-stone-900 dark:text-stone-100">
-            <Lock className="h-5 w-5 text-amber-700 dark:text-amber-500" />
-            Change Password
-          </CardTitle>
-          <CardDescription>
-            {isOAuth
-              ? `You signed in with ${provider}. Password management is handled by your ${provider} account.`
-              : "Update your password to keep your account secure"}
-          </CardDescription>
-        </CardHeader>
-        {!isOAuth && (
-          <CardContent>
-            <form onSubmit={handlePasswordSubmit} className="space-y-4">
-              {/* Current password */}
-              <div className="space-y-2">
-                <Label htmlFor="current-password">Current Password</Label>
-                <div className="relative">
-                  <Input
-                    id="current-password"
-                    type={showCurrent ? "text" : "password"}
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    placeholder="Enter current password"
-                    required
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCurrent(!showCurrent)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showCurrent ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* New password */}
-              <div className="space-y-2">
-                <Label htmlFor="new-password">New Password</Label>
-                <div className="relative">
-                  <Input
-                    id="new-password"
-                    type={showNew ? "text" : "password"}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Enter new password (min 6 characters)"
-                    required
-                    minLength={6}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNew(!showNew)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showNew ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Confirm new password */}
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">Confirm New Password</Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter new password"
-                  required
-                  minLength={6}
-                />
-                {confirmPassword &&
-                  newPassword &&
-                  confirmPassword !== newPassword && (
-                    <p className="text-xs text-destructive">
-                      Passwords do not match
-                    </p>
-                  )}
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Button
-                  type="submit"
-                  disabled={
-                    isPending ||
-                    !currentPassword ||
-                    !newPassword ||
-                    !confirmPassword
-                  }
-                >
-                  {isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Updating...
-                    </>
-                  ) : passwordSuccess ? (
-                    <>
-                      <Check className="mr-2 h-4 w-4" />
-                      Updated!
-                    </>
-                  ) : (
-                    "Update Password"
-                  )}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        )}
-      </Card>
-
-      {/* Appearance */}
+      {/* Preferences */}
       <Card className="border-stone-200 dark:border-[#2C3B2F] shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl font-serif text-stone-900 dark:text-stone-100">
             <Sun className="h-5 w-5 text-amber-700 dark:text-amber-500" />
-            Appearance
+            Preferences
           </CardTitle>
           <CardDescription>
-            Customize how MAI Legacy looks for you
+            Customize how MAI Legacy looks and works for you
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <Label className="text-sm">Theme</Label>
+        <CardContent className="space-y-0">
+          {/* Email Notifications — placeholder */}
+          <div className="flex items-center justify-between py-4">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-stone-900 dark:text-stone-100">Email notifications</span>
+              </div>
+              <p className="text-xs text-muted-foreground ml-6">Receive updates about family activity</p>
+            </div>
+            <button
+              disabled
+              className="w-11 h-6 rounded-full bg-stone-200 dark:bg-stone-700 relative opacity-50 cursor-not-allowed"
+            >
+              <span className="block h-5 w-5 rounded-full bg-white shadow-sm absolute left-0.5 top-0.5 transition-transform" />
+            </button>
+          </div>
+
+          <Separator />
+
+          {/* Language — placeholder */}
+          <div className="flex items-center justify-between py-4">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-stone-900 dark:text-stone-100">Language</span>
+              </div>
+              <p className="text-xs text-muted-foreground ml-6">Choose your preferred language</p>
+            </div>
+            <Select disabled defaultValue="en">
+              <SelectTrigger className="w-36 opacity-50 cursor-not-allowed">
+                <SelectValue placeholder="English" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="en">English</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Separator />
+
+          {/* Dark mode toggle row */}
+          <div className="flex items-center justify-between py-4">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Moon className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-stone-900 dark:text-stone-100">Dark mode</span>
+              </div>
+              <p className="text-xs text-muted-foreground ml-6">Toggle between light and dark themes</p>
+            </div>
+            <button
+              onClick={() => handleThemeChange(theme === "dark" ? "light" : "dark")}
+              className={`w-11 h-6 rounded-full relative transition-colors ${
+                theme === "dark"
+                  ? "bg-amber-700"
+                  : "bg-stone-200 dark:bg-stone-700"
+              }`}
+            >
+              <span
+                className={`block h-5 w-5 rounded-full bg-white shadow-sm absolute top-0.5 transition-transform ${
+                  theme === "dark" ? "translate-x-[22px]" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+          </div>
+
+          <Separator />
+
+          {/* Theme buttons */}
+          <div className="pt-4">
+            <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-3 block">
+              Theme
+            </Label>
             <div className="grid grid-cols-3 gap-3">
               {(
                 [
@@ -380,7 +490,15 @@ export function SettingsClient({
             Irreversible actions for your account
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Warning box */}
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-amber-800 dark:text-amber-200 leading-relaxed">
+              Deleting your account is permanent and cannot be undone. All your entries, stories, and contributions will be removed from all family spaces.
+            </p>
+          </div>
+
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-1">
               <p className="text-sm font-medium">Delete Account</p>

@@ -61,9 +61,9 @@ export function StatsStrip({ stats }: StatsStripProps) {
           <Link
             key={key}
             href={href}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-muted/60 hover:bg-muted transition-colors shrink-0 group"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-full border border-border bg-background hover:bg-muted transition-colors shrink-0 group"
           >
-            <span className="text-muted-foreground group-hover:text-primary transition-colors">
+            <span className="text-muted-foreground group-hover:text-[#C17B54] transition-colors">
               {icon}
             </span>
             <span className="text-sm font-bold tabular-nums">{stats[key]}</span>

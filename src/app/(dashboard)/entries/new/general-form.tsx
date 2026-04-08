@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { MatureToggle } from "@/components/entry-forms/mature-toggle";
 import { CharacterCount } from "@/components/ui/character-count";
+import { ImageUpload } from "@/components/image-upload";
 import type { EntryType } from "@/types/database";
 
 const TITLE_MAX = 200;
@@ -29,17 +30,19 @@ interface GeneralFormProps {
     content: string;
     type: EntryType;
     tags: string[];
-    structured_data?: undefined;
+    structured_data?: { type: "general"; data: { images?: string[] } };
     is_mature?: boolean;
   }) => Promise<void>;
   saving?: boolean;
+  familyId?: string;
 }
 
-export default function GeneralForm({ onSubmit, saving = false }: GeneralFormProps) {
+export default function GeneralForm({ onSubmit, saving = false, familyId }: GeneralFormProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [tagInput, setTagInput] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [images, setImages] = useState<string[]>([]);
   const [isMature, setIsMature] = useState(false);
   const [errors, setErrors] = useState<{ title?: string; content?: string }>({});
 
@@ -93,7 +96,7 @@ export default function GeneralForm({ onSubmit, saving = false }: GeneralFormPro
       content: content.trim(),
       type: "general",
       tags,
-      structured_data: undefined,
+      structured_data: images.length > 0 ? { type: "general", data: { images } } : undefined,
       is_mature: isMature,
     });
   }
@@ -203,6 +206,15 @@ export default function GeneralForm({ onSubmit, saving = false }: GeneralFormPro
             </div>
           )}
         </div>
+
+        {/* Photos */}
+        <ImageUpload
+          images={images}
+          onImagesChange={setImages}
+          familyId={familyId}
+          label="Photos"
+          maxImages={6}
+        />
       </CardContent>
 
       <CardFooter className="flex justify-end gap-3">

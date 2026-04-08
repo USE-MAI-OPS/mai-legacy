@@ -2,14 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Calendar, User } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { typeConfig } from "@/lib/entry-type-config";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -37,12 +29,18 @@ function getSiteUrl() {
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString("en-US", {
-    weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
   });
 }
+
+const coverGradients: Record<string, string> = {
+  recipe: "bg-gradient-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-900",
+  story: "bg-gradient-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-900",
+  skill: "bg-gradient-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-900",
+  lesson: "bg-gradient-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-900",
+};
 
 // ---------------------------------------------------------------------------
 // Data fetching (uses admin client — no auth required)
@@ -169,56 +167,83 @@ export default async function PublicEntryPage({
 
   const config = typeConfig[entry.type];
 
+  // Extract hero image from structured data if available
+  const sd = entry.structuredData;
+  const firstImage =
+    sd?.data && "images" in sd.data
+      ? (sd.data as { images?: string[] }).images?.[0]
+      : undefined;
+
+  const gradient =
+    coverGradients[entry.type] ??
+    "bg-gradient-to-br from-stone-100 to-stone-200 dark:from-stone-800 dark:to-stone-900";
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
-      {/* Header */}
-      <header className="border-b bg-background/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between max-w-3xl">
-          <Link href="/" className="text-xl font-bold font-serif tracking-tight">
+    <div className="min-h-screen bg-background">
+      {/* Minimal Nav */}
+      <header>
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <Link href="/" className="font-serif font-bold text-lg text-[#C17B54]">
             MAI Legacy
           </Link>
           <Link
             href="/login"
-            className="text-sm font-medium text-primary hover:underline"
+            className="text-sm font-medium text-[#C17B54] hover:text-[#C17B54]/80"
           >
-            Sign in
+            Sign In
           </Link>
         </div>
       </header>
 
-      {/* Entry Content */}
-      <main className="container mx-auto py-10 px-4 max-w-3xl">
-        <Card className="shadow-lg">
-          <CardHeader>
-            <div className="space-y-3">
-              <Badge
-                variant="secondary"
-                className={`text-xs ${config.color}`}
-              >
-                {config.emoji} {config.label}
-              </Badge>
-              <CardTitle className="text-2xl sm:text-3xl leading-tight">
-                {entry.title}
-              </CardTitle>
+      <main>
+        {/* Hero Image */}
+        <div className="max-w-2xl mx-auto mt-8 px-4">
+          {firstImage ? (
+            <div className="rounded-xl overflow-hidden shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={firstImage}
+                alt={entry.title}
+                className="aspect-video object-cover w-full"
+              />
             </div>
-
-            {/* Meta info */}
-            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mt-2">
-              <span className="flex items-center gap-1.5">
-                <User className="size-3.5" />
-                {entry.authorName}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Calendar className="size-3.5" />
-                {formatDate(entry.date)}
-              </span>
+          ) : (
+            <div
+              className={`rounded-xl overflow-hidden shadow-sm aspect-video flex items-center justify-center ${gradient}`}
+            >
+              <span className="text-6xl opacity-40">{config.emoji}</span>
             </div>
-          </CardHeader>
+          )}
+        </div>
 
-          <Separator />
+        {/* Content Card */}
+        <div className="max-w-2xl mx-auto mt-8 px-4">
+          {/* Type badge */}
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold inline-block ${config.color}`}
+          >
+            {config.emoji} {config.label}
+          </span>
 
-          <CardContent className="pt-6">
-            {/* Type-specific content rendering */}
+          {/* Title */}
+          <h1 className="text-3xl font-serif font-bold mt-3">
+            {entry.title}
+          </h1>
+
+          {/* Author + Date */}
+          <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mt-3 mb-6">
+            <span className="flex items-center gap-1.5">
+              <User className="size-3.5" />
+              {entry.authorName}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Calendar className="size-3.5" />
+              {formatDate(entry.date)}
+            </span>
+          </div>
+
+          {/* Body */}
+          <article className="prose prose-lg dark:prose-invert max-w-none font-serif">
             {entry.type === "recipe" ? (
               <RecipeView
                 entry={{
@@ -260,65 +285,93 @@ export default async function PublicEntryPage({
                 }}
               />
             ) : (
-              <div className="prose prose-sm sm:prose dark:prose-invert max-w-none">
-                {entry.content.split("\n\n").map((paragraph: string, index: number) => (
-                  <p key={index} className="leading-relaxed">
-                    {paragraph}
-                  </p>
-                ))}
+              <div>
+                {entry.content.split("\n\n").map((paragraph: string, index: number) => {
+                  const trimmed = paragraph.trim();
+                  if (
+                    trimmed.startsWith(">") ||
+                    (trimmed.startsWith('"') && trimmed.endsWith('"'))
+                  ) {
+                    const text = trimmed.startsWith(">")
+                      ? trimmed.slice(1).trim()
+                      : trimmed.slice(1, -1);
+                    return (
+                      <blockquote
+                        key={index}
+                        className="border-l-4 border-[#C17B54] pl-4 italic font-serif text-lg my-4"
+                      >
+                        {text}
+                      </blockquote>
+                    );
+                  }
+                  return (
+                    <p
+                      key={index}
+                      className="font-serif text-base leading-relaxed mb-4"
+                    >
+                      {paragraph}
+                    </p>
+                  );
+                })}
               </div>
             )}
-          </CardContent>
+          </article>
 
           {/* Tags */}
           {entry.tags.length > 0 && (
-            <>
-              <Separator />
-              <CardContent className="pt-4 pb-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    Tags:
-                  </span>
-                  {entry.tags.map((tag: string) => (
-                    <Badge key={tag} variant="outline" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </>
+            <div className="flex flex-wrap gap-2 mt-6">
+              {entry.tags.map((tag: string) => (
+                <span
+                  key={tag}
+                  className="rounded-full border px-3 py-1 text-xs text-muted-foreground"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
           )}
-        </Card>
+        </div>
 
-        {/* CTA */}
-        <div className="mt-12 text-center space-y-4 pb-8">
-          <Separator className="mb-8" />
-          <h2 className="text-2xl font-bold font-serif">
-            Create your family legacy
+        {/* CTA Section */}
+        <div className="max-w-2xl mx-auto mt-16 text-center px-4">
+          <h2 className="text-2xl font-serif font-bold">
+            Start preserving your family&apos;s stories
           </h2>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Preserve your family&apos;s stories, recipes, skills, and wisdom for
-            generations to come.
+          <p className="text-muted-foreground mt-2 max-w-md mx-auto">
+            Create a lasting heirloom of memories, wisdom, and connections for
+            the next generation.
           </p>
-          <div className="flex items-center justify-center gap-3 pt-2">
+          <div className="mt-6 flex items-center justify-center gap-3">
             <Link
               href="/signup"
-              className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 transition-colors"
+              className="bg-[#C17B54] hover:bg-[#C17B54]/90 text-white rounded-full px-6 py-2.5 text-sm font-medium transition-colors inline-flex items-center justify-center"
             >
               Get Started Free
             </Link>
             <Link
               href="/explore"
-              className="inline-flex items-center justify-center rounded-md border border-input bg-background px-6 py-2.5 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+              className="border border-input rounded-full px-6 py-2.5 text-sm font-medium hover:bg-accent transition-colors inline-flex items-center justify-center"
             >
-              Explore Entries
+              Explore More Entries
             </Link>
           </div>
-          <p className="text-xs text-muted-foreground pt-4">
-            Shared via MAI Legacy
+          <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-6">
+            SHARED VIA 📖 MAI LEGACY · THE FAMILY KNOWLEDGE PLATFORM
           </p>
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t mt-16 pt-8 pb-8">
+        <div className="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4">
+          <div>
+            <p className="font-serif font-bold">MAI Legacy</p>
+            <p className="text-xs text-muted-foreground">
+              © 2024 MAI Legacy. Preserving the soul of the digital heirloom.
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

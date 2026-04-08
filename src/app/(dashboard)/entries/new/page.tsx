@@ -121,7 +121,7 @@ export default function NewEntryPage() {
             <LessonForm onSubmit={handleSubmit} saving={saving} familyId={familyId ?? undefined} />
           )}
           {selectedType === "general" && (
-            <GeneralForm onSubmit={handleSubmit} saving={saving} />
+            <GeneralForm onSubmit={handleSubmit} saving={saving} familyId={familyId ?? undefined} />
           )}
         </div>
       )}

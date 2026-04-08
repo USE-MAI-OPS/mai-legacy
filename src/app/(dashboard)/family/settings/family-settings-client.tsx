@@ -18,6 +18,8 @@ import {
   RefreshCw,
   CheckCircle2,
   XCircle,
+  X,
+  Plus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -121,6 +123,9 @@ export function FamilySettingsClient({
   const [reindexJobId, setReindexJobId] = useState<string | null>(null);
   const [reindexStatus, setReindexStatus] = useState<"pending" | "processing" | "done" | "failed" | null>(null);
 
+  // Multi-email invite rows
+  const [inviteRows, setInviteRows] = useState<{email: string, role: FamilyRole}[]>([{email: "", role: "member"}]);
+
   const handleManageBilling = async () => {
     setPortalLoading(true);
     try {
@@ -173,6 +178,20 @@ export function FamilySettingsClient({
     } else {
       alert(result.error || "Failed to send invite");
     }
+  };
+
+  const handleBulkInvite = async () => {
+    const nonEmptyRows = inviteRows.filter(r => r.email.trim() !== "");
+    if (nonEmptyRows.length === 0) return;
+    setInviting(true);
+    for (const row of nonEmptyRows) {
+      const result = await sendInvite(familyId, row.email.trim(), row.role);
+      if (!result.success) {
+        alert(result.error || `Failed to send invite to ${row.email}`);
+      }
+    }
+    setInviting(false);
+    setInviteRows([{email: "", role: "member"}]);
   };
 
   const handleRemoveMember = (memberId: string, memberName: string) => {
@@ -260,39 +279,50 @@ export function FamilySettingsClient({
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Family Settings</h1>
-        <p className="text-muted-foreground mt-1">
-          Manage your family, members, and invitations.
-        </p>
+    <div className="p-6 md:p-10 max-w-4xl mx-auto space-y-10">
+      {/* Header */}
+      <div className="flex items-center gap-4 border-b border-stone-200 dark:border-stone-800 pb-8">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-700/10 text-amber-700 dark:bg-amber-500/10 dark:text-amber-500">
+          <Users className="h-6 w-6" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-serif font-bold text-stone-900 dark:text-stone-100">Family Settings</h1>
+          <p className="text-sm font-medium text-stone-500">
+            Manage your family, members, and invitations.
+          </p>
+        </div>
       </div>
 
       {/* Family Name */}
-      <Card>
+      <Card className="border-stone-200 dark:border-[#2C3B2F] shadow-sm">
         <CardHeader>
-          <CardTitle>Family Name</CardTitle>
+          <CardTitle className="text-xl font-serif text-stone-900 dark:text-stone-100">Family Name</CardTitle>
           <CardDescription>
             This is how your family appears across the platform.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex gap-3">
-          <Input
-            value={familyName}
-            onChange={(e) => setFamilyName(e.target.value)}
-            className="max-w-sm"
-          />
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save"}
-          </Button>
+        <CardContent className="space-y-3">
+          <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+            Family Name
+          </Label>
+          <div className="flex gap-3">
+            <Input
+              value={familyName}
+              onChange={(e) => setFamilyName(e.target.value)}
+              className="max-w-sm"
+            />
+            <Button onClick={handleSave} disabled={saving} className="bg-[#C17B54] hover:bg-[#C17B54]/90 text-white">
+              {saving ? "Saving..." : "Save"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
       {/* Billing & Plan */}
-      <Card>
+      <Card className="border-stone-200 dark:border-[#2C3B2F] shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-xl font-serif text-stone-900 dark:text-stone-100">
+            <CreditCard className="h-5 w-5 text-amber-700 dark:text-amber-500" />
             Plan & Billing
           </CardTitle>
           <CardDescription>
@@ -301,9 +331,12 @@ export function FamilySettingsClient({
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium">Current Plan</p>
-              <p className="text-lg font-semibold">{TIER_LABELS[planTier]}</p>
+            <div className="space-y-1">
+              <p className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Current Plan</p>
+              <div className="flex items-center gap-3">
+                <p className="text-lg font-semibold text-stone-900 dark:text-stone-100">{TIER_LABELS[planTier]}</p>
+                <Badge className="bg-[#C17B54] text-white uppercase text-xs">{planTier}</Badge>
+              </div>
             </div>
             {subscriptionStatus !== "none" && (
               <Badge variant={STATUS_LABELS[subscriptionStatus].variant}>
@@ -346,45 +379,183 @@ export function FamilySettingsClient({
         </CardContent>
       </Card>
 
-      {/* Invite Members */}
-      <Card>
+      {/* Members List */}
+      <Card className="border-stone-200 dark:border-[#2C3B2F] shadow-sm">
         <CardHeader>
-          <CardTitle>Invite Members</CardTitle>
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+                Family Members
+              </Label>
+              <CardTitle className="flex items-center gap-2 text-xl font-serif text-stone-900 dark:text-stone-100 mt-1">
+                <Users className="h-5 w-5 text-amber-700 dark:text-amber-500" />
+                Members ({members.length})
+              </CardTitle>
+            </div>
+            <a
+              href="#invite-section"
+              className="text-sm font-medium text-[#C17B54] hover:text-[#C17B54]/80 flex items-center gap-1"
+            >
+              <Plus className="h-4 w-4" />
+              Invite
+            </a>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          {members.map((member, i) => (
+            <div key={member.id}>
+              <div className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarFallback>{member.initials}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-medium">{member.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {member.email}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-muted-foreground">
+                    Joined {member.joined}
+                  </span>
+                  <Badge
+                    variant={member.role === "admin" ? "default" : "outline"}
+                    className="text-xs"
+                  >
+                    {member.role === "admin" && (
+                      <Shield className="mr-1 h-3 w-3" />
+                    )}
+                    {member.role}
+                  </Badge>
+                  {member.role !== "admin" && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleRemoveMember(member.id, member.name)}
+                    >
+                      <Trash2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {i < members.length - 1 && <Separator />}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Invite Members */}
+      <Card id="invite-section" className="border-stone-200 dark:border-[#2C3B2F] shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-xl font-serif text-stone-900 dark:text-stone-100">Invite Members</CardTitle>
           <CardDescription>
             Invite family members via email or share an invite link.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <Label htmlFor="invite-email" className="sr-only">
-                Email address
-              </Label>
-              <Input
-                id="invite-email"
-                type="email"
-                placeholder="Enter email address"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-              />
-            </div>
-            <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as FamilyRole)}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="member">Member</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={handleInvite} disabled={inviting}>
-              <Mail className="mr-2 h-4 w-4" />
-              {inviting ? "Sending..." : "Send Invite"}
+        <CardContent className="space-y-6">
+          {/* Multi-email invite form */}
+          <div className="space-y-3">
+            <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+              Send Email Invitations
+            </Label>
+            {inviteRows.map((row, index) => (
+              <div key={index} className="flex gap-3 items-center">
+                <div className="flex-1">
+                  <Input
+                    type="email"
+                    placeholder="Enter email address"
+                    value={row.email}
+                    onChange={(e) => {
+                      const updated = [...inviteRows];
+                      updated[index] = { ...updated[index], email: e.target.value };
+                      setInviteRows(updated);
+                    }}
+                  />
+                </div>
+                <Select
+                  value={row.role}
+                  onValueChange={(v) => {
+                    const updated = [...inviteRows];
+                    updated[index] = { ...updated[index], role: v as FamilyRole };
+                    setInviteRows(updated);
+                  }}
+                >
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="member">Member</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+                {inviteRows.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0"
+                    onClick={() => {
+                      setInviteRows(inviteRows.filter((_, i) => i !== index));
+                    }}
+                  >
+                    <X className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setInviteRows([...inviteRows, { email: "", role: "member" }])}
+              className="text-sm font-medium text-[#C17B54] hover:text-[#C17B54]/80 flex items-center gap-1"
+            >
+              <Plus className="h-4 w-4" />
+              Add Another
+            </button>
+            <Button
+              onClick={handleBulkInvite}
+              disabled={inviting || inviteRows.every(r => r.email.trim() === "")}
+              className="bg-[#C17B54] hover:bg-[#C17B54]/90 text-white w-full rounded-full"
+            >
+              {inviting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Send Invitations
+                </>
+              )}
             </Button>
+          </div>
+
+          {/* What Happens Next */}
+          <div className="space-y-4 pt-2">
+            <Label className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+              What Happens Next
+            </Label>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#C17B54] text-white text-xs font-bold">1</div>
+                <p className="text-sm text-muted-foreground leading-relaxed pt-1">They&apos;ll receive an email with a secure magic link to join the family circle.</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#C17B54] text-white text-xs font-bold">2</div>
+                <p className="text-sm text-muted-foreground leading-relaxed pt-1">New members will be guided through a quick account creation or sign-in process.</p>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#C17B54] text-white text-xs font-bold">3</div>
+                <p className="text-sm text-muted-foreground leading-relaxed pt-1">They&apos;ll be automatically added to the family legacy records and archives.</p>
+              </div>
+            </div>
           </div>
 
           <Separator />
 
+          {/* Share invite link */}
           <div>
             <p className="text-sm font-medium mb-2">Or share an invite link</p>
             <div className="flex gap-2">
@@ -434,10 +605,10 @@ export function FamilySettingsClient({
       </Card>
 
       {/* Your Data */}
-      <Card>
+      <Card className="border-stone-200 dark:border-[#2C3B2F] shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Download className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-xl font-serif text-stone-900 dark:text-stone-100">
+            <Download className="h-5 w-5 text-amber-700 dark:text-amber-500" />
             Your Data
           </CardTitle>
           <CardDescription>
@@ -491,10 +662,10 @@ export function FamilySettingsClient({
 
       {/* Knowledge Base */}
       {isAdmin && (
-        <Card>
+        <Card className="border-stone-200 dark:border-[#2C3B2F] shadow-sm">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-xl font-serif text-stone-900 dark:text-stone-100">
+              <Database className="h-5 w-5 text-amber-700 dark:text-amber-500" />
               Knowledge Base
             </CardTitle>
             <CardDescription>
@@ -540,60 +711,6 @@ export function FamilySettingsClient({
           </CardContent>
         </Card>
       )}
-
-      {/* Members List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Members ({members.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1">
-          {members.map((member, i) => (
-            <div key={member.id}>
-              <div className="flex items-center justify-between py-3">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-10 w-10">
-                    <AvatarFallback>{member.initials}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-sm font-medium">{member.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {member.email}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-muted-foreground">
-                    Joined {member.joined}
-                  </span>
-                  <Badge
-                    variant={member.role === "admin" ? "default" : "outline"}
-                    className="text-xs"
-                  >
-                    {member.role === "admin" && (
-                      <Shield className="mr-1 h-3 w-3" />
-                    )}
-                    {member.role}
-                  </Badge>
-                  {member.role !== "admin" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleRemoveMember(member.id, member.name)}
-                    >
-                      <Trash2 className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-              {i < members.length - 1 && <Separator />}
-            </div>
-          ))}
-        </CardContent>
-      </Card>
 
       <AlertDialog open={!!memberToRemove} onOpenChange={(open) => { if (!open) setMemberToRemove(null); }}>
         <AlertDialogContent>

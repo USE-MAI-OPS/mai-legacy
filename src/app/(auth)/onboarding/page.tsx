@@ -75,27 +75,34 @@ export default function OnboardingPage() {
     setLoading(true);
     setError(null);
 
-    const result = await createFamily(familyName, displayName, nickname || undefined);
-    if (result.error) {
-      setError(result.error);
-      setLoading(false);
-      return;
-    }
-
-    if (!skip && entryTitle.trim()) {
-      try {
-        await createEntry({
-          title: entryTitle.trim(),
-          content: entryContent.trim(),
-          type: "story",
-          tags: [],
-        });
-      } catch {
-        // Swallow — family was created, entry failure is non-critical
+    try {
+      const result = await createFamily(familyName, displayName, nickname || undefined);
+      if (result.error) {
+        setError(result.error);
+        setLoading(false);
+        return;
       }
-    }
 
-    router.push("/dashboard");
+      if (!skip && entryTitle.trim()) {
+        try {
+          await createEntry({
+            title: entryTitle.trim(),
+            content: entryContent.trim(),
+            type: "story",
+            tags: [],
+          });
+        } catch {
+          // Swallow — family was created, entry failure is non-critical
+        }
+      }
+
+      // Use full page reload to ensure cookies/session are picked up
+      window.location.href = "/dashboard";
+    } catch (e) {
+      console.error("Onboarding error:", e);
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
+    }
   }
 
   return (

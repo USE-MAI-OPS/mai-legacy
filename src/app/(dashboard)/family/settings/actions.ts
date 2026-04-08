@@ -113,8 +113,12 @@ export async function sendInvite(
     if (emailError) {
       // Clean up the invite record if the email failed
       await supabase.from("family_invites").delete().eq("id", invite.id);
-      console.error("Email send failed:", emailError);
-      throw new Error("Failed to send invite email");
+      console.error("Email send failed:", JSON.stringify(emailError));
+      const msg =
+        emailError.message?.includes("not verified")
+          ? "Email domain not verified. Please contact support or check Resend dashboard."
+          : emailError.message || "Failed to send invite email";
+      throw new Error(msg);
     }
 
     revalidatePath("/family/settings");

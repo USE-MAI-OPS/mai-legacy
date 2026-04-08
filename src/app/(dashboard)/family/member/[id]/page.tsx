@@ -3,28 +3,27 @@ import { notFound } from "next/navigation";
 import {
   ArrowLeft,
   Briefcase,
+  BookOpen,
   CalendarDaysIcon,
+  ChevronRight,
   FileTextIcon,
   GraduationCap,
   Heart,
   LayersIcon,
+  Lightbulb,
   MapPin,
   Medal,
+  Utensils,
   Wrench,
-  BookOpenIcon,
-  TagIcon,
 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { StatsCard } from "@/components/stats-card";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeLifeStory } from "@/types/database";
 import type { LifeStory } from "@/types/database";
@@ -246,199 +245,17 @@ async function getMemberData(memberId: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Life Story Section (read-only)
+// Entry type icons & colors
 // ---------------------------------------------------------------------------
-function LifeStoryReadOnly({ story }: { story: LifeStory }) {
-  const hasContent =
-    story.career.length > 0 ||
-    story.places.length > 0 ||
-    story.education.length > 0 ||
-    story.skills.length > 0 ||
-    story.hobbies.length > 0 ||
-    story.military !== null ||
-    story.milestones.length > 0;
+const typeIcons: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string }> = {
+  story: { icon: BookOpen, color: "text-orange-600 bg-orange-100 dark:bg-orange-900/40" },
+  recipe: { icon: Utensils, color: "text-red-600 bg-red-100 dark:bg-red-900/40" },
+  skill: { icon: Wrench, color: "text-green-600 bg-green-100 dark:bg-green-900/40" },
+  lesson: { icon: Lightbulb, color: "text-blue-600 bg-blue-100 dark:bg-blue-900/40" },
+};
 
-  if (!hasContent) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Heart className="size-4 text-pink-500" />
-            Life Story
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground text-center py-4">
-            This member hasn&apos;t added their life story yet.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base flex items-center gap-2">
-          <Heart className="size-4 text-pink-500" />
-          Life Story
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        {/* Places */}
-        {story.places.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <MapPin className="size-4 text-muted-foreground" />
-              Places Lived
-            </div>
-            <div className="space-y-1.5 pl-6">
-              {story.places.map((place, i) => (
-                <div key={i} className="text-sm">
-                  <span className="font-medium">
-                    {place.city}, {place.state}
-                  </span>
-                  {place.years && (
-                    <span className="text-muted-foreground ml-2">
-                      ({place.years})
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Career */}
-        {story.career.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Briefcase className="size-4 text-muted-foreground" />
-              Career
-            </div>
-            <div className="space-y-1.5 pl-6">
-              {story.career.map((job, i) => (
-                <div key={i} className="text-sm">
-                  <span className="font-medium">{job.title}</span>
-                  {job.company && (
-                    <span className="text-muted-foreground">
-                      {" "}
-                      at {job.company}
-                    </span>
-                  )}
-                  {job.years && (
-                    <span className="text-muted-foreground ml-2">
-                      ({job.years})
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Education */}
-        {story.education.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <GraduationCap className="size-4 text-muted-foreground" />
-              Education
-            </div>
-            <div className="space-y-1.5 pl-6">
-              {story.education.map((edu, i) => (
-                <div key={i} className="text-sm">
-                  <span className="font-medium">{edu.school}</span>
-                  {edu.degree && (
-                    <span className="text-muted-foreground">
-                      {" "}
-                      &mdash; {edu.degree}
-                    </span>
-                  )}
-                  {edu.year && (
-                    <span className="text-muted-foreground ml-2">
-                      ({edu.year})
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Military */}
-        {story.military && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Medal className="size-4 text-muted-foreground" />
-              Military Service
-            </div>
-            <div className="text-sm pl-6">
-              <span className="font-medium">{story.military.branch}</span>
-              {story.military.rank && (
-                <span className="text-muted-foreground">
-                  {" "}
-                  &mdash; {story.military.rank}
-                </span>
-              )}
-              {story.military.years && (
-                <span className="text-muted-foreground ml-2">
-                  ({story.military.years})
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Skills & Hobbies */}
-        {(story.skills.length > 0 || story.hobbies.length > 0) && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Wrench className="size-4 text-muted-foreground" />
-              Skills & Interests
-            </div>
-            <div className="flex flex-wrap gap-1.5 pl-6">
-              {story.skills.map((skill) => (
-                <Badge key={skill} variant="secondary" className="text-xs">
-                  {skill}
-                </Badge>
-              ))}
-              {story.hobbies.map((hobby) => (
-                <Badge
-                  key={hobby}
-                  variant="outline"
-                  className="text-xs"
-                >
-                  {hobby}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Milestones */}
-        {story.milestones.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <CalendarDaysIcon className="size-4 text-muted-foreground" />
-              Life Milestones
-            </div>
-            <div className="space-y-1.5 pl-6">
-              {story.milestones.map((m, i) => (
-                <div key={i} className="text-sm">
-                  <span className="font-medium">{m.event}</span>
-                  {m.year && (
-                    <span className="text-muted-foreground ml-2">
-                      ({m.year})
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+function getFirstName(name: string) {
+  return name.split(" ")[0];
 }
 
 // ---------------------------------------------------------------------------
@@ -465,8 +282,18 @@ export default async function MemberDetailPage({
       ? (member.typesContributed as string[])
       : [...new Set(entries.map((e) => e.type))];
 
+  const skillsAndHobbies = [...story.skills, ...story.hobbies];
+  const firstName = getFirstName(member.display_name);
+  const familyName = member.display_name.split(" ").pop() ?? "";
+
+  const hasLifeJourney =
+    story.places.length > 0 ||
+    story.career.length > 0 ||
+    story.education.length > 0 ||
+    story.milestones.length > 0;
+
   return (
-    <div className="container mx-auto py-8 px-4 max-w-4xl">
+    <div className="container mx-auto py-8 px-4 max-w-3xl">
       {/* Back button */}
       <Button variant="ghost" size="sm" className="mb-6 -ml-2" asChild>
         <Link href="/family">
@@ -475,128 +302,275 @@ export default async function MemberDetailPage({
         </Link>
       </Button>
 
-      {/* Profile header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8">
-        <Avatar className="size-20">
-          <AvatarFallback className="text-xl font-semibold bg-primary text-primary-foreground">
+      {/* ─── Hero Section ─── */}
+      <div className="flex flex-col items-center text-center mb-8">
+        <Avatar className="h-28 w-28 ring-2 ring-primary/20 ring-offset-2 ring-offset-background mb-4">
+          {member.avatar_url && (
+            <AvatarImage src={member.avatar_url} alt={member.display_name} />
+          )}
+          <AvatarFallback className="text-2xl font-bold bg-primary text-primary-foreground">
             {getInitials(member.display_name)}
           </AvatarFallback>
         </Avatar>
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">
-              {member.display_name}
-            </h1>
-            <Badge variant="secondary" className="capitalize text-xs">
-              {member.role}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <CalendarDaysIcon className="size-3.5" />
-            Joined {formatDate(member.joined_at)}
-          </div>
+
+        <h1 className="text-2xl font-serif font-bold text-foreground mb-2">
+          {member.display_name}
+        </h1>
+
+        <div className="flex items-center gap-2 mb-2">
+          {/* Relationship badge — TODO: map from life_story or tree data */}
+          <Badge className="bg-[#C17B54] text-white text-[10px] uppercase tracking-widest font-bold hover:bg-[#C17B54]/90 border-0">
+            {member.role === "admin" ? "Family Admin" : "Member"}
+          </Badge>
+          <Badge variant="secondary" className="text-[10px] uppercase tracking-widest font-bold">
+            {member.role}
+          </Badge>
         </div>
+
+        <p className="text-sm text-muted-foreground">
+          Joined {new Date(member.joined_at).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+        </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3 mb-8">
-        <StatsCard
-          label="Entries Created"
-          value={entriesCount}
-          icon={<FileTextIcon className="size-5" />}
-        />
-        <StatsCard
-          label="Types Contributed"
-          value={typesContributed.length}
-          icon={<LayersIcon className="size-5" />}
-        />
-        <StatsCard
-          label="Skills & Hobbies"
-          value={story.skills.length + story.hobbies.length}
-          icon={<Wrench className="size-5" />}
-        />
-      </div>
+      {/* ─── Stats Row ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        {/* Entries Created */}
+        <Card className="text-center py-6">
+          <CardContent className="p-0 flex flex-col items-center gap-2">
+            <div className="h-9 w-9 rounded-lg bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+              <FileTextIcon className="h-4.5 w-4.5 text-orange-600" />
+            </div>
+            <p className="text-2xl font-bold">{entriesCount}</p>
+            <p className="text-xs text-muted-foreground">Entries Created</p>
+          </CardContent>
+        </Card>
 
-      {/* Types contributed */}
-      {typesContributed.length > 0 && (
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <TagIcon className="size-4" />
-              Types Contributed
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
+        {/* Types Contributed */}
+        <Card className="text-center py-6">
+          <CardContent className="p-0 flex flex-col items-center gap-2">
+            <div className="h-9 w-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <LayersIcon className="h-4.5 w-4.5 text-amber-600" />
+            </div>
+            <p className="text-sm font-bold">{typesContributed.length} Types Contributed</p>
+            <div className="flex flex-wrap justify-center gap-1">
               {typesContributed.map((type) => (
                 <Badge
                   key={type}
                   variant="secondary"
-                  className={`capitalize border-0 ${typeColors[type] || ""}`}
+                  className={`text-[9px] uppercase tracking-wider font-bold border-0 px-1.5 py-0 ${typeColors[type] || ""}`}
                 >
-                  {type}
+                  {type}s
                 </Badge>
               ))}
             </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Life Story (read-only) */}
-      <div className="mb-8">
-        <LifeStoryReadOnly story={story} />
+        {/* Skills & Hobbies */}
+        <Card className="text-center py-6">
+          <CardContent className="p-0 flex flex-col items-center gap-2">
+            <div className="h-9 w-9 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+              <Wrench className="h-4.5 w-4.5 text-purple-600" />
+            </div>
+            <p className="text-sm font-bold">Skills & Hobbies</p>
+            <p className="text-xs text-muted-foreground">
+              {skillsAndHobbies.length > 0
+                ? skillsAndHobbies.join(", ")
+                : "None listed yet"}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Recent Contributions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <BookOpenIcon className="size-4" />
-            Recent Contributions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* ─── Life Journey ─── */}
+      {hasLifeJourney && (
+        <Card className="mb-8">
+          <CardContent className="p-6">
+            <h2 className="text-lg font-semibold flex items-center gap-2 mb-5">
+              <span className="text-base">🗺️</span>
+              Life Journey
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Places Lived */}
+              {story.places.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+                      Places Lived
+                    </span>
+                  </div>
+                  <div className="space-y-0.5 ml-6">
+                    {story.places.map((p, i) => (
+                      <p key={i} className="text-sm">
+                        {p.city}, {p.state}
+                        {p.years && <span className="text-muted-foreground"> ({p.years})</span>}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Career */}
+              {story.career.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Briefcase className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+                      Career
+                    </span>
+                  </div>
+                  <div className="space-y-0.5 ml-6">
+                    {story.career.map((job, i) => (
+                      <p key={i} className="text-sm">
+                        {job.title}
+                        {job.company && <span className="text-muted-foreground">, {job.years} at {job.company}</span>}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Education */}
+              {story.education.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+                      Education
+                    </span>
+                  </div>
+                  <div className="space-y-0.5 ml-6">
+                    {story.education.map((edu, i) => (
+                      <p key={i} className="text-sm">
+                        {edu.school}
+                        {edu.degree && <span className="text-muted-foreground">, {edu.degree}</span>}
+                        {edu.year && <span className="text-muted-foreground"> ({edu.year})</span>}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Milestones */}
+              {story.milestones.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <CalendarDaysIcon className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+                      Milestones
+                    </span>
+                  </div>
+                  <div className="space-y-0.5 ml-6">
+                    {story.milestones.map((m, i) => (
+                      <p key={i} className="text-sm">
+                        {m.event}
+                        {m.year && <span className="text-muted-foreground"> ({m.year})</span>}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Military (if exists) */}
+              {story.military && (
+                <div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Medal className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">
+                      Military Service
+                    </span>
+                  </div>
+                  <p className="text-sm ml-6">
+                    {story.military.branch}
+                    {story.military.rank && <span className="text-muted-foreground"> &mdash; {story.military.rank}</span>}
+                    {story.military.years && <span className="text-muted-foreground"> ({story.military.years})</span>}
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ─── Recent from [Name] ─── */}
+      <Card className="mb-8">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">
+              Recent from {firstName}
+            </h2>
+            {entries.length > 0 && (
+              <Link
+                href="/entries"
+                className="text-sm font-medium text-[#C17B54] hover:text-[#C17B54]/80 transition-colors"
+              >
+                View All
+              </Link>
+            )}
+          </div>
+
           {entries.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">
               No contributions yet.
             </p>
           ) : (
-            <div className="space-y-1">
-              {entries.map((entry, i) => (
-                <div key={entry.id}>
-                  <Link
-                    href={`/entries/${entry.id}`}
-                    className="flex items-center justify-between py-3 hover:bg-accent/50 -mx-2 px-2 rounded-md transition-colors"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                        <FileTextIcon className="size-4" />
+            <div>
+              {entries.map((entry, i) => {
+                const typeInfo = typeIcons[entry.type] ?? {
+                  icon: FileTextIcon,
+                  color: "text-gray-600 bg-gray-100 dark:bg-gray-900/40",
+                };
+                const TypeIcon = typeInfo.icon;
+
+                return (
+                  <div key={entry.id}>
+                    <Link
+                      href={`/entries/${entry.id}`}
+                      className="flex items-center gap-3 py-3 hover:bg-accent/50 -mx-2 px-2 rounded-lg transition-colors group"
+                    >
+                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${typeInfo.color}`}>
+                        <TypeIcon className="h-4 w-4" />
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate">
                           {entry.title}
                         </p>
-                        <Badge
-                          variant="secondary"
-                          className={`text-[10px] capitalize border-0 px-1.5 py-0 mt-0.5 ${
-                            typeColors[entry.type] || ""
-                          }`}
-                        >
-                          {entry.type}
-                        </Badge>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <Badge
+                            variant="secondary"
+                            className={`text-[9px] uppercase tracking-wider font-bold border-0 px-1.5 py-0 ${typeColors[entry.type] || ""}`}
+                          >
+                            {entry.type}
+                          </Badge>
+                          <span className="text-[11px] text-muted-foreground">
+                            &middot; {formatRelativeDate(entry.created_at)}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <span className="text-xs text-muted-foreground shrink-0 ml-4">
-                      {formatRelativeDate(entry.created_at)}
-                    </span>
-                  </Link>
-                  {i < entries.length - 1 && <Separator />}
-                </div>
-              ))}
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </Link>
+                    {i < entries.length - 1 && <Separator />}
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* ─── Footer ─── */}
+      <div className="flex flex-col items-center gap-2 py-6">
+        <div className="flex items-center gap-3">
+          <div className="h-px w-12 bg-[#C17B54]/30" />
+          <Heart className="h-3.5 w-3.5 text-[#C17B54]/40" />
+          <div className="h-px w-12 bg-[#C17B54]/30" />
+        </div>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-medium">
+          Preserving the {familyName} Legacy
+        </p>
+      </div>
     </div>
   );
 }

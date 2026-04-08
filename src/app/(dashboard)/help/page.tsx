@@ -1,13 +1,12 @@
 import {
   HelpCircle,
   BookOpen,
-  MessageCircle,
   Mail,
-  Lightbulb,
   Users,
   FileText,
   Target,
   Sparkles,
+  Search,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -16,7 +15,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 
 const faqs = [
   {
@@ -57,30 +56,32 @@ const featureGuides = [
     title: "Creating Entries",
     description:
       "Document your family's stories, recipes, skills, and lessons. Each entry is searchable and feeds into The Griot's knowledge.",
-  },
-  {
-    icon: MessageCircle,
-    title: "Using The Griot",
-    description:
-      'Ask questions about your family\'s knowledge. Try prompts like "What recipes has Grandma shared?" or "Tell me about our family traditions."',
+    iconColor: "text-blue-600",
+    iconBg: "bg-blue-100 dark:bg-blue-900/30",
   },
   {
     icon: Users,
     title: "Managing Your Family",
     description:
       "Invite members, view the family tree, and explore upcoming events. Admins can manage members from the Family Settings page.",
-  },
-  {
-    icon: Target,
-    title: "Setting Goals",
-    description:
-      "Track family goals and milestones. Create shared objectives that everyone can contribute to and celebrate together.",
+    iconColor: "text-orange-600",
+    iconBg: "bg-orange-100 dark:bg-orange-900/30",
   },
   {
     icon: Sparkles,
+    title: "Using The Griot",
+    description:
+      'Ask questions about your family\'s knowledge. Try prompts like "What recipes has Grandma shared?" or "Tell me about our family traditions."',
+    iconColor: "text-purple-600",
+    iconBg: "bg-purple-100 dark:bg-purple-900/30",
+  },
+  {
+    icon: Target,
     title: "Your Profile & Life Story",
     description:
       "Build your personal life story with career history, education, milestones, and more. This enriches The Griot's understanding of your family.",
+    iconColor: "text-green-600",
+    iconBg: "bg-green-100 dark:bg-green-900/30",
   },
 ];
 
@@ -100,24 +101,32 @@ export default function HelpPage() {
         </div>
       </div>
 
-      <Separator className="my-6" />
+      {/* Hero Banner */}
+      <div className="bg-gradient-to-br from-[#C17B54]/10 to-amber-50 dark:from-[#C17B54]/5 dark:to-amber-950/20 rounded-xl p-8 mb-8 mt-6">
+        <h2 className="text-2xl font-serif font-bold text-stone-900 dark:text-stone-100">How can we help you today?</h2>
+        <p className="text-sm text-muted-foreground mt-1">Search our guides, FAQs, and tutorials to find answers.</p>
+        <div className="relative mt-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search for help..."
+            className="rounded-full border bg-background pl-9"
+            readOnly
+          />
+        </div>
+      </div>
 
       {/* Getting Started */}
       <section className="mb-10">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Lightbulb className="size-4 text-primary" />
           Getting Started
         </h2>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              {featureGuides.map((guide) => (
-                <div
-                  key={guide.title}
-                  className="flex gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10">
-                    <guide.icon className="size-4 text-primary" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {featureGuides.map((guide) => (
+            <Card key={guide.title} className="hover:shadow-md transition-shadow">
+              <CardContent className="pt-6">
+                <div className="flex gap-3">
+                  <div className={`flex size-9 shrink-0 items-center justify-center rounded-md ${guide.iconBg}`}>
+                    <guide.icon className={`size-4 ${guide.iconColor}`} />
                   </div>
                   <div>
                     <h3 className="text-sm font-medium">{guide.title}</h3>
@@ -126,10 +135,10 @@ export default function HelpPage() {
                     </p>
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </section>
 
       {/* FAQ */}
@@ -156,27 +165,45 @@ export default function HelpPage() {
         </Card>
       </section>
 
-      {/* Contact */}
-      <section>
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Mail className="size-4 text-primary" />
-          Contact Us
-        </h2>
+      {/* Need More Help */}
+      <section className="mb-10">
         <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Have a question that&apos;s not answered here? We&apos;d love to
-              hear from you.
-            </p>
-            <a
-              href="mailto:support@mailegacy.com"
-              className="inline-flex items-center gap-2 mt-4 text-sm font-medium text-primary hover:underline"
-            >
-              <Mail className="size-4" />
-              support@mailegacy.com
-            </a>
+          <CardContent className="pt-8 pb-8">
+            <div className="flex flex-col items-center">
+              <div className="h-12 w-12 rounded-full bg-[#C17B54]/10 flex items-center justify-center mx-auto">
+                <Mail className="h-5 w-5 text-[#C17B54]" />
+              </div>
+              <h3 className="text-lg font-semibold text-center mt-4">Still have questions?</h3>
+              <p className="text-sm text-muted-foreground text-center mt-1">Our support team is here to help you preserve your heritage.</p>
+              <a
+                href="mailto:support@usemai.com"
+                className="text-[#C17B54] font-medium mt-3 hover:underline"
+              >
+                support@usemai.com
+              </a>
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-4">WE TYPICALLY RESPOND WITHIN 24 HOURS</p>
+            </div>
           </CardContent>
         </Card>
+      </section>
+
+      {/* Popular Tutorials */}
+      <section className="mb-10">
+        <h2 className="text-lg font-semibold mb-4">Popular Tutorials</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="rounded-xl overflow-hidden h-32 relative bg-gradient-to-br from-amber-600 to-orange-700">
+            <div className="absolute top-3 left-3">
+              <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-medium">NEW</span>
+            </div>
+            <p className="absolute bottom-3 left-3 text-sm font-bold text-white">Preserving Heirloom Stories</p>
+          </div>
+          <div className="rounded-xl overflow-hidden h-32 relative bg-gradient-to-br from-stone-600 to-stone-800">
+            <p className="absolute bottom-3 left-3 text-sm font-bold text-white">The Art of Oral History</p>
+          </div>
+          <div className="rounded-xl overflow-hidden h-32 relative bg-gradient-to-br from-emerald-600 to-green-800">
+            <p className="absolute bottom-3 left-3 text-sm font-bold text-white">Mastering Family Trees</p>
+          </div>
+        </div>
       </section>
     </div>
   );

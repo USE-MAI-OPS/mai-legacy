@@ -170,12 +170,17 @@ export interface LessonData {
   images?: string[];
 }
 
+export interface GeneralData {
+  images?: string[];
+}
+
 export type EntryStructuredData =
   | { type: "recipe"; data: RecipeData }
   | { type: "connection"; data: ConnectionData }
   | { type: "skill"; data: SkillData }
   | { type: "story"; data: StoryData }
   | { type: "lesson"; data: LessonData }
+  | { type: "general"; data: GeneralData }
   | null;
 
 // ---------------------------------------------------------------------------

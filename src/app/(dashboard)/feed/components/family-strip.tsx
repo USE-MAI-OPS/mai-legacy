@@ -77,7 +77,7 @@ export function FamilyStrip({ members, onFilterByMember }: FamilyStripProps) {
                 className={cn(
                   "h-14 w-14 rounded-full flex items-center justify-center transition-all duration-200",
                   isActive
-                    ? "ring-2 ring-primary ring-offset-2 ring-offset-background scale-105"
+                    ? "ring-2 ring-[#C17B54] ring-offset-2 ring-offset-background scale-105"
                     : "hover:scale-105"
                 )}
               >
@@ -101,7 +101,7 @@ export function FamilyStrip({ members, onFilterByMember }: FamilyStripProps) {
               <span
                 className={cn(
                   "text-[10px] font-medium w-14 text-center truncate",
-                  isActive ? "text-primary" : "text-muted-foreground"
+                  isActive ? "text-[#C17B54]" : "text-muted-foreground"
                 )}
               >
                 {member.display_name.split(" ")[0]}

@@ -43,7 +43,7 @@ const entryTypes: { value: EntryType; label: string; emoji: string }[] = [
 ];
 
 // Types that support images in their structured_data
-const IMAGE_TYPES: EntryType[] = ["skill", "recipe", "story", "lesson"];
+const IMAGE_TYPES: EntryType[] = ["skill", "recipe", "story", "lesson", "general"];
 
 interface EditEntryFormProps {
   entry: {

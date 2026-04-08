@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Users, Plus, TreePine, ArrowRight, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { getFamilyContext } from "@/lib/get-family-context";
 import { UpcomingEvents } from "./components/upcoming-events";
 import { FeatureCards } from "./components/feature-cards";
@@ -223,7 +223,7 @@ export default async function FamilyPage() {
                 <Button size="lg" variant="secondary" className="bg-white text-[#2C4835] hover:bg-green-50 rounded-full font-serif" asChild>
                   <Link href="/family/tree">
                     <TreePine className="mr-2 h-5 w-5" />
-                    View Family Tree
+                    View MAI Tree
                   </Link>
                 </Button>
                 <Button variant="outline" size="lg" className="border-white/30 text-white hover:bg-white/10 rounded-full font-serif bg-transparent" asChild>
@@ -254,61 +254,78 @@ export default async function FamilyPage() {
       </section>
 
       {/* Family Goals */}
-      <section>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-emerald-500" />
-              Family Goals
-            </CardTitle>
-            {data.goals.length > 0 ? (
-              <Button variant="ghost" size="sm" asChild>
-                <Link href="/goals">
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-emerald-500" />
+            <h2 className="text-lg font-semibold">Family Goals</h2>
+          </div>
+          <Button variant="outline" size="sm" className="rounded-full" asChild>
+            <Link href="/goals">
+              {data.goals.length > 0 ? (
+                <>
                   View all
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Link>
-              </Button>
-            ) : (
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/goals">
+                  <ArrowRight className="ml-1 h-3 w-3" />
+                </>
+              ) : (
+                <>
                   <Plus className="mr-1 h-3 w-3" />
                   Set a Goal
-                </Link>
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            {data.goals.length > 0 ? (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {data.goals.map((goal) => {
-                  const pct = goal.target_count > 0 ? Math.round((goal.current_count / goal.target_count) * 100) : 0;
-                  return (
-                    <div key={goal.id} className="space-y-2">
-                      <p className="text-sm font-medium leading-tight">
-                        {goal.title}
-                      </p>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div
-                          className="bg-emerald-500 h-2 rounded-full transition-all"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {goal.current_count} / {goal.target_count} ({pct}%)
-                      </p>
+                </>
+              )}
+            </Link>
+          </Button>
+        </div>
+
+        {data.goals.length > 0 ? (
+          <div className="grid sm:grid-cols-2 gap-4">
+            {data.goals.map((goal) => {
+              const pct = goal.target_count > 0 ? Math.round((goal.current_count / goal.target_count) * 100) : 0;
+              const circumference = 2 * Math.PI * 24;
+              return (
+                <div key={goal.id} className="bg-card rounded-2xl border shadow-sm p-5 flex items-center gap-4">
+                  {/* Circular progress */}
+                  <svg width="56" height="56" viewBox="0 0 56 56" className="shrink-0">
+                    <circle cx="28" cy="28" r="24" fill="none" strokeWidth="4" className="stroke-muted" />
+                    <circle
+                      cx="28" cy="28" r="24" fill="none" strokeWidth="4"
+                      className="stroke-emerald-500"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={circumference * (1 - pct / 100)}
+                      strokeLinecap="round"
+                      transform="rotate(-90 28 28)"
+                    />
+                    <text x="28" y="28" textAnchor="middle" dominantBaseline="central" className="fill-foreground text-[11px] font-semibold">
+                      {pct}%
+                    </text>
+                  </svg>
+
+                  {/* Text + bar */}
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-medium leading-tight">{goal.title}</p>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {goal.current_count}/{goal.target_count}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-sm text-muted-foreground">
-                  No goals yet. Set a family goal to track your legacy-building progress!
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div
+                        className="bg-emerald-500 h-2 rounded-full transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-sm text-muted-foreground">
+              No goals yet. Set a family goal to track your legacy-building progress!
+            </p>
+          </div>
+        )}
       </section>
 
       {/* Feature Cards (Recipes, Skills, Lessons) */}

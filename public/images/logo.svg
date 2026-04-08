@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 180" fill="none">
+  <!-- Open book -->
+  <path d="M20 35 C20 25, 30 20, 40 20 L95 20 C98 20, 100 22, 100 25 L100 150 C100 150, 95 145, 85 145 L40 145 C30 145, 20 140, 20 130 Z" stroke="#8B5E3C" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M180 35 C180 25, 170 20, 160 20 L105 20 C102 20, 100 22, 100 25 L100 150 C100 150, 105 145, 115 145 L160 145 C170 145, 180 140, 180 130 Z" stroke="#8B5E3C" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Parent 1 (left) -->
+  <circle cx="75" cy="55" r="10" stroke="#8B5E3C" stroke-width="4.5" fill="none"/>
+  <path d="M75 65 C75 65, 58 72, 58 90 L58 115 C58 118, 60 120, 63 120 L87 120 C90 120, 92 118, 92 115 L92 90 C92 72, 75 65, 75 65Z" stroke="#8B5E3C" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Parent 2 (right) -->
+  <circle cx="125" cy="55" r="10" stroke="#8B5E3C" stroke-width="4.5" fill="none"/>
+  <path d="M125 65 C125 65, 108 72, 108 90 L108 115 C108 118, 110 120, 113 120 L137 120 C140 120, 142 118, 142 115 L142 90 C142 72, 125 65, 125 65Z" stroke="#8B5E3C" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Child (center, front) -->
+  <circle cx="100" cy="82" r="8" stroke="#8B5E3C" stroke-width="4.5" fill="none"/>
+  <path d="M100 90 C100 90, 86 96, 86 110 L86 128 C86 131, 88 133, 91 133 L109 133 C112 133, 114 131, 114 128 L114 110 C114 96, 100 90, 100 90Z" stroke="#8B5E3C" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

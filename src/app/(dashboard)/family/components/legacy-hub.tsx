@@ -9,15 +9,16 @@ import {
   memo,
 } from "react";
 import { Button } from "@/components/ui/button";
-import { ZoomIn, ZoomOut, Maximize, Plus, MousePointer } from "lucide-react";
+import { ZoomIn, ZoomOut, Maximize, MousePointer } from "lucide-react";
 import type { HubNode, HubLink } from "./legacy-hub-types";
 import { convertTreeData, type TreeNodeData } from "./legacy-hub-types";
 import { LegacyHubNode } from "./legacy-hub-node";
 import { LegacyHubLinks } from "./legacy-hub-links";
 import { saveNodePosition } from "../actions";
+import { getMockEntryTotal } from "./mai-tree-mock-data";
 
 // ---------------------------------------------------------------------------
-// Draggable Node Wrapper — supports single + group drag
+// Draggable Node Wrapper — supports single + group drag + click/dblclick
 // ---------------------------------------------------------------------------
 const DraggableHubNode = memo(function DraggableHubNode({
   node,
@@ -32,6 +33,8 @@ const DraggableHubNode = memo(function DraggableHubNode({
   isSelected,
   selectedCount,
   onSelect,
+  onNodeClick,
+  onNodeDoubleClick,
 }: {
   node: HubNode;
   currentUserMemberId: string | null;
@@ -45,7 +48,15 @@ const DraggableHubNode = memo(function DraggableHubNode({
   isSelected: boolean;
   selectedCount: number;
   onSelect: (id: string, shiftKey: boolean) => void;
+  onNodeClick?: (node: HubNode, screenPos: { x: number; y: number }) => void;
+  onNodeDoubleClick?: (node: HubNode) => void;
 }) {
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const entryCount = getMockEntryTotal(node.id, node.displayName);
+  // Wider slot for the "YOU" node (larger avatar)
+  const nodeWidth = node.isMe ? 140 : 120;
+  const nodeOffset = nodeWidth / 2;
+
   return (
     <div
       className={`absolute cursor-grab active:cursor-grabbing ${
@@ -54,9 +65,17 @@ const DraggableHubNode = memo(function DraggableHubNode({
           : ""
       }`}
       style={{
-        transform: `translate(${node.x - 60}px, ${node.y - 60}px)`,
-        width: 120,
+        transform: `translate(${node.x - nodeOffset}px, ${node.y - nodeOffset}px)`,
+        width: nodeWidth,
         zIndex: isSelected ? 5 : 1,
+      }}
+      onDoubleClick={() => {
+        // Cancel pending single-click
+        if (clickTimer.current) {
+          clearTimeout(clickTimer.current);
+          clickTimer.current = null;
+        }
+        onNodeDoubleClick?.(node);
       }}
       onPointerDown={(e) => {
         const target = e.target as HTMLElement;
@@ -106,14 +125,23 @@ const DraggableHubNode = memo(function DraggableHubNode({
           }
         };
 
-        const onUp = () => {
+        const onUp = (ev: PointerEvent) => {
           window.removeEventListener("pointermove", onMove);
           window.removeEventListener("pointerup", onUp);
 
           if (draggingGroup && didMove) {
             onGroupDragEnd();
-          } else if (!draggingGroup) {
+          } else if (!draggingGroup && didMove) {
             saveNodePosition(node.id, lastX, lastY);
+          }
+
+          // Fire single-click if no drag occurred
+          if (!didMove && onNodeClick) {
+            // Delay to allow double-click to cancel
+            clickTimer.current = setTimeout(() => {
+              clickTimer.current = null;
+              onNodeClick(node, { x: ev.clientX, y: ev.clientY });
+            }, 250);
           }
         };
 
@@ -127,6 +155,7 @@ const DraggableHubNode = memo(function DraggableHubNode({
         onEdit={onEdit}
         onDelete={onDelete}
         onInvite={onInvite}
+        entryCount={entryCount}
       />
     </div>
   );
@@ -137,14 +166,9 @@ const DraggableHubNode = memo(function DraggableHubNode({
 // ---------------------------------------------------------------------------
 function MarqueeRect({
   rect,
-  pan,
-  scale,
 }: {
   rect: { x1: number; y1: number; x2: number; y2: number };
-  pan: { x: number; y: number };
-  scale: number;
 }) {
-  // rect is in screen coordinates — render as fixed overlay on the container
   const left = Math.min(rect.x1, rect.x2);
   const top = Math.min(rect.y1, rect.y2);
   const width = Math.abs(rect.x2 - rect.x1);
@@ -167,14 +191,16 @@ export function LegacyHubCanvas({
   onEdit,
   onDelete,
   onInvite,
-  onAddNew,
+  onNodeClick,
+  onNodeDoubleClick,
 }: {
   members: TreeNodeData[];
   currentUserMemberId: string | null;
   onEdit: (node: HubNode) => void;
   onDelete: (id: string) => void;
   onInvite: (name: string) => void;
-  onAddNew: () => void;
+  onNodeClick?: (node: HubNode, screenPos: { x: number; y: number }) => void;
+  onNodeDoubleClick?: (node: HubNode) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
@@ -314,7 +340,6 @@ export function LegacyHubCanvas({
   const handleGroupDrag = useCallback(
     (dx: number, dy: number) => {
       if (!groupDragStart.current) {
-        // Capture start positions on first drag move
         groupDragStart.current = new Map();
         for (const id of selectedIds) {
           const pos = nodePositions.get(id);
@@ -338,7 +363,6 @@ export function LegacyHubCanvas({
   // Save all group positions on drag end
   const handleGroupDragEnd = useCallback(() => {
     if (groupDragStart.current) {
-      // Save each node's final position
       for (const id of groupDragStart.current.keys()) {
         const pos = nodePositions.get(id);
         if (pos) {
@@ -374,15 +398,12 @@ export function LegacyHubCanvas({
       const my = rect ? e.clientY - rect.top : e.clientY;
 
       if (e.shiftKey) {
-        // Shift + drag on empty space = marquee selection
         marqueeActive.current = true;
         setMarquee({ x1: mx, y1: my, x2: mx, y2: my });
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
         return;
       }
 
-      // Regular drag = pan
-      // Also clear selection if clicking empty space
       clearSelection();
       dragging.current = true;
       dragStart.current = { x: e.clientX, y: e.clientY };
@@ -416,17 +437,14 @@ export function LegacyHubCanvas({
       if (marqueeActive.current && marquee) {
         marqueeActive.current = false;
 
-        // Convert marquee screen coords → canvas world coords
-        const rect = containerRef.current?.getBoundingClientRect();
-        const offsetX = rect ? pan.x : 0;
-        const offsetY = rect ? pan.y : 0;
+        const offsetX = pan.x;
+        const offsetY = pan.y;
 
         const worldX1 = (Math.min(marquee.x1, marquee.x2) - offsetX) / scale;
         const worldY1 = (Math.min(marquee.y1, marquee.y2) - offsetY) / scale;
         const worldX2 = (Math.max(marquee.x1, marquee.x2) - offsetX) / scale;
         const worldY2 = (Math.max(marquee.y1, marquee.y2) - offsetY) / scale;
 
-        // Find all nodes inside the marquee rectangle
         const newSelected = new Set<string>();
         for (const node of nodes) {
           if (
@@ -439,7 +457,6 @@ export function LegacyHubCanvas({
           }
         }
 
-        // If shift was held, merge with existing selection
         if (e.shiftKey) {
           setSelectedIds((prev) => {
             const merged = new Set(prev);
@@ -613,27 +630,6 @@ export function LegacyHubCanvas({
         </div>
       )}
 
-      {/* ─── Selection tip (when nothing selected) ─── */}
-      {selectedIds.size === 0 && (
-        <div className="absolute bottom-4 left-4 z-20">
-          <span className="text-[10px] text-muted-foreground/60 bg-card/60 backdrop-blur-sm rounded px-2 py-1">
-            Shift+drag to select multiple
-          </span>
-        </div>
-      )}
-
-      {/* ─── FAB: Add Connection ─── */}
-      <div className="absolute bottom-4 right-4 z-20">
-        <Button
-          onClick={onAddNew}
-          size="sm"
-          className="rounded-full shadow-lg gap-1.5"
-        >
-          <Plus className="h-4 w-4" />
-          Add Connection
-        </Button>
-      </div>
-
       {/* ─── Pan/Zoom Canvas ─── */}
       <div
         ref={containerRef}
@@ -674,12 +670,14 @@ export function LegacyHubCanvas({
               isSelected={selectedIds.has(node.id)}
               selectedCount={selectedIds.size}
               onSelect={handleSelect}
+              onNodeClick={onNodeClick}
+              onNodeDoubleClick={onNodeDoubleClick}
             />
           ))}
         </div>
 
         {/* Marquee selection rectangle overlay */}
-        {marquee && <MarqueeRect rect={marquee} pan={pan} scale={scale} />}
+        {marquee && <MarqueeRect rect={marquee} />}
       </div>
     </div>
   );

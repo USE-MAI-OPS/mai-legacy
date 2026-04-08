@@ -1,239 +1,202 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Calendar, User } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { typeConfig } from "@/lib/entry-type-config";
-import { createAdminClient } from "@/lib/supabase/server";
-import type { EntryType } from "@/types/database";
+import { ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PublicHeader } from "@/components/public-header";
 
 // ---------------------------------------------------------------------------
 // Metadata
 // ---------------------------------------------------------------------------
 export const metadata: Metadata = {
-  title: "Explore",
+  title: "Explore Family Stories | MAI Legacy",
   description:
-    "Discover family stories, recipes, skills, and wisdom shared by families on MAI Legacy.",
+    "Discover stories, recipes, and wisdom shared by families on MAI Legacy.",
   openGraph: {
     title: "Explore Family Stories | MAI Legacy",
     description:
-      "Discover family stories, recipes, skills, and wisdom shared by families on MAI Legacy.",
+      "Discover stories, recipes, and wisdom shared by families on MAI Legacy.",
     url: "/explore",
-  },
-  twitter: {
-    title: "Explore Family Stories | MAI Legacy",
-    description:
-      "Discover family stories, recipes, skills, and wisdom shared by families on MAI Legacy.",
   },
 };
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Example entries — showcase what the dashboard looks like
 // ---------------------------------------------------------------------------
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function truncate(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength).trimEnd() + "...";
-}
-
-// ---------------------------------------------------------------------------
-// Data fetching
-// ---------------------------------------------------------------------------
-interface PublicEntryCard {
+interface ExampleEntry {
   id: string;
   title: string;
-  content: string;
-  type: EntryType;
-  tags: string[];
-  authorName: string;
-  date: string;
+  description: string;
+  type: "STORY" | "RECIPE" | "SKILL" | "LESSON";
+  author: string;
+  timeAgo: string;
+  image: string;
 }
 
-async function getPublicEntries(): Promise<PublicEntryCard[]> {
-  try {
-    const supabase = createAdminClient();
+const EXAMPLE_ENTRIES: ExampleEntry[] = [
+  {
+    id: "1",
+    title: "The Summer We Drove to Mississippi",
+    description:
+      "A journey through the South that changed our family forever. Grandma remembers every stop, every diner, an...",
+    type: "STORY",
+    author: "Grandma Rose",
+    timeAgo: "2 days",
+    image: "https://images.unsplash.com/photo-1506012787146-f92b2d7d6d96?w=600&h=400&fit=crop",
+  },
+  {
+    id: "2",
+    title: "Mama's Sweet Potato Pie",
+    description:
+      "The secret is in the nutmeg and the love. This recipe has been passed down through three generations of...",
+    type: "RECIPE",
+    author: "Mom",
+    timeAgo: "3 days",
+    image: "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=600&h=400&fit=crop",
+  },
+  {
+    id: "3",
+    title: "How to Can Peaches",
+    description:
+      "Capturing the sweetness of summer for the winter months. A practical guide to safe and delicious fruit preservation.",
+    type: "SKILL",
+    author: "Grandma Rose",
+    timeAgo: "5 days",
+    image: "https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?w=600&h=400&fit=crop",
+  },
+  {
+    id: "4",
+    title: "What My Father Taught Me",
+    description:
+      "Hard work, honesty, and how to fix a leaky faucet. The foundational wisdom that built our household.",
+    type: "LESSON",
+    author: "Dad",
+    timeAgo: "1 week",
+    image: "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=600&h=400&fit=crop",
+  },
+  {
+    id: "5",
+    title: "Moving North: The Great Migration",
+    description:
+      "Uncle James recounts his first steps from the rural South to the bustling streets of Chicago in 1964...",
+    type: "STORY",
+    author: "Uncle James",
+    timeAgo: "1 week",
+    image: "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=600&h=400&fit=crop",
+  },
+  {
+    id: "6",
+    title: "Uncle James' BBQ Rub",
+    description:
+      "The legendary dry rub that makes every cookout a celebration. Simple, sweet, and perfectly balanced.",
+    type: "RECIPE",
+    author: "Uncle James",
+    timeAgo: "2 weeks",
+    image: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=600&h=400&fit=crop",
+  },
+];
 
-    const { data: entries, error } = await supabase
-      .from("entries")
-      .select("id, title, content, type, tags, created_at, author_id, family_id")
-      .eq("visibility", "public")
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    if (error || !entries || entries.length === 0) return [];
-
-    // Batch-resolve author names
-    const authorIds = [...new Set(entries.map((e) => e.author_id).filter(Boolean))] as string[];
-    const authorMap = new Map<string, string>();
-
-    if (authorIds.length > 0) {
-      const { data: members } = await supabase
-        .from("family_members")
-        .select("user_id, display_name")
-        .in("user_id", authorIds);
-
-      if (members) {
-        for (const m of members) {
-          if (!authorMap.has(m.user_id)) {
-            authorMap.set(m.user_id, m.display_name);
-          }
-        }
-      }
-    }
-
-    return entries.map((entry: any) => ({
-      id: entry.id,
-      title: entry.title,
-      content: entry.content,
-      type: entry.type as EntryType,
-      tags: entry.tags ?? [],
-      authorName: authorMap.get(entry.author_id) ?? "A family member",
-      date: entry.created_at,
-    }));
-  } catch (err) {
-    console.error("Failed to fetch public entries:", err);
-    return [];
-  }
-}
+const typeBadgeColors: Record<string, string> = {
+  STORY: "bg-emerald-600 text-white",
+  RECIPE: "bg-red-500 text-white",
+  SKILL: "bg-emerald-600 text-white",
+  LESSON: "bg-purple-600 text-white",
+};
 
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
-export default async function ExplorePage() {
-  const entries = await getPublicEntries();
-
+export default function ExplorePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
-      {/* Header */}
-      <header className="border-b bg-background/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between max-w-5xl">
-          <Link href="/" className="text-xl font-bold font-serif tracking-tight">
-            MAI Legacy
-          </Link>
-          <Link
-            href="/login"
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            Sign in
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-screen bg-background">
+      <PublicHeader />
 
       {/* Hero */}
-      <section className="container mx-auto px-4 pt-12 pb-8 max-w-5xl text-center">
-        <h1 className="text-3xl sm:text-4xl font-bold font-serif tracking-tight">
-          Explore Family Knowledge
-        </h1>
-        <p className="text-muted-foreground mt-3 max-w-lg mx-auto">
-          Discover stories, recipes, skills, and wisdom shared by families on
-          MAI Legacy.
-        </p>
+      <section className="pt-28 pb-10 px-6 text-center">
+        <div className="max-w-2xl mx-auto">
+          <h1 className="text-3xl sm:text-4xl font-bold font-serif tracking-tight mb-4">
+            Explore Family Stories
+          </h1>
+          <p className="text-muted-foreground max-w-xl mx-auto leading-relaxed">
+            Discover stories, recipes, and wisdom shared by families on MAI
+            Legacy. Preserving the essence of our ancestors through the digital
+            Griot.
+          </p>
+        </div>
       </section>
 
-      {/* Entries grid */}
-      <main className="container mx-auto px-4 pb-16 max-w-5xl">
-        {entries.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-lg text-muted-foreground">
-              No public entries yet. Be the first to share!
-            </p>
-            <Link
-              href="/signup"
-              className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 transition-colors mt-6"
+      {/* Example entries grid */}
+      <main className="max-w-5xl mx-auto px-6 pb-20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {EXAMPLE_ENTRIES.map((entry) => (
+            <div
+              key={entry.id}
+              className="group bg-card rounded-xl border shadow-sm overflow-hidden transition-all hover:shadow-lg"
             >
-              Get Started Free
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {entries.map((entry) => {
-              const config = typeConfig[entry.type] ?? typeConfig.general;
-              return (
-                <Link key={entry.id} href={`/p/${entry.id}`} className="group">
-                  <Card className="h-full transition-shadow hover:shadow-md group-hover:border-primary/30">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <Badge
-                          variant="secondary"
-                          className={`text-xs shrink-0 ${config.color}`}
-                        >
-                          {config.emoji} {config.label}
-                        </Badge>
-                      </div>
-                      <CardTitle className="text-lg leading-snug mt-2 group-hover:text-primary transition-colors">
-                        {entry.title}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0 space-y-3">
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {truncate(entry.content.replace(/\n+/g, " "), 120)}
-                      </p>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <User className="size-3" />
-                          {entry.authorName}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Calendar className="size-3" />
-                          {formatDate(entry.date)}
-                        </span>
-                      </div>
-                      {entry.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {entry.tags.slice(0, 3).map((tag) => (
-                            <Badge
-                              key={tag}
-                              variant="outline"
-                              className="text-[10px] px-1.5 py-0"
-                            >
-                              {tag}
-                            </Badge>
-                          ))}
-                          {entry.tags.length > 3 && (
-                            <span className="text-[10px] text-muted-foreground">
-                              +{entry.tags.length - 3} more
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </Link>
-              );
-            })}
-          </div>
-        )}
+              {/* Cover image */}
+              <div className="relative h-40 overflow-hidden">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={entry.image}
+                  alt={entry.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <span
+                  className={`absolute top-3 left-3 text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded ${typeBadgeColors[entry.type]}`}
+                >
+                  {entry.type}
+                </span>
+              </div>
+
+              {/* Content */}
+              <div className="p-4 space-y-2">
+                <h3 className="text-sm font-semibold leading-snug line-clamp-2">
+                  {entry.title}
+                </h3>
+                <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
+                  {entry.description}
+                </p>
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-5 w-5 rounded-full bg-muted flex items-center justify-center text-[9px] font-bold text-muted-foreground">
+                      {entry.author.charAt(0)}
+                    </div>
+                    <span>{entry.author}</span>
+                  </div>
+                  <span>{entry.timeAgo}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
 
         {/* CTA */}
         <div className="mt-16 text-center space-y-4">
-          <Separator className="mb-8" />
           <h2 className="text-2xl font-bold font-serif">
-            Start preserving your family&apos;s legacy
+            Ready to preserve your family&apos;s legacy?
           </h2>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Document your family&apos;s stories, recipes, skills, and wisdom
-            before they&apos;re forgotten.
+          <Button size="lg" className="rounded-full shadow-md" asChild>
+            <Link href="/signup">
+              Get Started Free
+            </Link>
+          </Button>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Start documenting your stories today. For the ones who came before,
+            and those who come after.
           </p>
-          <Link
-            href="/signup"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 transition-colors"
-          >
-            Get Started Free
-          </Link>
         </div>
+
+        {/* Mini footer */}
+        <footer className="mt-16 pt-8 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+          <span className="font-serif font-bold text-sm text-foreground">
+            MAI Legacy
+          </span>
+          <p>&copy; {new Date().getFullYear()} MAI Legacy. Preserving heritage for generations.</p>
+          <div className="flex gap-4">
+            <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+            <Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>
+            <Link href="/contact" className="hover:text-primary transition-colors">Contact Us</Link>
+          </div>
+        </footer>
       </main>
     </div>
   );

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { DemoVideoSection } from "@/components/landing/DemoVideoSection";
+import { PublicHeader } from "@/components/public-header";
 import {
   BookOpen,
   MessageCircle,
@@ -171,24 +172,7 @@ const FAQ_ITEMS = [
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-background selection:bg-primary/20">
-      {/* ----------------------------------------------------------------- */}
-      {/* Header                                                            */}
-      {/* ----------------------------------------------------------------- */}
-      <header className="fixed top-0 inset-x-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/40 transition-all duration-300">
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 max-w-7xl mx-auto">
-          <Link href="/" className="font-serif text-2xl font-bold text-primary hover:opacity-90 transition-opacity">
-            MAI Legacy
-          </Link>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
-              <Link href="/login">Sign In</Link>
-            </Button>
-            <Button size="sm" className="rounded-full px-5 shadow-sm" asChild>
-              <Link href="/signup">Get Started</Link>
-            </Button>
-          </div>
-        </div>
-      </header>
+      <PublicHeader />
 
       {/* ----------------------------------------------------------------- */}
       {/* Hero Section - Immersive & Emotional                                */}
@@ -360,7 +344,7 @@ export default function HomePage() {
                   <div className="p-2.5 rounded-lg bg-primary/10">
                     <TreeDeciduous className="h-5 w-5 text-primary" />
                   </div>
-                  <h3 className="font-serif text-2xl font-bold">Interactive Family Tree</h3>
+                  <h3 className="font-serif text-2xl font-bold">Interactive MAI Tree</h3>
                 </div>
                 <p className="text-muted-foreground leading-relaxed mb-6">
                   Visualize your entire family lineage. Invite members with a magic link so everyone gets their own profile and can add to the shared legacy.
@@ -592,9 +576,9 @@ export default function HomePage() {
             <h4 className="text-base font-semibold mb-4 text-foreground">Product</h4>
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li><Link href="/" className="hover:text-primary transition-colors">Home</Link></li>
-              <li><Link href="/demo" className="hover:text-primary transition-colors">Interactive Demo</Link></li>
-              <li><Link href="#features" className="hover:text-primary transition-colors">Features</Link></li>
-              <li><Link href="/blog" className="hover:text-primary transition-colors">Blog</Link></li>
+              <li><Link href="/demo" className="hover:text-primary transition-colors">Demo</Link></li>
+              <li><Link href="/explore" className="hover:text-primary transition-colors">Stories</Link></li>
+              <li><Link href="/pricing" className="hover:text-primary transition-colors">Pricing</Link></li>
               <li><Link href="/signup" className="hover:text-primary transition-colors">Sign Up</Link></li>
             </ul>
           </div>

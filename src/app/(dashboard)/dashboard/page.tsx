@@ -409,9 +409,9 @@ export default async function DashboardPage() {
       </div>
 
       {/* Goal Statement + 6-Stat Grid */}
-      <section className="grid grid-cols-1 lg:grid-cols-5 rounded-2xl overflow-hidden border bg-orange-50/50 dark:bg-orange-950/20">
+      <section className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         {/* Left: Personal Family Goal */}
-        <div className="lg:col-span-2 p-10 md:p-14 flex flex-col justify-center lg:border-r border-orange-200/50 dark:border-orange-800/30">
+        <div className="lg:col-span-2 p-10 md:p-14 flex flex-col justify-center bg-card rounded-2xl border shadow-sm">
           <p className="text-sm uppercase tracking-widest text-orange-600 dark:text-orange-400 font-semibold mb-4">
             Family Goal
           </p>
@@ -459,12 +459,12 @@ export default async function DashboardPage() {
         </div>
 
         {/* Right: 3x2 Stat Grid */}
-        <div className="lg:col-span-3 grid grid-cols-2 sm:grid-cols-3">
+        <div className="lg:col-span-3 grid grid-cols-2 sm:grid-cols-3 gap-4">
           {stats.map((stat, i) => (
             <Link
               key={stat.label}
               href={stat.href}
-              className="group flex flex-col items-center justify-center text-center p-6 md:p-8 border-b border-r border-orange-200/30 dark:border-orange-800/20 last:border-r-0 hover:bg-orange-100/40 dark:hover:bg-orange-900/20 transition-colors"
+              className="group flex flex-col items-center justify-center text-center p-6 md:p-8 bg-card rounded-2xl border shadow-sm hover:bg-accent/50 transition-colors"
             >
               <stat.icon className="h-7 w-7 text-orange-500/70 mb-2 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors" />
               <p className="text-4xl md:text-5xl font-bold font-serif text-foreground tracking-tighter">
@@ -536,7 +536,7 @@ export default async function DashboardPage() {
                   <TreePine className="h-4 w-4 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Build the Family Tree</p>
+                  <p className="text-sm font-medium">Build the MAI Tree</p>
                   <p className="text-xs text-muted-foreground">Map out your family&apos;s lineage</p>
                 </div>
               </Link>

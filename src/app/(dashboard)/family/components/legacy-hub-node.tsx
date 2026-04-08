@@ -85,6 +85,7 @@ interface LegacyHubNodeProps {
   onEdit: (node: HubNode) => void;
   onDelete: (id: string) => void;
   onInvite: (name: string) => void;
+  entryCount?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -96,6 +97,7 @@ export const LegacyHubNode = memo(function LegacyHubNode({
   onEdit,
   onDelete,
   onInvite,
+  entryCount,
 }: LegacyHubNodeProps) {
   const profileHref = node.isMe
     ? "/profile"
@@ -105,12 +107,15 @@ export const LegacyHubNode = memo(function LegacyHubNode({
 
   const badge = connectionBadge(node);
 
+  // Larger avatar for the current user
+  const avatarSize = node.isMe ? "h-20 w-20" : "h-16 w-16";
+
   const cardContent = (
     <div className="flex flex-col items-center gap-1 min-w-0 select-none">
       {/* ─── Avatar ─── */}
       <div className="relative">
         <Avatar
-          className={`h-16 w-16 ${ringStyle(node)} ${
+          className={`${avatarSize} ${ringStyle(node)} ${
             node.isDeceased ? "opacity-50 grayscale-[30%]" : ""
           } transition-shadow`}
         >
@@ -122,10 +127,10 @@ export const LegacyHubNode = memo(function LegacyHubNode({
           </AvatarFallback>
         </Avatar>
 
-        {/* "Me" chip */}
+        {/* "YOU" chip */}
         {node.isMe && (
-          <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 px-2 py-[1px] rounded-full bg-primary text-primary-foreground text-[9px] font-bold tracking-wide shadow-sm">
-            Me
+          <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 px-2.5 py-[1px] rounded-full bg-primary text-primary-foreground text-[9px] font-bold tracking-widest shadow-sm uppercase">
+            You
           </span>
         )}
 
@@ -146,6 +151,13 @@ export const LegacyHubNode = memo(function LegacyHubNode({
       {badge && (
         <span className={badge.className}>
           {badge.label}
+        </span>
+      )}
+
+      {/* ─── Entry count badge ─── */}
+      {entryCount != null && entryCount > 0 && (
+        <span className="text-[9px] font-medium text-muted-foreground bg-muted/80 px-2 py-[1px] rounded-full">
+          {entryCount} {entryCount === 1 ? "Entry" : "Entries"}
         </span>
       )}
 

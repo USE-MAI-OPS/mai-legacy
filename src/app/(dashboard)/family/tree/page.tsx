@@ -138,7 +138,7 @@ export default async function FamilyTreePage() {
           <div>
             <h1 className="text-lg font-semibold flex items-center gap-2">
               <TreePine className="h-5 w-5 text-primary" />
-              {data.familyName} Family Tree
+              {data.familyName} MAI Tree
             </h1>
             <p className="text-xs text-muted-foreground">
               {memberCount} member{memberCount !== 1 ? "s" : ""} in tree
@@ -148,7 +148,7 @@ export default async function FamilyTreePage() {
       </div>
 
       {/* Tree fills remaining height — viewport handles its own pan/zoom */}
-      <div className="flex-1 overflow-hidden px-6 pt-5">
+      <div className="flex-1 overflow-hidden">
         <FamilyTree
           treeMembers={data.treeMembers}
           realMembers={data.realMembers.map((m) => ({

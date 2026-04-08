@@ -178,29 +178,32 @@ export function DashboardNav() {
           <DropdownMenu>
             <DropdownMenuTrigger
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-base font-medium transition-colors outline-none whitespace-nowrap font-serif",
-                pathname.startsWith("/entries")
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-base font-medium transition-colors outline-none whitespace-nowrap",
+                pathname.startsWith("/entries") || pathname.startsWith("/skills")
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
             >
-              Our Legacy <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+              Entries <ChevronDown className="h-3.5 w-3.5 opacity-50" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">
               <DropdownMenuItem asChild>
                 <Link href="/entries" className="w-full cursor-pointer">All Entries</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/entries?type=recipe" className="w-full cursor-pointer">Recipes</Link>
+                <Link href="/entries?type=story" className="w-full cursor-pointer">📖 Stories</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/entries?type=skill" className="w-full cursor-pointer">Skills</Link>
+                <Link href="/entries?type=recipe" className="w-full cursor-pointer">🍳 Recipes</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/entries?type=story" className="w-full cursor-pointer">Stories</Link>
+                <Link href="/entries?type=skill" className="w-full cursor-pointer">🛠️ Skills</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/entries?type=lesson" className="w-full cursor-pointer">Lessons</Link>
+                <Link href="/entries?type=lesson" className="w-full cursor-pointer">🎓 Lessons</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/entries?type=connection" className="w-full cursor-pointer">🤝 Connections</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
@@ -230,7 +233,7 @@ export function DashboardNav() {
                 <Link href="/family" className="w-full cursor-pointer">Family Hub</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/family/tree" className="w-full cursor-pointer">Family Tree</Link>
+                <Link href="/family/tree" className="w-full cursor-pointer">MAI Tree</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/goals" className="w-full cursor-pointer">Family Goals</Link>

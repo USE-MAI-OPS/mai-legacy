@@ -49,13 +49,16 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // Redirect unauthenticated users to login (except for public routes)
-  const publicRoutes = ["/", "/login", "/signup", "/invite", "/auth/callback", "/demo", "/terms", "/privacy", "/forgot-password", "/reset-password", "/contact", "/pricing"];
+  const publicRoutes = ["/", "/login", "/signup", "/invite", "/auth/callback", "/demo", "/terms", "/privacy", "/forgot-password", "/reset-password", "/contact", "/pricing", "/explore", "/blog"];
   const isPublicRoute = publicRoutes.some(
     (route) =>
       pathname === route ||
       pathname.startsWith("/auth/") ||
       pathname.startsWith("/invite/") ||
-      pathname.startsWith("/demo")
+      pathname.startsWith("/demo") ||
+      pathname.startsWith("/explore") ||
+      pathname.startsWith("/blog") ||
+      pathname.startsWith("/p/")
   );
 
   if (!user && !isPublicRoute) {

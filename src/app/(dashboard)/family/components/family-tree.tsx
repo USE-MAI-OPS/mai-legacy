@@ -4,6 +4,7 @@ import {
   useState,
   useTransition,
   useCallback,
+  useRef,
 } from "react";
 import {
   AlertDialog,
@@ -16,26 +17,32 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Plus,
-  TreePine,
   Mail,
   UserPlus,
-  Layout,
-  GitFork,
+  X,
 } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type TreeNodeData } from "./family-tree-node";
 import { AddTreeMemberDialog } from "./add-tree-member-dialog";
 import { InviteMemberDialog } from "./invite-member-dialog";
 import { addTreeMember, deleteTreeMember } from "../actions";
 import { toast } from "sonner";
 import { LegacyHubCanvas } from "./legacy-hub";
-import { ClassicTree } from "./classic-tree";
 import type { HubNode } from "./legacy-hub-types";
+import { getMockProfile } from "./mai-tree-mock-data";
+
+// New components
+import { MaiTreeSidebar } from "./mai-tree-sidebar";
+import { MaiTreeEmptyState } from "./mai-tree-empty-state";
+import { MaiTreeQuickCard } from "./mai-tree-quick-card";
+import { MaiTreeProfileModal } from "./mai-tree-profile-modal";
+import { MaiTreeGroitPanel } from "./mai-tree-griot-panel";
+import { MaiTreeInstructionBar } from "./mai-tree-instruction-bar";
 
 // ---------------------------------------------------------------------------
-// Main component (state management, dialogs, header)
+// Main component
 // ---------------------------------------------------------------------------
 interface RealMember {
   id: string;
@@ -59,7 +66,7 @@ export function FamilyTree({
   currentUserMemberId,
   currentUserDisplayName,
 }: FamilyTreeProps) {
-  const [viewMode, setViewMode] = useState<"hub" | "classic">("hub");
+  // ─── Existing state ───
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editNode, setEditNode] = useState<TreeNodeData | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -68,11 +75,19 @@ export function FamilyTree({
   const [memberToDelete, setMemberToDelete] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
+  // ─── New MAI Tree state ───
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [quickCardNode, setQuickCardNode] = useState<HubNode | null>(null);
+  const [quickCardPos, setQuickCardPos] = useState<{ x: number; y: number } | null>(null);
+  const [profileNode, setProfileNode] = useState<HubNode | null>(null);
+
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+
   const userInTree = currentUserMemberId
     ? treeMembers.some((m) => m.linked_member_id === currentUserMemberId)
     : false;
 
-  // Bridge: LegacyHubCanvas.onEdit gives us a HubNode → find original TreeNodeData
+  // ─── Existing handlers ───
   const handleHubEdit = useCallback(
     (hubNode: HubNode) => {
       const original = treeMembers.find((m) => m.id === hubNode.id);
@@ -112,17 +127,6 @@ export function FamilyTree({
     setInviteOpen(true);
   }, []);
 
-  const handleInviteGeneral = useCallback(() => {
-    setInviteForName(null);
-    setInviteOpen(true);
-  }, []);
-
-  // Classic tree passes TreeNodeData directly — no HubNode bridge needed
-  const handleClassicEdit = useCallback((node: TreeNodeData) => {
-    setEditNode(node);
-    setDialogOpen(true);
-  }, []);
-
   const handleAddSelf = useCallback(() => {
     if (!currentUserMemberId || !currentUserDisplayName) return;
     setAddingSelf(true);
@@ -151,149 +155,55 @@ export function FamilyTree({
     });
   }, [familyId, currentUserMemberId, currentUserDisplayName]);
 
-  if (treeMembers.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 px-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
-          <TreePine className="h-8 w-8 text-primary" />
-        </div>
-        <h3 className="text-lg font-semibold mb-1">
-          Start Building Your Family Tree
-        </h3>
-        <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">
-          Add yourself first, then grow your tree by adding family members.
-        </p>
-        <div className="flex gap-3">
-          {currentUserMemberId && currentUserDisplayName && (
-            <Button onClick={handleAddSelf} disabled={addingSelf}>
-              <UserPlus className="mr-2 h-4 w-4" />
-              {addingSelf ? "Adding..." : "Add Myself"}
-            </Button>
-          )}
-          <Button variant="outline" onClick={handleAddNew}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Member
-          </Button>
-        </div>
+  // ─── New MAI Tree handlers ───
+  const handleNodeClick = useCallback(
+    (node: HubNode, screenPos: { x: number; y: number }) => {
+      // Convert screen coords to container-relative coords
+      const rect = canvasContainerRef.current?.getBoundingClientRect();
+      const relX = rect ? screenPos.x - rect.left : screenPos.x;
+      const relY = rect ? screenPos.y - rect.top : screenPos.y;
 
-        <AddTreeMemberDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          familyId={familyId}
-          existingMembers={treeMembers}
-          realMembers={realMembers}
-          editNode={editNode}
-          currentUserMemberId={currentUserMemberId}
-        />
+      // Clamp position so card doesn't overflow
+      const cardW = 224; // w-56
+      const cardH = 280;
+      const maxX = rect ? rect.width - cardW - 8 : relX;
+      const maxY = rect ? rect.height - cardH - 8 : relY;
 
-        <InviteMemberDialog
-          open={inviteOpen}
-          onOpenChange={setInviteOpen}
-          familyId={familyId}
-          forMemberName={inviteForName}
-        />
+      setQuickCardNode(node);
+      setQuickCardPos({
+        x: Math.min(relX + 16, maxX),
+        y: Math.min(relY - 40, Math.max(8, maxY)),
+      });
+    },
+    []
+  );
 
-        <AlertDialog open={!!memberToDelete} onOpenChange={(open) => { if (!open) setMemberToDelete(null); }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Remove from family tree?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently remove this person from your family tree. This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={confirmDeleteMember}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Remove
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    );
-  }
+  const handleNodeDoubleClick = useCallback((node: HubNode) => {
+    setQuickCardNode(null);
+    setQuickCardPos(null);
+    setProfileNode(node);
+  }, []);
 
-  return (
-    <div className="flex flex-col gap-5 h-full">
-      <div className="flex items-center justify-between pb-2">
-        <div className="flex items-center gap-3">
-          <TreePine className="h-5 w-5 text-primary" />
-          <Tabs
-            value={viewMode}
-            onValueChange={(v) => setViewMode(v as "hub" | "classic")}
-          >
-            <TabsList className="h-8">
-              <TabsTrigger value="hub" className="text-xs px-3 h-6 gap-1.5">
-                <Layout className="h-3 w-3" />
-                Custom
-              </TabsTrigger>
-              <TabsTrigger value="classic" className="text-xs px-3 h-6 gap-1.5">
-                <GitFork className="h-3 w-3" />
-                Classic
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-          <span className="text-sm text-muted-foreground">
-            ({treeMembers.length} member{treeMembers.length !== 1 ? "s" : ""})
-          </span>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="outline" size="sm" onClick={handleInviteGeneral}>
-            <Mail className="mr-1.5 h-3.5 w-3.5" />
-            Invite
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleAddNew}>
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Add Member
-          </Button>
-        </div>
-      </div>
+  const handleQuickCardClose = useCallback(() => {
+    setQuickCardNode(null);
+    setQuickCardPos(null);
+  }, []);
 
-      {!userInTree && currentUserMemberId && currentUserDisplayName && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <UserPlus className="h-4 w-4 text-primary shrink-0" />
-            <p className="text-sm text-muted-foreground truncate">
-              You&apos;re not in the tree yet.
-            </p>
-          </div>
-          <Button
-            size="sm"
-            onClick={handleAddSelf}
-            disabled={addingSelf}
-            className="shrink-0"
-          >
-            {addingSelf ? "Adding..." : "Add Myself"}
-          </Button>
-        </div>
-      )}
+  const handleViewProfile = useCallback(() => {
+    if (quickCardNode) {
+      setProfileNode(quickCardNode);
+      setQuickCardNode(null);
+      setQuickCardPos(null);
+    }
+  }, [quickCardNode]);
 
-      <div className="flex-1 min-h-0">
-        {viewMode === "hub" ? (
-          <LegacyHubCanvas
-            members={treeMembers}
-            currentUserMemberId={currentUserMemberId}
-            onEdit={handleHubEdit}
-            onDelete={handleDelete}
-            onInvite={handleInvite}
-            onAddNew={handleAddNew}
-          />
-        ) : (
-          <ClassicTree
-            members={treeMembers}
-            currentUserId={currentUserId}
-            currentUserMemberId={currentUserMemberId}
-            onEdit={handleClassicEdit}
-            onDelete={handleDelete}
-            onInvite={handleInvite}
-            onAddNew={handleAddNew}
-          />
-        )}
-      </div>
+  const handleFilterChange = useCallback((filter: string | null) => {
+    setActiveFilter(filter);
+  }, []);
 
+  // ─── Shared dialogs (rendered in both empty + populated states) ───
+  const dialogs = (
+    <>
       <AddTreeMemberDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
@@ -311,12 +221,18 @@ export function FamilyTree({
         forMemberName={inviteForName}
       />
 
-      <AlertDialog open={!!memberToDelete} onOpenChange={(open) => { if (!open) setMemberToDelete(null); }}>
+      <AlertDialog
+        open={!!memberToDelete}
+        onOpenChange={(open) => {
+          if (!open) setMemberToDelete(null);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove from family tree?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently remove this person from your family tree. This action cannot be undone.
+              This will permanently remove this person from your family tree.
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -330,6 +246,122 @@ export function FamilyTree({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <MaiTreeProfileModal
+        open={!!profileNode}
+        onOpenChange={(open) => {
+          if (!open) setProfileNode(null);
+        }}
+        node={profileNode}
+        mockProfile={
+          profileNode
+            ? getMockProfile(profileNode.id, profileNode.displayName)
+            : null
+        }
+      />
+    </>
+  );
+
+  // ─── Empty state ───
+  if (treeMembers.length === 0) {
+    return (
+      <div className="flex h-full">
+        <MaiTreeSidebar
+          activeFilter={activeFilter}
+          onFilterChange={handleFilterChange}
+          onAddNew={handleAddNew}
+        />
+        <div className="flex-1 relative min-w-0">
+          <MaiTreeEmptyState
+            currentUserDisplayName={currentUserDisplayName}
+            onAddNew={handleAddNew}
+          />
+        </div>
+        {dialogs}
+      </div>
+    );
+  }
+
+  // ─── Populated state ───
+  return (
+    <div className="flex h-full">
+      <MaiTreeSidebar
+        activeFilter={activeFilter}
+        onFilterChange={handleFilterChange}
+        onAddNew={handleAddNew}
+      />
+      <div ref={canvasContainerRef} className="flex-1 relative min-w-0 overflow-hidden">
+        {/* "Not in tree" banner */}
+        {!userInTree && currentUserMemberId && currentUserDisplayName && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 rounded-full border border-primary/20 bg-card/90 backdrop-blur-sm shadow-sm px-4 py-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <UserPlus className="h-4 w-4 text-primary shrink-0" />
+              <p className="text-xs text-muted-foreground whitespace-nowrap">
+                You&apos;re not in the tree yet.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={handleAddSelf}
+              disabled={addingSelf}
+              className="shrink-0 rounded-full h-7 text-xs"
+            >
+              {addingSelf ? "Adding..." : "Add Myself"}
+            </Button>
+          </div>
+        )}
+
+        {/* Filter pill */}
+        {activeFilter && (
+          <div className="absolute top-3 right-14 z-20">
+            <Badge
+              variant="secondary"
+              className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20"
+            >
+              Filtered: {activeFilter}
+              <button
+                onClick={() => setActiveFilter(null)}
+                className="ml-0.5 hover:text-foreground transition-colors"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          </div>
+        )}
+
+        {/* Canvas */}
+        <LegacyHubCanvas
+          members={treeMembers}
+          currentUserMemberId={currentUserMemberId}
+          onEdit={handleHubEdit}
+          onDelete={handleDelete}
+          onInvite={handleInvite}
+          onNodeClick={handleNodeClick}
+          onNodeDoubleClick={handleNodeDoubleClick}
+        />
+
+        {/* Instruction bar */}
+        <MaiTreeInstructionBar />
+
+        {/* Quick card */}
+        {quickCardNode && quickCardPos && (
+          <MaiTreeQuickCard
+            node={quickCardNode}
+            position={quickCardPos}
+            mockProfile={getMockProfile(
+              quickCardNode.id,
+              quickCardNode.displayName
+            )}
+            onClose={handleQuickCardClose}
+            onViewProfile={handleViewProfile}
+          />
+        )}
+
+        {/* Griot panel */}
+        <MaiTreeGroitPanel />
+      </div>
+
+      {dialogs}
     </div>
   );
 }

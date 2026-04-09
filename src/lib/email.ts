@@ -104,8 +104,7 @@ export async function sendVerificationCodeEmail(opts: {
 }) {
   const { to, code } = opts;
 
-  // Space digits for readability
-  const spacedCode = code.split("").join(" &nbsp; ");
+  const digits = code.split("");
 
   const html = `
 <!DOCTYPE html>
@@ -136,9 +135,11 @@ export async function sendVerificationCodeEmail(opts: {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" style="padding:8px 0 24px;">
-                    <div style="display:inline-block;background-color:#f4f4f5;border:2px solid #e4e4e7;border-radius:12px;padding:16px 32px;">
-                      <span style="font-family:'Courier New',Courier,monospace;font-size:32px;font-weight:700;color:#18181b;letter-spacing:8px;">${spacedCode}</span>
-                    </div>
+                    <table cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;border:2px solid #e4e4e7;border-radius:12px;">
+                      <tr>
+                        ${digits.map((d) => `<td style="padding:14px 12px;text-align:center;"><span style="font-family:'Courier New',Courier,monospace;font-size:32px;font-weight:700;color:#18181b;">${d}</span></td>`).join("")}
+                      </tr>
+                    </table>
                   </td>
                 </tr>
               </table>

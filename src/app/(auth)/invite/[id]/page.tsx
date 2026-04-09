@@ -71,6 +71,21 @@ export default function AcceptInvitePage() {
         }
 
         if (inviteData.accepted) {
+          // Check if current user is already a member
+          if (user) {
+            const { data: memberCheck } = await supabase
+              .from("family_members")
+              .select("id")
+              .eq("family_id", inviteData.family_id)
+              .eq("user_id", user.id)
+              .maybeSingle();
+
+            if (memberCheck) {
+              // Already a member — just go to dashboard
+              window.location.href = "/dashboard";
+              return;
+            }
+          }
           setInvite(null);
           setError("This invite has already been accepted.");
           setFetching(false);
@@ -194,12 +209,15 @@ export default function AcceptInvitePage() {
             </div>
             <h2 className="text-xl font-bold mb-2">Invite Expired</h2>
             <p className="text-muted-foreground mb-4">
-              This invite to {invite.familyName} has expired. Please ask the
-              family admin to send a new invite.
+              This invite to {invite.familyName} has expired. Ask{" "}
+              <span className="font-medium text-foreground">{invite.invitedBy}</span>{" "}
+              to send you a new one.
             </p>
-            <Button asChild variant="outline">
-              <Link href="/">Go Home</Link>
-            </Button>
+            <div className="flex flex-col gap-2">
+              <Button asChild variant="outline">
+                <Link href="/">Go Home</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>

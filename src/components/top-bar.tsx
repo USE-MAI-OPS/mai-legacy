@@ -2,16 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Search, Users } from "lucide-react";
+import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
-import { getActiveFamilyIdClient } from "@/lib/active-family";
 import { NotificationBell } from "@/components/notification-bell";
+import { HubSwitcher } from "@/components/hub-switcher";
 
 export function TopBar() {
   const [visible, setVisible] = useState(true);
   const lastScrollY = useRef(0);
-  const [familyName, setFamilyName] = useState("My Family");
 
   const handleScroll = useCallback(() => {
     const currentY = window.scrollY;
@@ -28,36 +26,6 @@ export function TopBar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [handleScroll]);
 
-  useEffect(() => {
-    async function loadFamily() {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const cookieId = getActiveFamilyIdClient();
-
-      type MembershipWithFamily = {
-        family_id: string;
-        families: { name: string } | null;
-      };
-      const { data: memberships } = (await supabase
-        .from("family_members")
-        .select("family_id, families(name)")
-        .eq("user_id", user.id)) as unknown as {
-        data: MembershipWithFamily[] | null;
-      };
-
-      if (!memberships || memberships.length === 0) return;
-      const active = cookieId
-        ? memberships.find((m) => m.family_id === cookieId) ?? memberships[0]
-        : memberships[0];
-      setFamilyName(active.families?.name ?? "My Family");
-    }
-    loadFamily();
-  }, []);
-
   return (
     <header
       data-slot="top-bar"
@@ -66,13 +34,8 @@ export function TopBar() {
         visible ? "translate-y-0" : "-translate-y-full"
       )}
     >
-      {/* Left: Family name with crest icon */}
-      <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
-        <Users className="h-5 w-5 text-primary shrink-0" />
-        <span className="text-base font-bold truncate max-w-[180px]">
-          {familyName}
-        </span>
-      </Link>
+      {/* Left: Hub switcher */}
+      <HubSwitcher compact />
 
       {/* Right: Search + Notifications */}
       <div className="flex items-center gap-1 shrink-0">

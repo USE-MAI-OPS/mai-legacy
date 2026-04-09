@@ -972,6 +972,39 @@ export interface Database {
         };
         Relationships: [];
       };
+      email_verifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          email: string;
+          code_hash: string;
+          expires_at: string;
+          attempts: number;
+          verified_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          email: string;
+          code_hash: string;
+          expires_at: string;
+          attempts?: number;
+          verified_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          email?: string;
+          code_hash?: string;
+          expires_at?: string;
+          attempts?: number;
+          verified_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       background_jobs: {
         Row: {
           id: string;

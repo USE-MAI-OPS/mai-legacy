@@ -65,3 +65,88 @@ export async function mockStripeCheckout(page: Page) {
     });
   });
 }
+
+/** Mock a family_invites REST query to return a specific invite */
+export async function mockInviteFetch(
+  page: Page,
+  invite: {
+    id?: string;
+    family_id?: string;
+    invited_by?: string;
+    role?: string;
+    accepted?: boolean;
+    expires_at?: string;
+  } | null
+) {
+  await page.route("**/rest/v1/family_invites**", async (route: Route) => {
+    if (!invite) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(null),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        family_id: invite.family_id ?? "e2e-family-id",
+        invited_by: invite.invited_by ?? "e2e-inviter-id",
+        role: invite.role ?? "member",
+        accepted: invite.accepted ?? false,
+        expires_at:
+          invite.expires_at ??
+          new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      }),
+    });
+  });
+}
+
+/** Mock a families REST query to return a specific family */
+export async function mockFamilyFetch(
+  page: Page,
+  family: { id?: string; name?: string } | null
+) {
+  await page.route("**/rest/v1/families**", async (route: Route) => {
+    if (!family) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(null),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        name: family.name ?? "Test Family",
+      }),
+    });
+  });
+}
+
+/** Mock a family_members REST query to return a specific member */
+export async function mockFamilyMemberFetch(
+  page: Page,
+  member: { display_name?: string } | null
+) {
+  await page.route("**/rest/v1/family_members**", async (route: Route) => {
+    if (!member) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(null),
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        display_name: member.display_name ?? "E2E Inviter",
+      }),
+    });
+  });
+}

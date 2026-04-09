@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -11,7 +10,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { BookOpenIcon, CheckIcon, CopyIcon } from "lucide-react";
 
 interface Source {
   entry_id: string;
@@ -174,6 +173,22 @@ export function ChatMessage({
                 {isStreaming && (
                   <span className="inline-block w-1.5 h-4 bg-primary/50 ml-1 animate-pulse rounded-sm align-middle" />
                 )}
+                {/* Inline source chips */}
+                {!isStreaming && sources && sources.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-border/50 not-prose">
+                    {sources.map((s) => (
+                      <Link
+                        key={s.entry_id}
+                        href={`/entries/${s.entry_id}`}
+                      >
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-[#C17B54]/10 text-[#C17B54] hover:bg-[#C17B54]/20 transition-colors">
+                          <BookOpenIcon className="h-2.5 w-2.5" />
+                          {s.title || "Source"}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -208,26 +223,6 @@ export function ChatMessage({
           )}
         </div>
 
-        {sources && sources.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-1.5 ml-2">
-            <span className="text-[10px] font-serif italic text-muted-foreground self-center">
-              Sources:
-            </span>
-            {sources.map((source) => (
-              <Link
-                key={source.entry_id}
-                href={`/entries/${source.entry_id}`}
-              >
-                <Badge
-                  variant="outline"
-                  className="text-[10px] px-2 py-0.5 rounded-full cursor-pointer hover:bg-muted transition-colors"
-                >
-                  {source.title}
-                </Badge>
-              </Link>
-            ))}
-          </div>
-        )}
 
         {timestamp && (
           <span className={cn(

@@ -1,11 +1,13 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { headers } from "next/headers";
 import { setActiveFamilyCookie } from "@/lib/active-family-server";
 import { getSafeRedirect } from "@/lib/safe-redirect";
-import { sendDripWelcome } from "@/lib/email";
+import { sendDripWelcome, sendVerificationCodeEmail } from "@/lib/email";
+import { createHash, randomInt } from "crypto";
 
 export async function login(formData: FormData) {
   const supabase = await createClient();
@@ -80,7 +82,7 @@ export async function signup(formData: FormData) {
   // If session exists, user is auto-confirmed
   if (data.session) {
     // Fire Day 0 drip welcome email — non-blocking, failure is non-critical
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://usemai.com";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mailegacy.com";
     const admin = createAdminClient();
     sendDripWelcome({ to: email, displayName, appUrl })
       .then(() =>
@@ -88,8 +90,18 @@ export async function signup(formData: FormData) {
       )
       .catch((err) => console.error("[drip] Failed to send welcome email:", err));
 
-    // If there's an invite redirect, go there instead of onboarding
-    redirect(getSafeRedirect(redirectTo, "/onboarding"));
+    // Send email verification code
+    try {
+      await sendVerificationCode(email, data.user!.id);
+    } catch (err) {
+      console.error("[verify] Failed to send verification code:", err);
+    }
+
+    // Redirect to email verification page, preserving any invite redirect
+    const verifyRedirect = redirectTo
+      ? `/verify-email?redirect=${encodeURIComponent(redirectTo)}`
+      : "/verify-email";
+    redirect(verifyRedirect);
   }
 
   // Fallback: email confirmation is still enabled
@@ -186,6 +198,9 @@ export async function createFamily(
   // Set this as the active family cookie (first created becomes active)
   try {
     await setActiveFamilyCookie(family.id);
+    // Clear stale has-family cache so middleware doesn't redirect back to /onboarding
+    const cookieStore = await cookies();
+    cookieStore.delete("mai_has_family");
   } catch {
     // Non-critical — cookie will be set on next page load
   }
@@ -278,4 +293,134 @@ export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/");
+}
+
+// ---------------------------------------------------------------------------
+// Email verification (6-digit OTP)
+// ---------------------------------------------------------------------------
+
+function hashCode(code: string): string {
+  return createHash("sha256").update(code).digest("hex");
+}
+
+export async function sendVerificationCode(email: string, userId: string) {
+  const admin = createAdminClient();
+
+  // Delete any existing codes for this user
+  await admin.from("email_verifications").delete().eq("user_id", userId);
+
+  // Generate 6-digit code
+  const code = String(randomInt(100000, 999999));
+
+  // Store hashed code with 10-minute expiry
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const { error } = await admin.from("email_verifications").insert({
+    user_id: userId,
+    email,
+    code_hash: hashCode(code),
+    expires_at: expiresAt,
+  });
+
+  if (error) {
+    console.error("[verify] Failed to store verification code:", error);
+    throw new Error("Failed to create verification code");
+  }
+
+  // Send branded email via Resend
+  await sendVerificationCodeEmail({ to: email, code });
+
+  return { success: true };
+}
+
+export async function verifyEmailCode(code: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated" };
+  }
+
+  const admin = createAdminClient();
+
+  // Get latest non-expired verification record
+  const { data: record, error: fetchError } = await admin
+    .from("email_verifications")
+    .select("*")
+    .eq("user_id", user.id)
+    .is("verified_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (fetchError || !record) {
+    return { error: "Verification code expired. Please request a new one." };
+  }
+
+  // Rate limit: max 5 attempts
+  if (record.attempts >= 5) {
+    return { error: "Too many attempts. Please request a new code." };
+  }
+
+  // Increment attempts
+  await admin
+    .from("email_verifications")
+    .update({ attempts: record.attempts + 1 })
+    .eq("id", record.id);
+
+  // Compare hashed code
+  if (hashCode(code) !== record.code_hash) {
+    return { error: "Incorrect code. Please try again." };
+  }
+
+  // Mark as verified
+  await admin
+    .from("email_verifications")
+    .update({ verified_at: new Date().toISOString() })
+    .eq("id", record.id);
+
+  // Set verification cache cookie
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set("mai_email_verified", `${user.id}:1`, {
+      path: "/",
+      httpOnly: true,
+      sameSite: "lax",
+      maxAge: 3600, // 1 hour cache
+    });
+  } catch {
+    // Non-critical
+  }
+
+  return { success: true };
+}
+
+export async function resendVerificationCode() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user || !user.email) {
+    return { error: "Not authenticated" };
+  }
+
+  const admin = createAdminClient();
+
+  // Rate limit: check how many codes sent in last 10 minutes
+  const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const { count } = await admin
+    .from("email_verifications")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .gt("created_at", tenMinAgo);
+
+  if ((count ?? 0) >= 3) {
+    return { error: "Too many requests. Please wait a few minutes." };
+  }
+
+  await sendVerificationCode(user.email, user.id);
+  return { success: true };
 }

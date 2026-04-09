@@ -23,6 +23,7 @@ import {
   X,
   Trash2,
   Utensils,
+  Sparkles,
 } from "lucide-react";
 import { respondToEvent, deleteEvent } from "../actions";
 import { CreateEventDialog } from "./create-event-dialog";
@@ -61,9 +62,9 @@ interface UpcomingEventsProps {
 function formatEventDate(dateStr: string): string {
   const d = new Date(dateStr);
   return d.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
+    month: "long",
     day: "numeric",
+    year: "numeric",
   });
 }
 
@@ -119,7 +120,7 @@ function RsvpButtons({
       },
       {
         status: "not_going",
-        label: "Can't",
+        label: "Can\u2019t",
         icon: <X className="h-3 w-3" />,
       },
     ];
@@ -131,7 +132,7 @@ function RsvpButtons({
           key={btn.status}
           variant={currentStatus === btn.status ? "default" : "outline"}
           size="sm"
-          className="text-xs gap-1 h-7"
+          className="text-xs gap-1 h-7 rounded-full"
           onClick={() => onRespond(eventId, btn.status)}
           disabled={isPending}
         >
@@ -160,7 +161,6 @@ export function UpcomingEvents({
   const [optimisticRsvps, addOptimisticRsvp] = useOptimistic(
     initialRsvps,
     (state: RsvpData[], newRsvp: RsvpData) => {
-      // Remove existing RSVP for this user/event, add new one
       const filtered = state.filter(
         (r) =>
           !(r.event_id === newRsvp.event_id && r.user_id === newRsvp.user_id)
@@ -171,7 +171,6 @@ export function UpcomingEvents({
 
   function handleRespond(eventId: string, status: RsvpStatus) {
     startTransition(async () => {
-      // Optimistic update
       addOptimisticRsvp({
         event_id: eventId,
         user_id: currentUserId,
@@ -211,15 +210,17 @@ export function UpcomingEvents({
             <CalendarDays className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold">Upcoming Events</h2>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-1.5 h-3.5 w-3.5" />
+          <button
+            className="text-primary text-sm font-medium flex items-center gap-1 hover:underline"
+            onClick={() => setDialogOpen(true)}
+          >
+            <Plus className="h-3.5 w-3.5" />
             Add Event
-          </Button>
+          </button>
         </div>
 
-        <Card className="border-dashed bg-muted/30 overflow-hidden">
+        <Card className="border-dashed border-2 border-orange-200/50 bg-orange-50/20 overflow-hidden">
           <CardContent className="flex flex-col items-center justify-center py-16 px-4 relative">
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03] pointer-events-none mix-blend-multiply" />
             <div className="h-24 w-24 rounded-full bg-orange-100 dark:bg-orange-950/50 flex items-center justify-center mb-6 relative z-10">
               <Utensils className="h-12 w-12 text-orange-600 dark:text-orange-400 opacity-80" />
             </div>
@@ -234,7 +235,7 @@ export function UpcomingEvents({
               className="rounded-full shadow-md font-serif text-base px-8 relative z-10"
               onClick={() => setDialogOpen(true)}
             >
-              <Plus className="mr-2 h-5 w-5" />
+              <Sparkles className="mr-2 h-5 w-5" />
               Plan a Gathering
             </Button>
           </CardContent>
@@ -260,14 +261,17 @@ export function UpcomingEvents({
             ({events.length})
           </span>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
+        <button
+          className="text-primary text-sm font-medium flex items-center gap-1 hover:underline"
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="h-3.5 w-3.5" />
           Add Event
-        </Button>
+        </button>
       </div>
 
       {/* Event cards */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {events.map((event) => {
           const counts = getRsvpCounts(event.id, optimisticRsvps);
           const myStatus = getUserRsvp(event.id, currentUserId, optimisticRsvps);
@@ -278,7 +282,7 @@ export function UpcomingEvents({
               <CardContent className="pt-5 pb-4 space-y-3">
                 {/* Title + delete */}
                 <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-medium text-sm leading-tight">
+                  <h3 className="font-semibold text-sm leading-tight">
                     {event.title}
                   </h3>
                   {isCreator && (
@@ -305,10 +309,8 @@ export function UpcomingEvents({
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <CalendarDays className="h-3 w-3 shrink-0" />
                     <span>
-                      {formatEventDate(event.event_date)} at{" "}
+                      {formatEventDate(event.event_date)}{" \u00b7 "}
                       {formatEventTime(event.event_date)}
-                      {event.end_date &&
-                        ` \u2013 ${formatEventDate(event.end_date)}`}
                     </span>
                   </div>
                   {event.location && (
@@ -324,17 +326,17 @@ export function UpcomingEvents({
                   {counts.going > 0 && (
                     <Badge
                       variant="secondary"
-                      className="text-[10px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                      className="text-[10px] bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 uppercase tracking-wider font-semibold"
                     >
-                      {counts.going} going
+                      {counts.going} Going
                     </Badge>
                   )}
                   {counts.maybe > 0 && (
                     <Badge
                       variant="secondary"
-                      className="text-[10px] bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                      className="text-[10px] bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 uppercase tracking-wider font-semibold"
                     >
-                      {counts.maybe} maybe
+                      {counts.maybe} Maybe
                     </Badge>
                   )}
                 </div>
@@ -350,6 +352,22 @@ export function UpcomingEvents({
             </Card>
           );
         })}
+
+        {/* Plan a Gathering CTA card */}
+        <Card className="border-dashed border-2 border-orange-200/50 bg-orange-50/20 dark:bg-orange-950/10 flex flex-col items-center justify-center text-center">
+          <CardContent className="py-8 px-4 flex flex-col items-center justify-center h-full">
+            <p className="text-xl font-serif italic text-muted-foreground mb-4">
+              The table is waiting.
+            </p>
+            <Button
+              className="rounded-full"
+              onClick={() => setDialogOpen(true)}
+            >
+              <Sparkles className="mr-2 h-4 w-4" />
+              Plan a Gathering
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Dialog */}

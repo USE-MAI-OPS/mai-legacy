@@ -13,7 +13,7 @@ import {
   Camera,
   PartyPopper,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -134,46 +134,46 @@ export function TraditionsSection({
   const [memoryOpen, setMemoryOpen] = useState<string | null>(null);
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
           <CalendarHeart className="h-5 w-5 text-pink-500" />
-          Family Traditions
-        </CardTitle>
+          <h2 className="text-lg font-semibold">Family Traditions</h2>
+        </div>
         <AddTraditionDialog open={addOpen} onOpenChange={setAddOpen} />
-      </CardHeader>
-      <CardContent>
-        {traditions.length === 0 ? (
-          <div className="text-center py-10 space-y-3">
-            <CalendarHeart className="h-10 w-10 text-pink-200 mx-auto" />
-            <p className="text-sm text-muted-foreground">
-              No traditions yet. Add your first family tradition!
-            </p>
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-pink-200 text-pink-600 hover:bg-pink-50"
-              onClick={() => setAddOpen(true)}
-            >
-              <Plus className="mr-1 h-3 w-3" />
-              Add Tradition
-            </Button>
-          </div>
-        ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {traditions.map((tradition) => {
-              const isExpanded = expandedId === tradition.id;
-              const canEdit = userId === tradition.created_by;
-              const countdown = getCountdownText(tradition.next_occurrence);
+      </div>
 
-              return (
-                <div
-                  key={tradition.id}
-                  className="rounded-xl border border-pink-100 bg-gradient-to-br from-white to-rose-50/40 overflow-hidden transition-all duration-200 hover:shadow-md cursor-pointer group"
-                  onClick={() =>
-                    setExpandedId(isExpanded ? null : tradition.id)
-                  }
-                >
+      {traditions.length === 0 ? (
+        <div className="text-center py-10 space-y-3">
+          <CalendarHeart className="h-10 w-10 text-pink-200 mx-auto" />
+          <p className="text-sm text-muted-foreground">
+            No traditions yet. Add your first family tradition!
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-pink-200 text-pink-600 hover:bg-pink-50"
+            onClick={() => setAddOpen(true)}
+          >
+            <Plus className="mr-1 h-3 w-3" />
+            Add Tradition
+          </Button>
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {traditions.map((tradition) => {
+            const isExpanded = expandedId === tradition.id;
+            const canEdit = userId === tradition.created_by;
+            const countdown = getCountdownText(tradition.next_occurrence);
+
+            return (
+              <div
+                key={tradition.id}
+                className="rounded-2xl border bg-card shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md cursor-pointer group"
+                onClick={() =>
+                  setExpandedId(isExpanded ? null : tradition.id)
+                }
+              >
                   {/* Cover image */}
                   {tradition.cover_image && (
                     <div className="h-28 overflow-hidden">
@@ -277,8 +277,7 @@ export function TraditionsSection({
             })}
           </div>
         )}
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 

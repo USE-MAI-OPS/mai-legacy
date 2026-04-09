@@ -7,6 +7,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Send, Loader2 } from "lucide-react";
 import { sendMessage, type Message } from "../actions";
 import { cn } from "@/lib/utils";
+import {
+  MessageEntryCard,
+  detectEntryInMessage,
+} from "./message-entry-card";
 
 function getInitials(name: string): string {
   return name
@@ -36,17 +40,21 @@ function formatTime(dateStr: string): string {
   return `${date.toLocaleDateString("en-US", { month: "short", day: "numeric" })} ${time}`;
 }
 
+interface MessageThreadProps {
+  conversationId: string;
+  initialMessages: Message[];
+  currentUserId: string;
+  otherName: string;
+  onMessageSent?: () => void;
+}
+
 export function MessageThread({
   conversationId,
   initialMessages,
   currentUserId,
   otherName,
-}: {
-  conversationId: string;
-  initialMessages: Message[];
-  currentUserId: string;
-  otherName: string;
-}) {
+  onMessageSent,
+}: MessageThreadProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -86,6 +94,8 @@ export function MessageThread({
         // Remove optimistic message on failure
         setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
         setInput(content);
+      } else {
+        onMessageSent?.();
       }
     });
   }
@@ -98,12 +108,25 @@ export function MessageThread({
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
+    <div className="flex flex-col flex-1 min-w-0">
+      {/* Conversation header */}
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-background/80 backdrop-blur-md shrink-0">
+        <Avatar className="h-8 w-8">
+          <AvatarFallback className="text-xs">
+            {getInitials(otherName)}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <h2 className="text-sm font-semibold">{otherName}</h2>
+          <p className="text-[10px] text-muted-foreground">Direct message</p>
+        </div>
+      </div>
+
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm font-serif italic">
               No messages yet. Start the conversation with {otherName}!
             </p>
           </div>
@@ -112,6 +135,7 @@ export function MessageThread({
             const isMe = msg.sender_id === currentUserId;
             const showAvatar =
               idx === 0 || messages[idx - 1].sender_id !== msg.sender_id;
+            const entryMatch = detectEntryInMessage(msg.content);
 
             return (
               <div
@@ -157,6 +181,10 @@ export function MessageThread({
                   >
                     {msg.content}
                   </div>
+                  {/* Inline entry card (mock detection) */}
+                  {entryMatch && !isMe && (
+                    <MessageEntryCard {...entryMatch} />
+                  )}
                   <p
                     className={cn(
                       "text-[10px] text-muted-foreground",
@@ -174,7 +202,7 @@ export function MessageThread({
       </div>
 
       {/* Message input */}
-      <div className="border-t bg-card px-4 py-3">
+      <div className="border-t border-border bg-background px-4 py-3 shrink-0">
         <div className="flex items-center gap-2 max-w-3xl mx-auto">
           <Input
             ref={inputRef}
@@ -183,12 +211,13 @@ export function MessageThread({
             onKeyDown={handleKeyDown}
             placeholder={`Message ${otherName}...`}
             disabled={isPending}
-            className="flex-1"
+            className="flex-1 rounded-full"
           />
           <Button
             size="icon"
             onClick={handleSend}
             disabled={isPending || !input.trim()}
+            className="rounded-full"
           >
             {isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />

@@ -29,7 +29,13 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
-export function NewMessageDialog() {
+interface NewMessageDialogProps {
+  onConversationCreated?: (conversationId: string, memberName: string) => void;
+}
+
+export function NewMessageDialog({
+  onConversationCreated,
+}: NewMessageDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [members, setMembers] = useState<FamilyMember[]>([]);
@@ -58,7 +64,11 @@ export function NewMessageDialog() {
       const result = await startConversation(member.userId);
       if (result.conversationId) {
         setOpen(false);
-        router.push(`/messages/${result.conversationId}`);
+        if (onConversationCreated) {
+          onConversationCreated(result.conversationId, member.displayName);
+        } else {
+          router.push(`/messages/${result.conversationId}`);
+        }
       }
     });
   }
@@ -66,7 +76,7 @@ export function NewMessageDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-1.5">
+        <Button className="gap-1.5 w-full rounded-full">
           <Plus className="size-4" />
           New Message
         </Button>

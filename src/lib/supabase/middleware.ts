@@ -67,12 +67,68 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // If user is authenticated, check if they have a family.
-  // Use a cookie cache to avoid a DB query on every single request.
+  // If user is authenticated, enforce verification + family checks
   if (user && !isPublicRoute) {
+    // --- Email verification check ---
+    const verifyKey = "mai_email_verified";
+    const verifyCached = request.cookies.get(verifyKey)?.value;
+    const verifyCachedForUser = verifyCached?.startsWith(user.id + ":");
+    const isVerifiedCached = verifyCachedForUser
+      ? verifyCached === `${user.id}:1`
+      : undefined;
+
+    let isEmailVerified: boolean;
+    if (isVerifiedCached !== undefined) {
+      isEmailVerified = isVerifiedCached;
+    } else {
+      // Grandfather existing users created before verification feature (2026-04-08)
+      const createdAt = user.created_at ? new Date(user.created_at) : null;
+      const verificationLaunchDate = new Date("2026-04-08T00:00:00Z");
+
+      if (createdAt && createdAt < verificationLaunchDate) {
+        isEmailVerified = true;
+      } else {
+        const { data: verification } = await supabase
+          .from("email_verifications")
+          .select("id")
+          .eq("user_id", user.id)
+          .not("verified_at", "is", null)
+          .limit(1)
+          .maybeSingle();
+        isEmailVerified = !!verification;
+      }
+      // Cache for 1 hour
+      supabaseResponse.cookies.set(verifyKey, `${user.id}:${isEmailVerified ? "1" : "0"}`, {
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        maxAge: 3600,
+      });
+    }
+
+    // Allow /verify-email page for unverified users
+    if (pathname === "/verify-email") {
+      if (isEmailVerified) {
+        // Already verified — move them along
+        const url = request.nextUrl.clone();
+        const redirect = url.searchParams.get("redirect");
+        url.pathname = redirect || "/onboarding";
+        url.search = "";
+        return NextResponse.redirect(url);
+      }
+      return supabaseResponse; // Allow access to verify page
+    }
+
+    // If not verified, force to /verify-email
+    if (!isEmailVerified) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/verify-email";
+      return NextResponse.redirect(url);
+    }
+
+    // --- Family membership check ---
     const cacheKey = "mai_has_family";
     const cached = request.cookies.get(cacheKey)?.value;
-    // Cache format: "<user_id>:1" (has family) or "<user_id>:0" (no family)
     const cachedForThisUser = cached?.startsWith(user.id + ":");
     const hasFamilyCached = cachedForThisUser
       ? cached === `${user.id}:1`
@@ -89,24 +145,21 @@ export async function updateSession(request: NextRequest) {
         .limit(1)
         .maybeSingle();
       hasFamilyMembership = !!membership;
-      // Cache result for 5 minutes to avoid DB hits on subsequent requests
       supabaseResponse.cookies.set(cacheKey, `${user.id}:${hasFamilyMembership ? "1" : "0"}`, {
         path: "/",
         httpOnly: true,
         sameSite: "lax",
-        maxAge: 300, // 5 minutes
+        maxAge: 300,
       });
     }
 
     if (!hasFamilyMembership && pathname !== "/onboarding") {
-      // No family yet — force onboarding
       const url = request.nextUrl.clone();
       url.pathname = "/onboarding";
       return NextResponse.redirect(url);
     }
 
     if (hasFamilyMembership && pathname === "/onboarding") {
-      // Already has a family — redirect away from onboarding
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
       return NextResponse.redirect(url);

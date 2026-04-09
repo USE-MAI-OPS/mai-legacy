@@ -32,10 +32,17 @@ export default function AcceptInvitePage() {
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [accepted, setAccepted] = useState(false);
+  const [profileStep, setProfileStep] = useState(false);
+  const [occupation, setOccupation] = useState("");
+  const [birthday, setBirthday] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [invite, setInvite] = useState<InviteData | null>(null);
   const [fetching, setFetching] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [memberId, setMemberId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchInvite() {
@@ -143,14 +150,16 @@ export default function AcceptInvitePage() {
       }
 
       // Insert the user as a family member
-      const { error: memberError } = await supabase
+      const { data: newMember, error: memberError } = await supabase
         .from("family_members")
         .insert({
           family_id: invite.familyId,
           user_id: user.id,
           role: invite.role as "admin" | "member",
           display_name: displayName.trim(),
-        });
+        })
+        .select("id")
+        .single();
 
       if (memberError) throw memberError;
 
@@ -160,8 +169,10 @@ export default function AcceptInvitePage() {
         .update({ accepted: true })
         .eq("id", inviteId);
 
+      setMemberId(newMember.id);
       setAccepted(true);
-      setTimeout(() => router.push("/dashboard"), 1500);
+      // Show mini profile step instead of immediate redirect
+      setTimeout(() => setProfileStep(true), 1000);
     } catch (e: unknown) {
       console.error("Failed to accept invite:", e);
       const message =
@@ -232,7 +243,117 @@ export default function AcceptInvitePage() {
 
   if (!invite) return null;
 
-  // --- Success state ---
+  // --- Mini profile step (after accepting) ---
+  if (accepted && profileStep) {
+    const handleSaveProfile = async () => {
+      setSavingProfile(true);
+      try {
+        const supabase = createClient();
+        const places = city.trim()
+          ? [`${city.trim()}${state.trim() ? `, ${state.trim()}` : ""}`]
+          : [];
+
+        const updates: Record<string, unknown> = {};
+        if (occupation.trim()) updates.occupation = occupation.trim();
+        updates.life_story = {
+          career: occupation.trim() ? [occupation.trim()] : [],
+          places,
+          education: [],
+          skills: [],
+          hobbies: [],
+          military: null,
+          milestones: [],
+          ...(birthday.trim() ? { birthday: birthday.trim() } : {}),
+        };
+
+        if (memberId) {
+          await supabase
+            .from("family_members")
+            .update(updates)
+            .eq("id", memberId);
+        }
+      } catch (e) {
+        console.error("Failed to save profile:", e);
+      }
+      window.location.href = "/dashboard";
+    };
+
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
+              <Check className="h-7 w-7 text-green-600" />
+            </div>
+            <CardTitle className="text-2xl">
+              Welcome to {invite.familyName}!
+            </CardTitle>
+            <CardDescription>
+              Tell us a little about yourself. This is optional.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="occupation">Occupation</Label>
+              <Input
+                id="occupation"
+                placeholder="e.g. Teacher, Nurse, Retired"
+                value={occupation}
+                onChange={(e) => setOccupation(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="birthday">Birthday</Label>
+              <Input
+                id="birthday"
+                type="date"
+                value={birthday}
+                onChange={(e) => setBirthday(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="city">City</Label>
+                <Input
+                  id="city"
+                  placeholder="e.g. Atlanta"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="state">State</Label>
+                <Input
+                  id="state"
+                  placeholder="e.g. GA"
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { window.location.href = "/dashboard"; }}
+              >
+                Skip
+              </Button>
+              <Button
+                className="flex-1 bg-[#C17B54] hover:bg-[#A8654A]"
+                onClick={handleSaveProfile}
+                disabled={savingProfile}
+              >
+                {savingProfile ? "Saving..." : "Save & Continue"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // --- Success state (brief flash before profile step) ---
   if (accepted) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4">
@@ -245,7 +366,7 @@ export default function AcceptInvitePage() {
               Welcome to {invite.familyName}!
             </h2>
             <p className="text-muted-foreground">
-              Redirecting to your family dashboard...
+              Setting up your profile...
             </p>
           </CardContent>
         </Card>

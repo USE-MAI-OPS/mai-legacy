@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import type { ConversationPreview } from "../actions";
 
 function getInitials(name: string): string {
@@ -29,56 +29,75 @@ function formatRelativeTime(dateStr: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+interface ConversationListProps {
+  conversations: ConversationPreview[];
+  activeId: string | null;
+  onSelect: (conv: ConversationPreview) => void;
+}
+
 export function ConversationList({
   conversations,
-}: {
-  conversations: ConversationPreview[];
-}) {
+  activeId,
+  onSelect,
+}: ConversationListProps) {
   if (conversations.length === 0) {
     return null;
   }
 
   return (
     <div className="space-y-1">
-      {conversations.map((conv) => (
-        <Link
-          key={conv.id}
-          href={`/messages/${conv.id}`}
-          className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-accent transition-colors group"
-        >
-          <Avatar className="h-10 w-10 shrink-0">
-            <AvatarFallback className="text-sm">
-              {getInitials(conv.otherParticipantName)}
-            </AvatarFallback>
-          </Avatar>
+      {conversations.map((conv) => {
+        const isActive = activeId === conv.id;
+        return (
+          <button
+            key={conv.id}
+            onClick={() => onSelect(conv)}
+            className={cn(
+              "flex items-center gap-3 w-full px-3 py-3 rounded-lg transition-colors text-left",
+              isActive
+                ? "bg-accent border-l-2 border-l-primary"
+                : "hover:bg-accent/50 border-l-2 border-l-transparent"
+            )}
+          >
+            <Avatar className="h-10 w-10 shrink-0">
+              <AvatarFallback className="text-sm">
+                {getInitials(conv.otherParticipantName)}
+              </AvatarFallback>
+            </Avatar>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-semibold truncate">
-                {conv.otherParticipantName}
-              </span>
-              {conv.lastMessageAt && (
-                <span className="text-xs text-muted-foreground shrink-0">
-                  {formatRelativeTime(conv.lastMessageAt)}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center justify-between gap-2 mt-0.5">
-              <p className="text-sm text-muted-foreground truncate">
-                {conv.lastMessageContent ?? "No messages yet"}
-              </p>
-              {conv.unreadCount > 0 && (
-                <Badge
-                  variant="default"
-                  className="shrink-0 h-5 min-w-[20px] px-1.5 text-[10px] font-bold rounded-full"
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span
+                  className={cn(
+                    "text-sm font-semibold truncate",
+                    isActive ? "text-foreground" : "text-foreground"
+                  )}
                 >
-                  {conv.unreadCount}
-                </Badge>
-              )}
+                  {conv.otherParticipantName}
+                </span>
+                {conv.lastMessageAt && (
+                  <span className="text-xs text-muted-foreground shrink-0">
+                    {formatRelativeTime(conv.lastMessageAt)}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-2 mt-0.5">
+                <p className="text-sm text-muted-foreground truncate">
+                  {conv.lastMessageContent ?? "No messages yet"}
+                </p>
+                {conv.unreadCount > 0 && (
+                  <Badge
+                    variant="default"
+                    className="shrink-0 h-5 min-w-[20px] px-1.5 text-[10px] font-bold rounded-full"
+                  >
+                    {conv.unreadCount}
+                  </Badge>
+                )}
+              </div>
             </div>
-          </div>
-        </Link>
-      ))}
+          </button>
+        );
+      })}
     </div>
   );
 }

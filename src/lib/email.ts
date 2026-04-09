@@ -98,6 +98,87 @@ export async function sendInviteEmail(opts: {
   return result;
 }
 
+export async function sendVerificationCodeEmail(opts: {
+  to: string;
+  code: string;
+}) {
+  const { to, code } = opts;
+
+  // Space digits for readability
+  const spacedCode = code.split("").join(" &nbsp; ");
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#18181b;padding:24px 32px;text-align:center;">
+              <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.02em;">MAI Legacy</h1>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px;">
+              <h2 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#18181b;">Verify Your Email</h2>
+              <p style="margin:0 0 24px;font-size:15px;color:#52525b;line-height:1.6;">
+                Enter this code to verify your email address and complete your account setup.
+              </p>
+              <!-- Code Box -->
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center" style="padding:8px 0 24px;">
+                    <div style="display:inline-block;background-color:#f4f4f5;border:2px solid #e4e4e7;border-radius:12px;padding:16px 32px;">
+                      <span style="font-family:'Courier New',Courier,monospace;font-size:32px;font-weight:700;color:#18181b;letter-spacing:8px;">${spacedCode}</span>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0 0 16px;font-size:13px;color:#71717a;line-height:1.5;">
+                This code expires in <strong style="color:#18181b;">10 minutes</strong>.
+              </p>
+              <p style="margin:0;font-size:12px;color:#a1a1aa;line-height:1.5;">
+                If you didn't create an account on MAI Legacy, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:16px 32px;border-top:1px solid #e4e4e7;text-align:center;">
+              <p style="margin:0;font-size:12px;color:#a1a1aa;">
+                MAI Legacy — Preserve what matters.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const result = await getResend().emails.send({
+    from: "MAI Legacy <noreply@mailegacy.com>",
+    to,
+    subject: "Your MAI Legacy verification code",
+    html,
+  });
+
+  if (result.error) {
+    console.error("Resend verification email error:", JSON.stringify(result.error));
+  }
+
+  return result;
+}
+
 export interface DigestEntry {
   title: string;
   type: string;

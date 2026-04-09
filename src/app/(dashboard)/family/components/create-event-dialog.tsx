@@ -31,14 +31,14 @@ export function CreateEventDialog({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [eventDate, setEventDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [eventTime, setEventTime] = useState("");
   const [location, setLocation] = useState("");
 
   function resetForm() {
     setTitle("");
     setDescription("");
     setEventDate("");
-    setEndDate("");
+    setEventTime("");
     setLocation("");
   }
 
@@ -49,7 +49,7 @@ export function CreateEventDialog({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !eventDate) return;
+    if (!title.trim() || !eventDate || !eventTime) return;
 
     startTransition(async () => {
       try {
@@ -57,8 +57,8 @@ export function CreateEventDialog({
           familyId,
           title: title.trim(),
           description: description.trim(),
-          eventDate: new Date(eventDate).toISOString(),
-          endDate: endDate ? new Date(endDate).toISOString() : null,
+          eventDate: new Date(`${eventDate}T${eventTime}`).toISOString(),
+          endDate: null,
           location: location.trim() || null,
         });
         if (!result.success) {
@@ -108,22 +108,23 @@ export function CreateEventDialog({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label htmlFor="eventDate">Start Date & Time *</Label>
+              <Label htmlFor="eventDate">Date *</Label>
               <Input
                 id="eventDate"
-                type="datetime-local"
+                type="date"
                 value={eventDate}
                 onChange={(e) => setEventDate(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="endDate">End Date & Time</Label>
+              <Label htmlFor="eventTime">Time *</Label>
               <Input
-                id="endDate"
-                type="datetime-local"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                id="eventTime"
+                type="time"
+                value={eventTime}
+                onChange={(e) => setEventTime(e.target.value)}
+                required
               />
             </div>
           </div>
@@ -146,7 +147,7 @@ export function CreateEventDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending || !title.trim() || !eventDate}>
+            <Button type="submit" disabled={isPending || !title.trim() || !eventDate || !eventTime}>
               {isPending ? "Creating..." : "Create Event"}
             </Button>
           </DialogFooter>

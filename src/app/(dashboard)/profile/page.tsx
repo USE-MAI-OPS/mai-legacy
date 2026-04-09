@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getFamilyContext } from "@/lib/get-family-context";
 import {
   ProfileClient,
@@ -20,6 +21,12 @@ const FALLBACK_USER: ProfileUser = {
 };
 
 export default async function ProfilePage() {
+  // Redirect to onboarding if user has no family
+  const preCtx = await getFamilyContext();
+  if (!preCtx) {
+    redirect("/onboarding");
+  }
+
   let user: ProfileUser = FALLBACK_USER;
   let recentEntries: RecentEntry[] = [];
   let lifeStory: LifeStory | undefined;

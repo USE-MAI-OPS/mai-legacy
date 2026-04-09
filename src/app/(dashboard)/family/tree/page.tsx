@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ArrowLeft, TreePine, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -103,6 +104,12 @@ async function getTreeData() {
 // Page
 // ---------------------------------------------------------------------------
 export default async function FamilyTreePage() {
+  // Redirect to onboarding if user has no family
+  const ctx = await getFamilyContext();
+  if (!ctx) {
+    redirect("/onboarding");
+  }
+
   const data = await getTreeData();
 
   if (!data) {

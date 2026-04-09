@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   BookOpen,
   MessageCircle,
@@ -303,6 +304,12 @@ async function getDashboardData() {
 // Page (Server Component)
 // ---------------------------------------------------------------------------
 export default async function DashboardPage() {
+  // Redirect to onboarding if user has no family
+  const ctx = await getFamilyContext();
+  if (!ctx) {
+    redirect("/onboarding");
+  }
+
   const data = await getDashboardData();
 
   // Resolve 6 stats

@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getFamilyContext } from "@/lib/get-family-context";
 import { FeedList } from "./components/feed-list";
 import { OnThisDayCard } from "@/components/on-this-day-card";
@@ -369,6 +370,12 @@ async function getInitialFeed(): Promise<{
 // Page
 // ---------------------------------------------------------------------------
 export default async function FeedPage() {
+  // Redirect to onboarding if user has no family
+  const ctx = await getFamilyContext();
+  if (!ctx) {
+    redirect("/onboarding");
+  }
+
   const { items, nextCursor, members, stats, familyName } = await getInitialFeed();
 
   return (

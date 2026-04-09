@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getFamilyContext } from "@/lib/get-family-context";
 import { requireTier } from "@/lib/tier-check";
 import { LegacyBookClient } from "./legacy-book-client";
@@ -24,16 +25,7 @@ export default async function LegacyBookPage() {
     const ctx = await getFamilyContext();
 
     if (!ctx) {
-      // Not logged in — show locked preview
-      return (
-        <LegacyBookClient
-          familyId=""
-          familyName="Your Family"
-          entries={[]}
-          isLocked
-          currentTier="seedling"
-        />
-      );
+      redirect("/onboarding");
     }
 
     const { familyId, supabase } = ctx;

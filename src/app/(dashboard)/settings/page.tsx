@@ -1,7 +1,14 @@
+import { redirect } from "next/navigation";
 import { getFamilyContext } from "@/lib/get-family-context";
 import { SettingsClient } from "./settings-client";
 
 export default async function SettingsPage() {
+  // Redirect to onboarding if user has no family
+  const preCtx = await getFamilyContext();
+  if (!preCtx) {
+    redirect("/onboarding");
+  }
+
   let email = "";
   let provider = "email";
   let createdAt = "";

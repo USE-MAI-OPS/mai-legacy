@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { getFamilyContext } from "@/lib/get-family-context";
 import EntriesList, { EntriesPageSkeleton } from "@/components/entries-list";
 import type { EntryListItem } from "@/components/entries-list";
@@ -149,6 +150,12 @@ async function getEntries(): Promise<EntryListItem[]> {
 // Page (Server Component)
 // ---------------------------------------------------------------------------
 export default async function EntriesPage() {
+  // Redirect to onboarding if user has no family
+  const ctx = await getFamilyContext();
+  if (!ctx) {
+    redirect("/onboarding");
+  }
+
   const entries = await getEntries();
 
   return (

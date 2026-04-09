@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Users, Plus, TreePine, ArrowRight, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -180,6 +181,12 @@ async function getFamilyData() {
 // Page
 // ---------------------------------------------------------------------------
 export default async function FamilyPage() {
+  // Redirect to onboarding if user has no family
+  const ctx = await getFamilyContext();
+  if (!ctx) {
+    redirect("/onboarding");
+  }
+
   const data = await getFamilyData();
 
   if (!data) {

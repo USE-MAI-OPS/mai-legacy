@@ -4,7 +4,7 @@ import { InviteClient } from "./invite-client";
 
 export default async function InviteMembersPage() {
   const ctx = await getFamilyContext();
-  if (!ctx) redirect("/login");
+  if (!ctx) redirect("/onboarding");
 
   const { supabase, familyId } = ctx;
 

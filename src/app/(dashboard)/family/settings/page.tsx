@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getFamilyContext } from "@/lib/get-family-context";
 import { FamilySettingsClient } from "./family-settings-client";
 import type { PlanTier, SubscriptionStatus } from "@/types/database";
@@ -97,6 +98,12 @@ function timeAgo(dateStr: string) {
 }
 
 export default async function FamilySettingsPage() {
+  // Redirect to onboarding if user has no family
+  const preCtx = await getFamilyContext();
+  if (!preCtx) {
+    redirect("/onboarding");
+  }
+
   let familyId = MOCK_FAMILY_ID;
   let familyName = MOCK_FAMILY_NAME;
   let members = MOCK_MEMBERS;

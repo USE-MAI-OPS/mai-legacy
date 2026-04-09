@@ -349,9 +349,12 @@ export async function signupUser(fields: {
 
   // Send verification code
   try {
+    console.log("[verify] Sending verification code to:", email, "userId:", data.user!.id);
     await sendVerificationCode(email, data.user!.id);
+    console.log("[verify] Verification code sent successfully");
   } catch (err) {
     console.error("[verify] Failed to send verification code:", err);
+    return { error: "Account created but failed to send verification email. Please try resending from the next screen." };
   }
 
   return { success: true, email };
@@ -366,13 +369,18 @@ function hashCode(code: string): string {
 }
 
 export async function sendVerificationCode(email: string, userId: string) {
+  console.log("[verify] sendVerificationCode called for:", email);
   const admin = createAdminClient();
 
   // Delete any existing codes for this user
-  await admin.from("email_verifications").delete().eq("user_id", userId);
+  const { error: delError } = await admin.from("email_verifications").delete().eq("user_id", userId);
+  if (delError) {
+    console.error("[verify] Failed to delete old codes:", delError);
+  }
 
   // Generate 6-digit code
   const code = String(randomInt(100000, 999999));
+  console.log("[verify] Generated code, storing hash...");
 
   // Store hashed code with 10-minute expiry
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
@@ -385,11 +393,14 @@ export async function sendVerificationCode(email: string, userId: string) {
 
   if (error) {
     console.error("[verify] Failed to store verification code:", error);
-    throw new Error("Failed to create verification code");
+    throw new Error("Failed to create verification code: " + error.message);
   }
+
+  console.log("[verify] Code stored, sending email...");
 
   // Send branded email via Resend
   await sendVerificationCodeEmail({ to: email, code });
+  console.log("[verify] Email sent successfully");
 
   return { success: true };
 }

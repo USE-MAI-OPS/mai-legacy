@@ -296,6 +296,68 @@ export async function signOut() {
 }
 
 // ---------------------------------------------------------------------------
+// Non-redirecting signup (for inline flow)
+// ---------------------------------------------------------------------------
+
+export async function signupUser(fields: {
+  email: string;
+  password: string;
+  confirmPassword: string;
+  displayName: string;
+}) {
+  const { email, password, confirmPassword, displayName } = fields;
+
+  if (!email || !password || !confirmPassword || !displayName) {
+    return { error: "Please fill in all fields." };
+  }
+  if (password !== confirmPassword) {
+    return { error: "Passwords do not match." };
+  }
+  if (password.length < 8) {
+    return { error: "Password must be at least 8 characters." };
+  }
+  if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+    return { error: "Password must include uppercase, lowercase, and a number." };
+  }
+
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { display_name: displayName },
+    },
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  if (!data.session) {
+    return { error: "Check your email to confirm your account." };
+  }
+
+  // Fire Day 0 drip welcome — non-blocking
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mailegacy.com";
+  const admin = createAdminClient();
+  sendDripWelcome({ to: email, displayName, appUrl })
+    .then(() =>
+      admin.from("drip_email_log").insert({ user_id: data.user!.id, step: "welcome" })
+    )
+    .catch((err) => console.error("[drip] Failed to send welcome email:", err));
+
+  // Send verification code
+  try {
+    await sendVerificationCode(email, data.user!.id);
+  } catch (err) {
+    console.error("[verify] Failed to send verification code:", err);
+  }
+
+  return { success: true, email };
+}
+
+// ---------------------------------------------------------------------------
 // Email verification (6-digit OTP)
 // ---------------------------------------------------------------------------
 

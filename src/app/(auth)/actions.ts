@@ -296,6 +296,136 @@ export async function signOut() {
 }
 
 // ---------------------------------------------------------------------------
+// Accept invite (bypasses RLS via admin client)
+// ---------------------------------------------------------------------------
+
+export async function acceptInvite(inviteId: string, displayName: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You need to be logged in to accept this invite." };
+  }
+
+  const admin = createAdminClient();
+
+  // Fetch the invite
+  const { data: invite, error: inviteError } = await admin
+    .from("family_invites")
+    .select("family_id, role, accepted, expires_at")
+    .eq("id", inviteId)
+    .single();
+
+  if (inviteError || !invite) {
+    return { error: "This invite link is invalid or has been removed." };
+  }
+
+  if (invite.accepted) {
+    return { error: "This invite has already been accepted." };
+  }
+
+  if (new Date(invite.expires_at) < new Date()) {
+    return { error: "This invite has expired. Please ask for a new one." };
+  }
+
+  // Check if already a member
+  const { data: existing } = await admin
+    .from("family_members")
+    .select("id")
+    .eq("family_id", invite.family_id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (existing) {
+    await admin
+      .from("family_invites")
+      .update({ accepted: true })
+      .eq("id", inviteId);
+    return { success: true, alreadyMember: true };
+  }
+
+  // Insert as family member
+  const { data: newMember, error: memberError } = await admin
+    .from("family_members")
+    .insert({
+      family_id: invite.family_id,
+      user_id: user.id,
+      role: invite.role,
+      display_name: displayName.trim(),
+    } as never)
+    .select("id")
+    .single();
+
+  if (memberError) {
+    console.error("[invite] Failed to insert member:", memberError);
+    return { error: "Failed to join family: " + memberError.message };
+  }
+
+  // Mark invite accepted
+  await admin
+    .from("family_invites")
+    .update({ accepted: true })
+    .eq("id", inviteId);
+
+  // Set active family cookie
+  try {
+    await setActiveFamilyCookie(invite.family_id);
+    const cookieStore = await cookies();
+    cookieStore.delete("mai_has_family");
+  } catch {
+    // Non-critical
+  }
+
+  return { success: true, memberId: newMember.id, familyId: invite.family_id };
+}
+
+export async function updateMemberProfile(
+  memberId: string,
+  profile: { occupation?: string; birthday?: string; city?: string; state?: string }
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated" };
+
+  const admin = createAdminClient();
+
+  const updates: Record<string, unknown> = {};
+  if (profile.occupation?.trim()) updates.occupation = profile.occupation.trim();
+
+  const places = profile.city?.trim()
+    ? [`${profile.city.trim()}${profile.state?.trim() ? `, ${profile.state.trim()}` : ""}`]
+    : [];
+
+  updates.life_story = {
+    career: profile.occupation?.trim() ? [profile.occupation.trim()] : [],
+    places,
+    education: [],
+    skills: [],
+    hobbies: [],
+    military: null,
+    milestones: [],
+    ...(profile.birthday?.trim() ? { birthday: profile.birthday.trim() } : {}),
+  };
+
+  const { error } = await admin
+    .from("family_members")
+    .update(updates as never)
+    .eq("id", memberId);
+
+  if (error) {
+    console.error("[invite] Failed to update profile:", error);
+    return { error: error.message };
+  }
+
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
 // Non-redirecting signup (for inline flow)
 // ---------------------------------------------------------------------------
 

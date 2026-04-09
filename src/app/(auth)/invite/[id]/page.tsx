@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
+import { acceptInvite, updateMemberProfile } from "../../actions";
 
 interface InviteData {
   familyName: string;
@@ -119,57 +120,21 @@ export default function AcceptInvitePage() {
     setError(null);
 
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const result = await acceptInvite(inviteId, displayName.trim());
 
-      if (!user) {
-        setError("You need to be logged in to accept this invite.");
+      if (result.error) {
+        setError(result.error);
         setLoading(false);
         return;
       }
 
-      // Check if user is already a member of this family
-      const { data: existingMember } = await supabase
-        .from("family_members")
-        .select("id")
-        .eq("family_id", invite.familyId)
-        .eq("user_id", user.id)
-        .single();
-
-      if (existingMember) {
-        // Already a member, just mark invite and redirect
-        await supabase
-          .from("family_invites")
-          .update({ accepted: true })
-          .eq("id", inviteId);
+      if (result.alreadyMember) {
         setAccepted(true);
-        setTimeout(() => router.push("/dashboard"), 1500);
+        setTimeout(() => (window.location.href = "/dashboard"), 1500);
         return;
       }
 
-      // Insert the user as a family member
-      const { data: newMember, error: memberError } = await supabase
-        .from("family_members")
-        .insert({
-          family_id: invite.familyId,
-          user_id: user.id,
-          role: invite.role as "admin" | "member",
-          display_name: displayName.trim(),
-        })
-        .select("id")
-        .single();
-
-      if (memberError) throw memberError;
-
-      // Mark the invite as accepted
-      await supabase
-        .from("family_invites")
-        .update({ accepted: true })
-        .eq("id", inviteId);
-
-      setMemberId(newMember.id);
+      setMemberId(result.memberId ?? null);
       setAccepted(true);
       // Show mini profile step instead of immediate redirect
       setTimeout(() => setProfileStep(true), 1000);
@@ -248,29 +213,8 @@ export default function AcceptInvitePage() {
     const handleSaveProfile = async () => {
       setSavingProfile(true);
       try {
-        const supabase = createClient();
-        const places = city.trim()
-          ? [`${city.trim()}${state.trim() ? `, ${state.trim()}` : ""}`]
-          : [];
-
-        const updates: Record<string, unknown> = {};
-        if (occupation.trim()) updates.occupation = occupation.trim();
-        updates.life_story = {
-          career: occupation.trim() ? [occupation.trim()] : [],
-          places,
-          education: [],
-          skills: [],
-          hobbies: [],
-          military: null,
-          milestones: [],
-          ...(birthday.trim() ? { birthday: birthday.trim() } : {}),
-        };
-
         if (memberId) {
-          await supabase
-            .from("family_members")
-            .update(updates)
-            .eq("id", memberId);
+          await updateMemberProfile(memberId, { occupation, birthday, city, state });
         }
       } catch (e) {
         console.error("Failed to save profile:", e);

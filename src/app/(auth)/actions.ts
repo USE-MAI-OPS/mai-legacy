@@ -323,7 +323,24 @@ export async function acceptInvite(inviteId: string, displayName: string) {
   }
 
   if (invite.accepted) {
-    return { error: "This invite has already been accepted." };
+    // Check if current user is already a member of this family
+    const { data: existingMember } = await admin
+      .from("family_members")
+      .select("id")
+      .eq("family_id", invite.family_id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (existingMember) {
+      // User already accepted — set active family and return success
+      try {
+        await setActiveFamilyCookie(invite.family_id);
+        const cookieStore = await cookies();
+        cookieStore.delete("mai_has_family");
+      } catch { /* non-critical */ }
+      return { success: true, alreadyMember: true, familyId: invite.family_id };
+    }
+    return { error: "This invite has already been accepted by another user." };
   }
 
   if (new Date(invite.expires_at) < new Date()) {

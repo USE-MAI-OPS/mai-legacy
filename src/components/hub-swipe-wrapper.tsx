@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode } from "react";
+import { type ReactNode, useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useHubSwipe } from "@/hooks/use-hub-swipe";
 import { useFamilyContext } from "@/components/providers/family-provider";
@@ -24,9 +24,32 @@ export function HubSwipeWrapper({ children }: HubSwipeWrapperProps) {
     isSwiping,
   } = useHubSwipe();
 
+  // Peek animation: slide left briefly on first visit to hint at swiping
+  const [peekOffset, setPeekOffset] = useState(0);
+  const peekTriggered = useRef(false);
+
+  useEffect(() => {
+    if (loading || totalHubs <= 1 || peekTriggered.current) return;
+    peekTriggered.current = true;
+
+    try {
+      if (sessionStorage.getItem("mai-hub-peek-shown")) return;
+      sessionStorage.setItem("mai-hub-peek-shown", "1");
+    } catch {
+      return; // sessionStorage unavailable (e.g. private browsing)
+    }
+
+    const t1 = setTimeout(() => setPeekOffset(-40), 500);
+    const t2 = setTimeout(() => setPeekOffset(0), 1100);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [loading, totalHubs]);
+
   if (loading || totalHubs <= 1) {
     return <>{children}</>;
   }
+
+  const activeOffset = isSwiping ? swipeOffset : peekOffset;
+  const shouldAnimate = !isSwiping;
 
   return (
     <div className="relative">
@@ -34,8 +57,8 @@ export function HubSwipeWrapper({ children }: HubSwipeWrapperProps) {
       <div
         {...swipeHandlers}
         style={{
-          transform: isSwiping ? `translateX(${swipeOffset}px)` : undefined,
-          transition: isSwiping ? "none" : "transform 0.3s ease-out",
+          transform: activeOffset !== 0 ? `translateX(${activeOffset}px)` : undefined,
+          transition: shouldAnimate ? "transform 0.3s ease-out" : "none",
         }}
       >
         {children}

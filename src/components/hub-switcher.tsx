@@ -40,21 +40,6 @@ export function HubSwitcher({ compact = false }: HubSwitcherProps) {
     );
   }
 
-  // If only one hub, just display the name (no dropdown needed)
-  if (hubs.length === 1) {
-    return (
-      <div className="flex items-center gap-1.5 px-2 py-1">
-        <Users className="h-4 w-4 text-muted-foreground" />
-        <span className={cn(
-          "font-medium truncate",
-          compact ? "text-base max-w-[180px]" : "text-sm max-w-[140px] hidden xl:inline text-muted-foreground"
-        )}>
-          {activeHub?.name ?? "My Family"}
-        </span>
-      </div>
-    );
-  }
-
   return (
     <>
       <DropdownMenu>

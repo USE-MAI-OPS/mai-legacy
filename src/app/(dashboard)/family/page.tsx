@@ -10,6 +10,7 @@ import { FeatureCards } from "./components/feature-cards";
 import { TraditionsSection } from "@/components/traditions-section";
 import { FamilyCoverPhoto } from "./components/family-cover-photo";
 import { HubContentWrapper } from "./hub-content-wrapper";
+import { CreateHubButton } from "./components/create-hub-button";
 import { getHubLabel } from "@/lib/hub-labels";
 import type { RsvpStatus, EntryType, HubType } from "@/types/database";
 
@@ -245,6 +246,7 @@ export default async function FamilyPage() {
                     Invite Member
                   </Link>
                 </Button>
+                <CreateHubButton />
               </div>
             </div>
           </div>

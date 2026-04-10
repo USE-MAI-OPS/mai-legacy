@@ -341,7 +341,7 @@ export default async function MemberDetailPage({
               <FileTextIcon className="h-4.5 w-4.5 text-orange-600" />
             </div>
             <p className="text-2xl font-bold">{entriesCount}</p>
-            <p className="text-xs text-muted-foreground">Entries Created</p>
+            <p className="text-xs text-muted-foreground">Memories Created</p>
           </CardContent>
         </Card>
 

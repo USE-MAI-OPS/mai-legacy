@@ -38,7 +38,7 @@ export const TOUR_STEPS: TourStep[] = [
     iconBg: "bg-amber-100 dark:bg-amber-900/30",
     title: "Welcome to MAI Legacy!",
     description:
-      "This is your dashboard \u2014 a snapshot of your family's knowledge. Stats, recent entries, and goals all in one place.",
+      "This is your dashboard \u2014 a snapshot of your family's knowledge. Stats, recent memories, and goals all in one place.",
   },
   {
     id: "entries",
@@ -48,9 +48,9 @@ export const TOUR_STEPS: TourStep[] = [
     icon: BookOpen,
     iconColor: "text-blue-600",
     iconBg: "bg-blue-100 dark:bg-blue-900/30",
-    title: "Create & Browse Entries",
+    title: "Create & Browse Memories",
     description:
-      "Document family knowledge \u2014 stories, recipes, skills, and lessons. Each type has its own guided form.",
+      "Document family knowledge \u2014 stories, recipes, skills, and more. Each type has its own guided form.",
   },
   {
     id: "griot",
@@ -62,7 +62,7 @@ export const TOUR_STEPS: TourStep[] = [
     iconBg: "bg-green-100 dark:bg-green-900/30",
     title: "Ask The Griot",
     description:
-      "Your family's AI assistant. It searches all your entries to answer questions \u2014 like a wise elder with perfect memory.",
+      "Your family's AI assistant. It searches all your memories to answer questions \u2014 like a wise elder with perfect recall.",
   },
   {
     id: "family",

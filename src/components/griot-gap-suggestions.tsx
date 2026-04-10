@@ -130,7 +130,7 @@ export function GriotGapSuggestions({
         href="/entries"
         className="mt-3 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
       >
-        View all entries
+        View all memories
         <ArrowRight className="h-3 w-3" />
       </Link>
     </div>

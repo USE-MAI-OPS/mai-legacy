@@ -67,21 +67,21 @@ export default function NewEntryPage() {
     {navigating && (
       <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-lg font-medium">Saving your entry...</p>
+        <p className="text-lg font-medium">Saving your memory...</p>
       </div>
     )}
     <div className="container mx-auto py-8 px-4 max-w-2xl">
       <Button variant="ghost" size="sm" className="mb-6 -ml-2" asChild>
         <Link href="/entries">
           <ArrowLeft className="size-4 mr-2" />
-          Back to entries
+          Back to memories
         </Link>
       </Button>
 
       {!selectedType ? (
         <div className="space-y-6">
           <div>
-            <h1 className="text-2xl font-bold">Create New Entry</h1>
+            <h1 className="text-2xl font-bold">Create New Memory</h1>
             <p className="text-muted-foreground mt-1">
               What kind of family knowledge would you like to preserve?
             </p>

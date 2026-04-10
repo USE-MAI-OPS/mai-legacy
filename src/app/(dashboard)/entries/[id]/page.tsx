@@ -405,7 +405,7 @@ export default async function EntryDetailPage({
       <Button variant="ghost" size="sm" className="mb-6 -ml-2" asChild>
         <Link href="/entries">
           <ArrowLeft className="size-4 mr-2" />
-          Back to entries
+          Back to memories
         </Link>
       </Button>
 

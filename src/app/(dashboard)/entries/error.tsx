@@ -22,9 +22,9 @@ export default function EntriesError({ error, reset }: ErrorProps) {
         <AlertTriangle className="size-8 text-destructive" />
       </div>
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold">Could not load entries</h2>
+        <h2 className="text-xl font-semibold">Could not load memories</h2>
         <p className="max-w-sm text-sm text-muted-foreground">
-          There was a problem loading your family entries. Please try again.
+          There was a problem loading your family memories. Please try again.
         </p>
       </div>
       <div className="flex gap-3">

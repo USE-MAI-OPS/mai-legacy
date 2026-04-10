@@ -185,11 +185,11 @@ export function DashboardNav() {
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
             >
-              Entries <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+              Memories <ChevronDown className="h-3.5 w-3.5 opacity-50" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">
               <DropdownMenuItem asChild>
-                <Link href="/entries" className="w-full cursor-pointer">All Entries</Link>
+                <Link href="/entries" className="w-full cursor-pointer">All Memories</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/entries?type=story" className="w-full cursor-pointer">📖 Stories</Link>
@@ -199,9 +199,6 @@ export function DashboardNav() {
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/entries?type=skill" className="w-full cursor-pointer">🛠️ Skills</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/entries?type=lesson" className="w-full cursor-pointer">🎓 Lessons</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/entries?type=connection" className="w-full cursor-pointer">🤝 Connections</Link>

@@ -677,11 +677,11 @@ export function FeedList({ initialItems, initialCursor, filterType, searchQuery,
           <p className="text-sm text-muted-foreground text-center max-w-sm mb-4">
             {isSearching
               ? "Try adjusting your search or filters to find what you're looking for."
-              : "Start by adding entries to your family legacy. Your family's stories, recipes, skills, and lessons will appear here."}
+              : "Start by adding memories to your family legacy. Your family's stories, recipes, skills, and more will appear here."}
           </p>
           {!isSearching && (
             <Button asChild>
-              <Link href="/entries/new">Add your first entry</Link>
+              <Link href="/entries/new">Add your first memory</Link>
             </Button>
           )}
         </CardContent>

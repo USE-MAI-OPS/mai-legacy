@@ -191,10 +191,10 @@ export function LegacyBookClient({
         <BookOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
         <h1 className="text-2xl font-bold mb-2">Legacy Book</h1>
         <p className="text-muted-foreground mb-6">
-          You don&apos;t have any entries yet. Add some stories, recipes, or lessons to create your Legacy Book.
+          You don&apos;t have any memories yet. Add some stories, recipes, or skills to create your Legacy Book.
         </p>
         <Button asChild>
-          <Link href="/entries/new">Add Your First Entry</Link>
+          <Link href="/entries/new">Add Your First Memory</Link>
         </Button>
       </div>
     );
@@ -240,7 +240,7 @@ export function LegacyBookClient({
             Preview
           </p>
           <h2 className="text-xl font-bold">{familyName}</h2>
-          <p className="text-sm text-white/70 mt-1">Legacy Book · {selectedCount} {selectedCount === 1 ? "entry" : "entries"}</p>
+          <p className="text-sm text-white/70 mt-1">Legacy Book · {selectedCount} {selectedCount === 1 ? "memory" : "memories"}</p>
         </div>
         <BookOpen className="h-12 w-12 text-[#c8a96e] opacity-80" />
       </div>
@@ -324,7 +324,7 @@ export function LegacyBookClient({
             ) : (
               <>
                 <Download className="h-4 w-4" />
-                Download Legacy Book ({selectedCount} {selectedCount === 1 ? "entry" : "entries"})
+                Download Legacy Book ({selectedCount} {selectedCount === 1 ? "memory" : "memories"})
               </>
             )}
           </Button>

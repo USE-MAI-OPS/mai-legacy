@@ -229,7 +229,7 @@ function CoverPage({ familyName, entryCount, generatedAt }: { familyName: string
       <View style={styles.coverDecorLine} />
       <Text style={styles.coverTitle}>{familyName}</Text>
       <Text style={styles.coverSubtitle}>Legacy Book</Text>
-      <Text style={[styles.coverDate, { marginBottom: 12 }]}>{entryCount} {entryCount === 1 ? "entry" : "entries"}</Text>
+      <Text style={[styles.coverDate, { marginBottom: 12 }]}>{entryCount} {entryCount === 1 ? "memory" : "memories"}</Text>
       <Text style={styles.coverDate}>Generated {formatDate(generatedAt)}</Text>
     </Page>
   );

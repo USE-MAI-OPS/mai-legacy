@@ -349,7 +349,7 @@ export function ProfileClient({
               <FileTextIcon className="h-4 w-4 text-orange-600" />
             </div>
             <p className="text-2xl font-bold">{user.stats.entries_created}</p>
-            <p className="text-xs text-muted-foreground">Entries Created</p>
+            <p className="text-xs text-muted-foreground">Memories Created</p>
           </CardContent>
         </Card>
 

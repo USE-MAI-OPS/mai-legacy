@@ -131,7 +131,7 @@ export function ExtractionReview({
       {/* Header */}
       <div className="space-y-1">
         <h2 className="text-xl font-bold text-foreground">
-          Found {totalEntryCount} {totalEntryCount === 1 ? "entry" : "entries"}
+          Found {totalEntryCount} {totalEntryCount === 1 ? "memory" : "memories"}
           {profileItemCount > 0 && ` and ${profileItemCount} profile updates`}
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -145,7 +145,7 @@ export function ExtractionReview({
         <div className="flex items-center justify-between bg-muted/30 rounded-lg px-4 py-2 border border-border">
           <span className="text-sm text-muted-foreground">
             {selectedEntryCount} of {totalEntryCount}{" "}
-            {totalEntryCount === 1 ? "entry" : "entries"} selected
+            {totalEntryCount === 1 ? "memory" : "memories"} selected
           </span>
           <div className="flex gap-2">
             <Button
@@ -204,7 +204,7 @@ export function ExtractionReview({
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">
               Saving {selectedEntryCount}{" "}
-              {selectedEntryCount === 1 ? "entry" : "entries"}
+              {selectedEntryCount === 1 ? "memory" : "memories"}
               {profileItemCount > 0 &&
                 ` and ${profileItemCount} profile ${
                   profileItemCount === 1 ? "update" : "updates"

@@ -363,7 +363,7 @@ export function InterviewGuide() {
                   We&apos;ll extract stories, recipes, lessons, skills, and
                   connections automatically
                 </li>
-                <li>Review and save the entries to your family&apos;s knowledge base</li>
+                <li>Review and save the memories to your family&apos;s knowledge base</li>
               </ol>
             </div>
           </div>

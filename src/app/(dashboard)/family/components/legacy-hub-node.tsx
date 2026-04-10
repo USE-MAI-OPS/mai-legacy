@@ -157,7 +157,7 @@ export const LegacyHubNode = memo(function LegacyHubNode({
       {/* ─── Entry count badge ─── */}
       {entryCount != null && entryCount > 0 && (
         <span className="text-[9px] font-medium text-muted-foreground bg-muted/80 px-2 py-[1px] rounded-full">
-          {entryCount} {entryCount === 1 ? "Entry" : "Entries"}
+          {entryCount} {entryCount === 1 ? "Memory" : "Memories"}
         </span>
       )}
 

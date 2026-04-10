@@ -296,14 +296,14 @@ function ImportInterviewContent() {
           <h2 className="text-2xl font-bold text-foreground">Saved!</h2>
           <p className="text-muted-foreground">
             {saveResult.entriesCreated}{" "}
-            {saveResult.entriesCreated === 1 ? "entry" : "entries"} saved
+            {saveResult.entriesCreated === 1 ? "memory" : "memories"} saved
             {saveResult.profileUpdated &&
               ` and ${subjectName}'s profile updated`}
             . {subjectName}&apos;s stories are now searchable by the Griot.
           </p>
           <div className="flex items-center justify-center gap-3 mt-6">
             <Button variant="outline" asChild>
-              <Link href="/entries">View Entries</Link>
+              <Link href="/entries">View Memories</Link>
             </Button>
             <Button onClick={() => { setStep("input"); setExtractionResult(null); setError(null); }}>
               Import Another Interview

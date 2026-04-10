@@ -31,7 +31,7 @@ import { GriotGapSuggestions } from "@/components/griot-gap-suggestions";
 const MOCK_STATS = [
   { label: "Family Members", value: 5, icon: Users, href: "/family/settings" },
   { label: "Griot Chats", value: 8, icon: MessageCircle, href: "/griot" },
-  { label: "Entries", value: 24, icon: BookOpen, href: "/entries" },
+  { label: "Memories", value: 24, icon: BookOpen, href: "/entries" },
   { label: "Traditions", value: 3, icon: Heart, href: "/family" },
   { label: "Goals", value: 2, icon: Target, href: "/goals" },
   { label: "Events", value: 4, icon: CalendarDays, href: "/family" },
@@ -317,7 +317,7 @@ export default async function DashboardPage() {
     ? [
         { label: "Family Members", value: data.stats.members, icon: Users, href: "/family/settings" },
         { label: "Griot Chats", value: data.stats.griotChats, icon: MessageCircle, href: "/griot" },
-        { label: "Entries", value: data.stats.entries, icon: BookOpen, href: "/entries" },
+        { label: "Memories", value: data.stats.entries, icon: BookOpen, href: "/entries" },
         { label: "Traditions", value: data.stats.traditions, icon: Heart, href: "/family" },
         { label: "Goals", value: (data.goals ?? []).length, icon: Target, href: "/goals" },
         { label: "Events", value: data.stats.events, icon: CalendarDays, href: "/family" },
@@ -408,7 +408,7 @@ export default async function DashboardPage() {
             <Button size="lg" className="rounded-full shadow-lg h-11 px-7 font-serif text-sm" asChild>
               <Link href="/entries/new">
                 <Plus className="mr-2 h-4 w-4" />
-                Add Entry
+                Add Memory
               </Link>
             </Button>
           </div>
@@ -581,7 +581,7 @@ export default async function DashboardPage() {
         {/* Recent Entries */}
         <Card className="flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Recent Entries</CardTitle>
+            <CardTitle>Recent Memories</CardTitle>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/entries">
                 View all
@@ -632,7 +632,7 @@ export default async function DashboardPage() {
             )}
             {recentEntries.length === 0 && (
               <p className="text-sm text-muted-foreground py-4 text-center">
-                No entries yet. Start preserving your family&apos;s knowledge!
+                No memories yet. Start preserving your family&apos;s knowledge!
               </p>
             )}
           </CardContent>

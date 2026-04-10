@@ -461,7 +461,7 @@ export async function sendDripWelcome(opts: {
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
                 <tr>
                   <td style="padding:10px 0;border-bottom:1px solid #f4f4f5;">
-                    <p style="margin:0;font-size:14px;color:#18181b;"><strong>1. Add your first entry</strong></p>
+                    <p style="margin:0;font-size:14px;color:#18181b;"><strong>1. Add your first memory</strong></p>
                     <p style="margin:4px 0 0;font-size:13px;color:#71717a;line-height:1.5;">Record a family story, a recipe passed down through generations, or a skill worth teaching.</p>
                   </td>
                 </tr>
@@ -474,7 +474,7 @@ export async function sendDripWelcome(opts: {
                 <tr>
                   <td style="padding:10px 0;">
                     <p style="margin:0;font-size:14px;color:#18181b;"><strong>3. Ask the Griot</strong></p>
-                    <p style="margin:4px 0 0;font-size:13px;color:#71717a;line-height:1.5;">Your AI Griot learns from every entry. Once you have a few, ask it anything about your family's documented knowledge.</p>
+                    <p style="margin:4px 0 0;font-size:13px;color:#71717a;line-height:1.5;">Your AI Griot learns from every memory. Once you have a few, ask it anything about your family's documented knowledge.</p>
                   </td>
                 </tr>
               </table>
@@ -564,7 +564,7 @@ export async function sendDripDay3(opts: {
                   <td style="padding:20px;">
                     <p style="margin:0 0 6px;font-size:15px;font-weight:700;color:#18181b;">Ask the Griot</p>
                     <p style="margin:0;font-size:14px;color:#52525b;line-height:1.5;">
-                      Your AI Griot is trained only on <em>your</em> family's entries — nothing else.
+                      Your AI Griot is trained only on <em>your</em> family's memories — nothing else.
                       Ask it "What did grandma teach about cooking?" or "What skills has our family passed down?"
                       and it answers from your actual archive. Private, personal, and powerful.
                     </p>

@@ -130,7 +130,7 @@ export function FeedPageClient({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => setSearchActive(true)}
-            placeholder="Search entries, events, goals..."
+            placeholder="Search memories, events, goals..."
             className="w-full bg-muted/50 border rounded-full pl-9 pr-9 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/30 transition-all"
           />
           {searchQuery && (

@@ -179,7 +179,7 @@ export default function DemoPage() {
                   <AvatarFallback className="text-2xl font-serif font-bold bg-white text-primary">GR</AvatarFallback>
                </Avatar>
                <h3 className="text-xl font-semibold mb-1">Grandma Rose</h3>
-               <p className="text-sm text-primary-foreground/80 font-medium">Matriarch • 24 Entries</p>
+               <p className="text-sm text-primary-foreground/80 font-medium">Matriarch • 24 Memories</p>
             </div>
          </div>
       </section>

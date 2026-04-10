@@ -21,6 +21,7 @@ export interface TypeConfigEntry {
   addLabel: string;
   iconName: string;
   filterOptions: FilterOption[] | null;
+  hidden?: boolean;
 }
 
 export const typeConfig: Record<EntryType, TypeConfigEntry> = {
@@ -86,6 +87,7 @@ export const typeConfig: Record<EntryType, TypeConfigEntry> = {
     iconName: "GraduationCap",
     // Lesson filters are built dynamically from taught_by values
     filterOptions: null,
+    hidden: true,
   },
   connection: {
     label: "Connection",
@@ -103,9 +105,9 @@ export const typeConfig: Record<EntryType, TypeConfigEntry> = {
     emoji: "\uD83D\uDCDD",
     color: "bg-gray-100 text-gray-800 dark:bg-gray-800/60 dark:text-gray-300",
     pluralLabel: "General",
-    directoryTitle: "General Entries",
+    directoryTitle: "General Memories",
     subtitle: "Important notes and reference materials for the family.",
-    addLabel: "Add an Entry",
+    addLabel: "Add a Memory",
     iconName: "FileText",
     filterOptions: null,
   },

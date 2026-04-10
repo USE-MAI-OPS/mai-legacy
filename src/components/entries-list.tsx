@@ -254,7 +254,7 @@ export default function EntriesList({ entries }: EntriesListProps) {
               <Button asChild>
                 <Link href="/entries/new">
                   <Plus className="size-4 mr-2" />
-                  Add Entry
+                  Add Memory
                 </Link>
               </Button>
             </div>
@@ -265,7 +265,7 @@ export default function EntriesList({ entries }: EntriesListProps) {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
               <Input
-                placeholder="Search entries..."
+                placeholder="Search memories..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -325,17 +325,17 @@ export default function EntriesList({ entries }: EntriesListProps) {
           <div className="rounded-full bg-muted p-4 mb-4">
             <BookOpen className="size-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-semibold mb-1">No entries found</h3>
+          <h3 className="text-lg font-semibold mb-1">No memories found</h3>
           <p className="text-sm text-muted-foreground max-w-sm mb-6">
             {searchQuery || typeFilter !== "all"
               ? "Try adjusting your search or filter to find what you're looking for."
-              : "Start preserving your family's knowledge by creating your first entry."}
+              : "Start preserving your family's knowledge by adding your first memory."}
           </p>
           {!searchQuery && typeFilter === "all" && (
             <Button asChild>
               <Link href="/entries/new">
                 <Plus className="size-4 mr-2" />
-                Create your first entry
+                Create your first memory
               </Link>
             </Button>
           )}

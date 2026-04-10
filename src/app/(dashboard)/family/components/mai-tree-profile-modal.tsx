@@ -187,7 +187,7 @@ export function MaiTreeProfileModal({
               className="flex-1 rounded-full text-xs"
               asChild
             >
-              <Link href="/entries">View All Entries</Link>
+              <Link href="/entries">View All Memories</Link>
             </Button>
             <Button
               variant="outline"

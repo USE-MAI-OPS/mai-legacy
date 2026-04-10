@@ -109,7 +109,7 @@ export default function GeneralForm({ onSubmit, saving = false, familyId }: Gene
             <FileText className="size-5" />
           </div>
           <div>
-            <CardTitle className="text-2xl">General Entry</CardTitle>
+            <CardTitle className="text-2xl">General Memory</CardTitle>
             <CardDescription>
               Preserve any piece of your family&apos;s knowledge, story, or
               wisdom.

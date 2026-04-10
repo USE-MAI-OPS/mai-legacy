@@ -23,7 +23,7 @@ const statItems: {
   icon: React.ReactNode;
   href: string;
 }[] = [
-  { key: "entries", label: "Entries", icon: <BookOpen className="h-4 w-4" />, href: "/entries" },
+  { key: "entries", label: "Memories", icon: <BookOpen className="h-4 w-4" />, href: "/entries" },
   { key: "members", label: "Members", icon: <Users className="h-4 w-4" />, href: "/family" },
   { key: "traditions", label: "Traditions", icon: <Flame className="h-4 w-4" />, href: "/family?tab=traditions" },
   { key: "goals", label: "Goals", icon: <Target className="h-4 w-4" />, href: "/goals" },

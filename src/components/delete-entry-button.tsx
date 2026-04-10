@@ -50,7 +50,7 @@ export function DeleteEntryButton({ entryId }: DeleteEntryButtonProps) {
         <AlertDialogHeader>
           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
           <AlertDialogDescription>
-            This will permanently delete this entry and all associated data
+            This will permanently delete this memory and all associated data
             including embeddings. This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -62,7 +62,7 @@ export function DeleteEntryButton({ entryId }: DeleteEntryButtonProps) {
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {isPending && <Loader2 className="size-4 mr-2 animate-spin" />}
-            Delete Entry
+            Delete Memory
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

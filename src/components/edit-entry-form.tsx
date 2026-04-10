@@ -181,7 +181,7 @@ export default function EditEntryForm({ entry }: EditEntryFormProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Edit Entry</CardTitle>
+          <CardTitle className="text-2xl">Edit Memory</CardTitle>
           <CardDescription>
             Update this piece of your family&apos;s knowledge.
           </CardDescription>

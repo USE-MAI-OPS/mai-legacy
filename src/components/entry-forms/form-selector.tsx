@@ -9,6 +9,7 @@ import {
   FileText,
   type LucideIcon,
 } from "lucide-react";
+import { typeConfig } from "@/lib/entry-type-config";
 import type { EntryType } from "@/types/database";
 
 interface EntryTypeOption {
@@ -19,7 +20,7 @@ interface EntryTypeOption {
   color: string;
 }
 
-const entryTypes: EntryTypeOption[] = [
+const allEntryTypes: EntryTypeOption[] = [
   {
     value: "recipe",
     label: "Recipe",
@@ -63,6 +64,8 @@ const entryTypes: EntryTypeOption[] = [
     color: "text-gray-500",
   },
 ];
+
+const entryTypes = allEntryTypes.filter((t) => !typeConfig[t.value]?.hidden);
 
 interface FormSelectorProps {
   onSelect: (type: EntryType) => void;

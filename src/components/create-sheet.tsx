@@ -5,7 +5,6 @@ import {
   BookOpen,
   UtensilsCrossed,
   Wrench,
-  GraduationCap,
   Camera,
   FileUp,
 } from "lucide-react";
@@ -40,13 +39,6 @@ const entryTypes = [
     color: "text-green-600 bg-green-50",
   },
   {
-    href: "/entries/new?type=lesson",
-    label: "Lesson",
-    description: "Record wisdom and life lessons",
-    icon: GraduationCap,
-    color: "text-purple-600 bg-purple-50",
-  },
-  {
     href: "/entries/new?type=memory",
     label: "Quick Memory",
     description: "Capture a quick moment",
@@ -77,7 +69,7 @@ export function CreateSheet({ open, onOpenChange }: CreateSheetProps) {
         </div>
 
         <SheetHeader className="px-4 pb-2">
-          <SheetTitle className="text-lg">Create New Entry</SheetTitle>
+          <SheetTitle className="text-lg">Create New Memory</SheetTitle>
           <SheetDescription>What would you like to preserve?</SheetDescription>
         </SheetHeader>
 

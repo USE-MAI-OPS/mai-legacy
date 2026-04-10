@@ -9,6 +9,7 @@ import { UpcomingEvents } from "./components/upcoming-events";
 import { FeatureCards } from "./components/feature-cards";
 import { TraditionsSection } from "@/components/traditions-section";
 import { FamilyCoverPhoto } from "./components/family-cover-photo";
+import { HubContentWrapper } from "./hub-content-wrapper";
 import type { RsvpStatus, EntryType } from "@/types/database";
 
 // ---------------------------------------------------------------------------
@@ -206,6 +207,7 @@ export default async function FamilyPage() {
   }
 
   return (
+    <HubContentWrapper>
     <div className="p-6 space-y-8 max-w-6xl mx-auto">
       {/* Storytelling Header Block */}
       <section className="relative rounded-2xl overflow-hidden mb-12 shadow-sm border bg-[#2C4835] dark:bg-green-950">
@@ -340,5 +342,6 @@ export default async function FamilyPage() {
         <FeatureCards entryCounts={data.entryCounts} />
       </section>
     </div>
+    </HubContentWrapper>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Check, ChevronDown, Plus, Users, CircleDot } from "lucide-react";
 import {
   DropdownMenu,
@@ -9,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useFamilyContext } from "@/components/providers/family-provider";
+import { CreateHubDialog } from "@/components/create-hub-dialog";
 import { cn } from "@/lib/utils";
 
 interface HubSwitcherProps {
@@ -18,6 +20,7 @@ interface HubSwitcherProps {
 
 export function HubSwitcher({ compact = false }: HubSwitcherProps) {
   const { hubs, activeHub, switchHub, loading } = useFamilyContext();
+  const [createOpen, setCreateOpen] = useState(false);
 
   if (loading) {
     return (
@@ -53,46 +56,55 @@ export function HubSwitcher({ compact = false }: HubSwitcherProps) {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-accent transition-colors outline-none">
-        <Users className="h-4 w-4 text-muted-foreground shrink-0" />
-        <span className={cn(
-          "font-medium truncate",
-          compact ? "text-base max-w-[180px]" : "text-sm max-w-[140px] hidden xl:inline text-muted-foreground"
-        )}>
-          {activeHub?.name ?? "My Family"}
-        </span>
-        <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align={compact ? "start" : "end"} className="w-56">
-        <div className="px-2 py-1.5">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">My Hubs</p>
-        </div>
-        {hubs.map((hub) => (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-accent transition-colors outline-none">
+          <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className={cn(
+            "font-medium truncate",
+            compact ? "text-base max-w-[180px]" : "text-sm max-w-[140px] hidden xl:inline text-muted-foreground"
+          )}>
+            {activeHub?.name ?? "My Family"}
+          </span>
+          <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align={compact ? "start" : "end"} className="w-56">
+          <div className="px-2 py-1.5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">My Hubs</p>
+          </div>
+          {hubs.map((hub) => (
+            <DropdownMenuItem
+              key={hub.id}
+              onClick={() => switchHub(hub.id)}
+              className="cursor-pointer"
+            >
+              <div className="flex items-center gap-2 w-full">
+                {hub.type === "circle" ? (
+                  <CircleDot className="h-4 w-4 text-muted-foreground shrink-0" />
+                ) : (
+                  <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+                )}
+                <span className="truncate flex-1">{hub.name}</span>
+                {hub.id === activeHub?.id && (
+                  <Check className="h-4 w-4 text-primary shrink-0" />
+                )}
+              </div>
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
           <DropdownMenuItem
-            key={hub.id}
-            onClick={() => switchHub(hub.id)}
-            className="cursor-pointer"
+            className="cursor-pointer text-primary"
+            onSelect={(e) => {
+              e.preventDefault();
+              setCreateOpen(true);
+            }}
           >
-            <div className="flex items-center gap-2 w-full">
-              {hub.type === "circle" ? (
-                <CircleDot className="h-4 w-4 text-muted-foreground shrink-0" />
-              ) : (
-                <Users className="h-4 w-4 text-muted-foreground shrink-0" />
-              )}
-              <span className="truncate flex-1">{hub.name}</span>
-              {hub.id === activeHub?.id && (
-                <Check className="h-4 w-4 text-primary shrink-0" />
-              )}
-            </div>
+            <Plus className="h-4 w-4 mr-2" />
+            Create New Hub
           </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer text-primary">
-          <Plus className="h-4 w-4 mr-2" />
-          Create New Hub
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <CreateHubDialog open={createOpen} onOpenChange={setCreateOpen} />
+    </>
   );
 }

@@ -132,7 +132,8 @@ export async function createFamily(
   familyName: string,
   displayName: string,
   nickname?: string,
-  profileInfo?: { occupation?: string; birthday?: string; city?: string; state?: string }
+  profileInfo?: { occupation?: string; birthday?: string; city?: string; state?: string },
+  hubType: "family" | "circle" = "family"
 ) {
   // Use the normal client to verify the user is authenticated
   const supabase = await createClient();
@@ -155,6 +156,7 @@ export async function createFamily(
     .insert({
       name: familyName.trim(),
       created_by: user.id,
+      type: hubType,
     })
     .select("id")
     .single();

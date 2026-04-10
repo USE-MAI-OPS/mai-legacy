@@ -352,7 +352,7 @@ export default async function PublicEntryPage({
               href="/explore"
               className="border border-input rounded-full px-6 py-2.5 text-sm font-medium hover:bg-accent transition-colors inline-flex items-center justify-center"
             >
-              Explore More Entries
+              Explore More Memories
             </Link>
           </div>
           <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mt-6">

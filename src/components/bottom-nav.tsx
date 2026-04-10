@@ -52,7 +52,7 @@ export function BottomNav() {
                 key="create"
                 onClick={() => setCreateOpen(true)}
                 className="flex flex-col items-center justify-center gap-0.5 -mt-3"
-                aria-label="Create new entry"
+                aria-label="Create new memory"
               >
                 <span className="flex items-center justify-center w-12 h-12 rounded-full bg-primary text-primary-foreground shadow-lg">
                   <Plus className="h-6 w-6" />

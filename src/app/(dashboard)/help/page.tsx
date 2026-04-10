@@ -26,7 +26,7 @@ const faqs = [
   {
     question: "What is The Griot?",
     answer:
-      "The Griot is your family's AI-powered storyteller. It draws from all the entries your family has created to answer questions, surface connections, and help you explore your family's collective knowledge through conversation.",
+      "The Griot is your family's AI-powered storyteller. It draws from all the memories your family has created to answer questions, surface connections, and help you explore your family's collective knowledge through conversation.",
   },
   {
     question: "How do I invite family members?",
@@ -34,7 +34,7 @@ const faqs = [
       'Go to the Family page, click "Invite Member," and enter their email address. They\'ll receive a magic link to join your family space — no password needed.',
   },
   {
-    question: "What types of entries can I create?",
+    question: "What types of memories can I create?",
     answer:
       "You can create Stories (personal narratives), Recipes (family dishes), Skills (how-to knowledge), Lessons (wisdom and advice), and Connections (relationships and memories about people).",
   },
@@ -53,9 +53,9 @@ const faqs = [
 const featureGuides = [
   {
     icon: FileText,
-    title: "Creating Entries",
+    title: "Creating Memories",
     description:
-      "Document your family's stories, recipes, skills, and lessons. Each entry is searchable and feeds into The Griot's knowledge.",
+      "Document your family's stories, recipes, skills, and lessons. Each memory is searchable and feeds into The Griot's knowledge.",
     iconColor: "text-blue-600",
     iconBg: "bg-blue-100 dark:bg-blue-900/30",
   },

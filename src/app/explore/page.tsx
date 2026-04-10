@@ -8,11 +8,11 @@ import { PublicHeader } from "@/components/public-header";
 // Metadata
 // ---------------------------------------------------------------------------
 export const metadata: Metadata = {
-  title: "Explore Family Stories | MAI Legacy",
+  title: "Explore Family Stories",
   description:
     "Discover stories, recipes, and wisdom shared by families on MAI Legacy.",
   openGraph: {
-    title: "Explore Family Stories | MAI Legacy",
+    title: "Explore Family Stories",
     description:
       "Discover stories, recipes, and wisdom shared by families on MAI Legacy.",
     url: "/explore",

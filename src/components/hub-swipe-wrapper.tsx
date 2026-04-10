@@ -21,7 +21,8 @@ export function HubSwipeWrapper({ children }: HubSwipeWrapperProps) {
     hasPrev,
     swipeHandlers,
     swipeOffset,
-    isSwiping,
+    slidePhase,
+    slideDirection,
   } = useHubSwipe();
 
   // Peek animation: slide left briefly on first visit to hint at swiping
@@ -36,7 +37,7 @@ export function HubSwipeWrapper({ children }: HubSwipeWrapperProps) {
       if (sessionStorage.getItem("mai-hub-peek-shown")) return;
       sessionStorage.setItem("mai-hub-peek-shown", "1");
     } catch {
-      return; // sessionStorage unavailable (e.g. private browsing)
+      return;
     }
 
     const t1 = setTimeout(() => setPeekOffset(-40), 500);
@@ -48,24 +49,52 @@ export function HubSwipeWrapper({ children }: HubSwipeWrapperProps) {
     return <>{children}</>;
   }
 
-  const activeOffset = isSwiping ? swipeOffset : peekOffset;
-  const shouldAnimate = !isSwiping;
+  // Compute transform and transition based on current phase
+  let transform = "translateX(0)";
+  let transition = "none";
+
+  switch (slidePhase) {
+    case "dragging":
+      // Follow the finger — no transition, direct offset
+      transform = `translateX(${swipeOffset}px)`;
+      break;
+
+    case "sliding-out":
+      // Animate current content off-screen in the swipe direction
+      transform = `translateX(${slideDirection * 100}%)`;
+      transition = "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)";
+      break;
+
+    case "sliding-in":
+      // Position off-screen on the OPPOSITE side (no transition — instant placement)
+      // The next rAF frame will set phase to "idle" which animates to center
+      transform = `translateX(${-slideDirection * 100}%)`;
+      break;
+
+    case "idle":
+      // At rest in the center — animate if coming from sliding-in
+      if (peekOffset !== 0) {
+        transform = `translateX(${peekOffset}px)`;
+        transition = "transform 300ms ease-out";
+      } else {
+        transform = "translateX(0)";
+        transition = "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)";
+      }
+      break;
+  }
 
   return (
-    <div className="relative">
+    <div className="relative overflow-hidden">
       {/* Touch container */}
       <div
         {...swipeHandlers}
-        style={{
-          transform: activeOffset !== 0 ? `translateX(${activeOffset}px)` : undefined,
-          transition: shouldAnimate ? "transform 0.3s ease-out" : "none",
-        }}
+        style={{ transform, transition }}
       >
         {children}
       </div>
 
       {/* Desktop arrow buttons */}
-      {hasPrev && (
+      {hasPrev && slidePhase === "idle" && (
         <button
           onClick={goPrev}
           className="hidden md:flex absolute left-0 top-1/3 -translate-x-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-card border shadow-sm hover:bg-accent transition-colors"
@@ -74,7 +103,7 @@ export function HubSwipeWrapper({ children }: HubSwipeWrapperProps) {
           <ChevronLeft className="h-5 w-5" />
         </button>
       )}
-      {hasNext && (
+      {hasNext && slidePhase === "idle" && (
         <button
           onClick={goNext}
           className="hidden md:flex absolute right-0 top-1/3 translate-x-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-card border shadow-sm hover:bg-accent transition-colors"

@@ -4,12 +4,15 @@ import { useCallback, useRef, useState } from "react";
 import { useFamilyContext } from "@/components/providers/family-provider";
 
 const SWIPE_THRESHOLD = 50; // px minimum to count as a swipe
+const TRANSITION_MS = 300; // slide animation duration
 
 interface SwipeHandlers {
   onTouchStart: (e: React.TouchEvent) => void;
   onTouchMove: (e: React.TouchEvent) => void;
   onTouchEnd: () => void;
 }
+
+export type SlidePhase = "idle" | "dragging" | "sliding-out" | "sliding-in";
 
 interface UseHubSwipeReturn {
   currentIndex: number;
@@ -20,56 +23,106 @@ interface UseHubSwipeReturn {
   hasPrev: boolean;
   swipeHandlers: SwipeHandlers;
   swipeOffset: number;
-  isSwiping: boolean;
+  slidePhase: SlidePhase;
+  /** Direction of the current transition: -1 = going to next (left), 1 = going to prev (right) */
+  slideDirection: -1 | 1 | 0;
 }
 
 export function useHubSwipe(): UseHubSwipeReturn {
   const { hubs, activeHubId, switchHub } = useFamilyContext();
   const touchStartX = useRef(0);
   const [swipeOffset, setSwipeOffset] = useState(0);
-  const [isSwiping, setIsSwiping] = useState(false);
+  const [slidePhase, setSlidePhase] = useState<SlidePhase>("idle");
+  const [slideDirection, setSlideDirection] = useState<-1 | 1 | 0>(0);
+  const transitioning = useRef(false);
 
   const currentIndex = hubs.findIndex((h) => h.id === activeHubId);
   const hasNext = currentIndex < hubs.length - 1;
   const hasPrev = currentIndex > 0;
 
+  const triggerTransition = useCallback(
+    (direction: -1 | 1) => {
+      if (transitioning.current) return;
+      const targetIndex = currentIndex + (direction === -1 ? 1 : -1);
+      if (targetIndex < 0 || targetIndex >= hubs.length) return;
+
+      transitioning.current = true;
+      setSlideDirection(direction);
+
+      // Phase 1: slide current content off-screen
+      setSlidePhase("sliding-out");
+
+      setTimeout(() => {
+        // Phase 2: switch the hub data (triggers server re-render)
+        switchHub(hubs[targetIndex].id);
+
+        // Phase 3: position new content off-screen on opposite side, then slide in
+        setSlidePhase("sliding-in");
+
+        // Use requestAnimationFrame to ensure the "off-screen" position renders
+        // before we animate to center
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setSlidePhase("idle");
+            setSlideDirection(0);
+            transitioning.current = false;
+          });
+        });
+      }, TRANSITION_MS);
+    },
+    [currentIndex, hubs, switchHub]
+  );
+
   const goNext = useCallback(() => {
-    if (hasNext) {
-      switchHub(hubs[currentIndex + 1].id);
+    if (hasNext && !transitioning.current) {
+      triggerTransition(-1); // slide left
     }
-  }, [hasNext, hubs, currentIndex, switchHub]);
+  }, [hasNext, triggerTransition]);
 
   const goPrev = useCallback(() => {
-    if (hasPrev) {
-      switchHub(hubs[currentIndex - 1].id);
+    if (hasPrev && !transitioning.current) {
+      triggerTransition(1); // slide right
     }
-  }, [hasPrev, hubs, currentIndex, switchHub]);
+  }, [hasPrev, triggerTransition]);
 
   const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (transitioning.current) return;
     touchStartX.current = e.touches[0].clientX;
-    setIsSwiping(true);
+    setSlidePhase("dragging");
   }, []);
 
-  const onTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isSwiping) return;
-    const diff = e.touches[0].clientX - touchStartX.current;
-    const limited = (!hasPrev && diff > 0) || (!hasNext && diff < 0)
-      ? diff * 0.3
-      : diff;
-    setSwipeOffset(limited);
-  }, [isSwiping, hasPrev, hasNext]);
+  const onTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (slidePhase !== "dragging") return;
+      const diff = e.touches[0].clientX - touchStartX.current;
+      const limited =
+        (!hasPrev && diff > 0) || (!hasNext && diff < 0)
+          ? diff * 0.3
+          : diff;
+      setSwipeOffset(limited);
+    },
+    [slidePhase, hasPrev, hasNext]
+  );
 
   const onTouchEnd = useCallback(() => {
-    setIsSwiping(false);
+    if (slidePhase !== "dragging") return;
+
     if (Math.abs(swipeOffset) > SWIPE_THRESHOLD) {
       if (swipeOffset > 0 && hasPrev) {
-        goPrev();
+        setSwipeOffset(0);
+        triggerTransition(1); // swipe right = go to previous
+        return;
       } else if (swipeOffset < 0 && hasNext) {
-        goNext();
+        setSwipeOffset(0);
+        triggerTransition(-1); // swipe left = go to next
+        return;
       }
     }
+
+    // Didn't cross threshold — snap back
     setSwipeOffset(0);
-  }, [swipeOffset, hasPrev, hasNext, goPrev, goNext]);
+    setSlidePhase("idle");
+  }, [slidePhase, swipeOffset, hasPrev, hasNext, triggerTransition]);
 
   return {
     currentIndex,
@@ -80,6 +133,7 @@ export function useHubSwipe(): UseHubSwipeReturn {
     hasPrev,
     swipeHandlers: { onTouchStart, onTouchMove, onTouchEnd },
     swipeOffset,
-    isSwiping,
+    slidePhase,
+    slideDirection,
   };
 }

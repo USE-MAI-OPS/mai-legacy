@@ -74,7 +74,7 @@ async function getInitialFeed(): Promise<{
         sb.from("entries").select("id", { count: "exact", head: true }).eq("family_id", familyId)
       ),
       safeCount(
-        sb.from("traditions").select("id", { count: "exact", head: true }).eq("family_id", familyId)
+        sb.from("family_traditions").select("id", { count: "exact", head: true }).eq("family_id", familyId)
       ),
       safeCount(
         sb.from("family_goals").select("id", { count: "exact", head: true }).eq("family_id", familyId).eq("status", "active")

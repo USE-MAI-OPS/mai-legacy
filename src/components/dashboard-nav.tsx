@@ -29,6 +29,7 @@ import { getActiveFamilyIdClient } from "@/lib/active-family";
 import { useTourOptional } from "@/components/tour/tour-provider";
 import { NotificationBell } from "@/components/notification-bell";
 import { HubSwitcher } from "@/components/hub-switcher";
+import { useFamilyContext } from "@/components/providers/family-provider";
 
 interface UserInfo {
   displayName: string;
@@ -48,6 +49,7 @@ const tourStepMap: Record<string, string> = {
 export function DashboardNav() {
   const pathname = usePathname();
   const tour = useTourOptional();
+  const { activeHub } = useFamilyContext();
   const [userInfo, setUserInfo] = useState<UserInfo>({
     displayName: "",
     initials: "",
@@ -224,17 +226,17 @@ export function DashboardNav() {
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
             >
-              Our Family <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+              {activeHub?.type === "circle" ? "Our Circle" : "Our Family"} <ChevronDown className="h-3.5 w-3.5 opacity-50" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">
               <DropdownMenuItem asChild>
-                <Link href="/family" className="w-full cursor-pointer">Family Hub</Link>
+                <Link href="/family" className="w-full cursor-pointer">{activeHub?.type === "circle" ? "Circle Hub" : "Family Hub"}</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/family/tree" className="w-full cursor-pointer">MAI Tree</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/goals" className="w-full cursor-pointer">Family Goals</Link>
+                <Link href="/goals" className="w-full cursor-pointer">Goals</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
                 <Link href="/messages" className="w-full cursor-pointer">
@@ -301,7 +303,7 @@ export function DashboardNav() {
               <DropdownMenuItem asChild>
                 <Link href="/family/settings">
                   <Users className="mr-2 h-4 w-4" />
-                  Family Settings
+                  {activeHub?.type === "circle" ? "Circle Settings" : "Family Settings"}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />

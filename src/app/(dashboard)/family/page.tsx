@@ -10,7 +10,8 @@ import { FeatureCards } from "./components/feature-cards";
 import { TraditionsSection } from "@/components/traditions-section";
 import { FamilyCoverPhoto } from "./components/family-cover-photo";
 import { HubContentWrapper } from "./hub-content-wrapper";
-import type { RsvpStatus, EntryType } from "@/types/database";
+import { getHubLabel } from "@/lib/hub-labels";
+import type { RsvpStatus, EntryType, HubType } from "@/types/database";
 
 // ---------------------------------------------------------------------------
 // Types for raw DB rows
@@ -71,7 +72,7 @@ async function getFamilyData() {
       traditionsResult,
       goalsResult,
     ] = await Promise.all([
-      sb.from("families").select("name").eq("id", familyId).single(),
+      sb.from("families").select("name, type").eq("id", familyId).single(),
       treeCountQuery,
       sb
         .from("family_members")
@@ -151,6 +152,7 @@ async function getFamilyData() {
 
     return {
       familyName: familyResult.data?.name ?? "Your Family",
+      hubType: (familyResult.data?.type ?? "family") as HubType,
       treeMemberCount: treeMembersResult.count ?? 0,
       realMembers,
       events,
@@ -225,7 +227,9 @@ export default async function FamilyPage() {
                 {data.familyName}
               </h1>
               <p className="text-green-50 mb-8 font-serif italic text-lg opacity-90 max-w-md">
-                Explore your family's lineage and relationships. Trace the roots that connect you all.
+                {data.hubType === "circle"
+                  ? "Explore your circle\u2019s connections and shared experiences."
+                  : "Explore your family\u2019s lineage and relationships. Trace the roots that connect you all."}
               </p>
               
               <div className="flex flex-wrap items-center gap-4">
@@ -267,7 +271,7 @@ export default async function FamilyPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Target className="h-5 w-5 text-emerald-500" />
-            <h2 className="text-lg font-semibold">Family Goals</h2>
+            <h2 className="text-lg font-semibold">{getHubLabel(data.hubType)} Goals</h2>
           </div>
           <Button variant="outline" size="sm" className="rounded-full" asChild>
             <Link href="/goals">
@@ -331,7 +335,7 @@ export default async function FamilyPage() {
         ) : (
           <div className="text-center py-8">
             <p className="text-sm text-muted-foreground">
-              No goals yet. Set a family goal to track your legacy-building progress!
+              No goals yet. Set a {data.hubType === "circle" ? "circle" : "family"} goal to track your legacy-building progress!
             </p>
           </div>
         )}

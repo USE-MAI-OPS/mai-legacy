@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useTransition, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getActiveFamilyIdClient, setActiveFamilyIdClient } from "@/lib/active-family";
 import { useRouter } from "next/navigation";
@@ -19,6 +19,8 @@ interface FamilyContextValue {
   activeHub: HubInfo | null;
   switchHub: (hubId: string) => void;
   loading: boolean;
+  /** True while the server is re-rendering after a hub switch */
+  isHubSwitching: boolean;
 }
 
 const FamilyContext = createContext<FamilyContextValue>({
@@ -27,6 +29,7 @@ const FamilyContext = createContext<FamilyContextValue>({
   activeHub: null,
   switchHub: () => {},
   loading: true,
+  isHubSwitching: false,
 });
 
 export function useFamilyContext() {
@@ -37,6 +40,7 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
   const [hubs, setHubs] = useState<HubInfo[]>([]);
   const [activeHubId, setActiveHubId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
   useEffect(() => {
@@ -50,7 +54,6 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Fetch all families/circles the user belongs to
       const { data: memberships } = await supabase
         .from("family_members")
         .select("family_id, role, joined_at, families(id, name, type)")
@@ -75,7 +78,6 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
 
       setHubs(hubList);
 
-      // Determine active hub
       const cookieId = getActiveFamilyIdClient();
       const activeId =
         cookieId && hubList.some((h) => h.id === cookieId)
@@ -93,7 +95,9 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
       if (!hubs.some((h) => h.id === hubId)) return;
       setActiveFamilyIdClient(hubId);
       setActiveHubId(hubId);
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     },
     [hubs, router],
   );
@@ -101,7 +105,7 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
   const activeHub = hubs.find((h) => h.id === activeHubId) ?? null;
 
   return (
-    <FamilyContext.Provider value={{ hubs, activeHubId, activeHub, switchHub, loading }}>
+    <FamilyContext.Provider value={{ hubs, activeHubId, activeHub, switchHub, loading, isHubSwitching: isPending }}>
       {children}
     </FamilyContext.Provider>
   );

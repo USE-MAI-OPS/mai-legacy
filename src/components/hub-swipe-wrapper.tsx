@@ -65,8 +65,13 @@ export function HubSwipeWrapper({ children }: HubSwipeWrapperProps) {
       transition = "transform 300ms cubic-bezier(0.4, 0, 0.2, 1)";
       break;
 
+    case "waiting-for-data":
+      // Keep content off-screen while server loads new data
+      transform = `translateX(${slideDirection * 100}%)`;
+      break;
+
     case "sliding-in":
-      // Position off-screen on the OPPOSITE side (no transition — instant placement)
+      // Position new content off-screen on the OPPOSITE side (no transition — instant placement)
       // The next rAF frame will set phase to "idle" which animates to center
       transform = `translateX(${-slideDirection * 100}%)`;
       break;

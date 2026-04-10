@@ -51,11 +51,9 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
       }
 
       // Fetch all families/circles the user belongs to
-      // Note: families.type column may not exist yet (added in Phase 3 migration)
-      // So we default to 'family' if the column doesn't exist
       const { data: memberships } = await supabase
         .from("family_members")
-        .select("family_id, role, joined_at, families(id, name)")
+        .select("family_id, role, joined_at, families(id, name, type)")
         .eq("user_id", user.id)
         .order("joined_at", { ascending: true });
 
@@ -69,7 +67,7 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
         return {
           id: m.family_id as string,
           name: (family?.name as string) ?? "Unknown",
-          type: "family" as const, // Will read from families.type once Phase 3 migration runs
+          type: ((family?.type as string) ?? "family") as "family" | "circle",
           role: m.role as string,
           joinedAt: m.joined_at as string,
         };

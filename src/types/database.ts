@@ -24,6 +24,8 @@ export type MemberSpecialty =
 
 export type EntryVisibility = "family" | "link" | "public";
 
+export type HubType = "family" | "circle";
+
 export type GoalStatus = "active" | "completed" | "archived";
 
 export type RsvpStatus = "going" | "maybe" | "not_going";
@@ -194,6 +196,7 @@ export interface Database {
           id: string;
           name: string;
           created_by: string;
+          type: HubType;
           plan_tier: PlanTier;
           stripe_customer_id: string | null;
           stripe_subscription_id: string | null;
@@ -206,6 +209,7 @@ export interface Database {
           id?: string;
           name: string;
           created_by: string;
+          type?: HubType;
           plan_tier?: PlanTier;
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;
@@ -218,6 +222,7 @@ export interface Database {
           id?: string;
           name?: string;
           created_by?: string;
+          type?: HubType;
           plan_tier?: PlanTier;
           stripe_customer_id?: string | null;
           stripe_subscription_id?: string | null;

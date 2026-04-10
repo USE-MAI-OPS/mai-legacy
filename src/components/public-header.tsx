@@ -53,7 +53,7 @@ export function PublicHeader() {
           <Button
             variant="ghost"
             size="sm"
-            className="hidden sm:inline-flex"
+            className="text-xs sm:text-sm"
             asChild
           >
             <Link href="/login">Sign In</Link>

@@ -91,7 +91,7 @@ function EmailCaptureForm({ source = "landing", className = "" }: { source?: str
           placeholder="Your name (optional)"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="flex-1 min-w-0 rounded-full px-4 py-3 text-sm bg-white/10 text-white placeholder:text-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/40"
+          className="flex-1 min-w-0 rounded-full px-4 py-3 text-sm bg-white/30 text-white placeholder:text-white/80 border border-white/40 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white/35"
         />
         <input
           type="email"
@@ -99,7 +99,7 @@ function EmailCaptureForm({ source = "landing", className = "" }: { source?: str
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="flex-1 min-w-0 rounded-full px-4 py-3 text-sm bg-white/10 text-white placeholder:text-white/50 border border-white/20 focus:outline-none focus:ring-2 focus:ring-white/40"
+          className="flex-1 min-w-0 rounded-full px-4 py-3 text-sm bg-white/30 text-white placeholder:text-white/80 border border-white/40 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white/35"
         />
         <Button
           type="submit"

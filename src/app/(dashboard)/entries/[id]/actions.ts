@@ -39,6 +39,10 @@ export async function copyEntryToFamilies(
       return { error: "Entry not found." };
     }
 
+    if (sourceEntry.author_id !== user.id) {
+      return { error: "You can only copy your own memories." };
+    }
+
     if (targetFamilyIds.length === 0) {
       return { error: "No target families selected." };
     }
@@ -103,6 +107,21 @@ export async function deleteEntry(entryId: string) {
       return { error: "You must be signed in to delete an entry." };
     }
 
+    // Verify ownership before allowing deletion
+    const { data: entry } = await supabase
+      .from("entries")
+      .select("author_id")
+      .eq("id", entryId)
+      .maybeSingle();
+
+    if (!entry) {
+      return { error: "Entry not found." };
+    }
+
+    if ((entry as { author_id: string }).author_id !== user.id) {
+      return { error: "You can only delete your own memories." };
+    }
+
     // Delete the entry (cascade will handle embeddings via FK)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: deleteError } = await supabase
@@ -146,6 +165,21 @@ export async function updateEntry(entryId: string, input: UpdateEntryInput) {
 
     if (authError || !user) {
       return { error: "You must be signed in to update an entry." };
+    }
+
+    // Verify ownership before allowing update
+    const { data: existing } = await supabase
+      .from("entries")
+      .select("author_id")
+      .eq("id", entryId)
+      .maybeSingle();
+
+    if (!existing) {
+      return { error: "Entry not found." };
+    }
+
+    if ((existing as { author_id: string }).author_id !== user.id) {
+      return { error: "You can only update your own memories." };
     }
 
     // Build update payload

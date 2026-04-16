@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Users, Check, AlertCircle, Loader2, LogIn } from "lucide-react";
 import {
@@ -14,8 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createClient } from "@/lib/supabase/client";
 import { acceptInvite, updateMemberProfile } from "../../actions";
+import { fetchInviteDetails } from "./actions";
 
 interface InviteData {
   familyName: string;
@@ -26,7 +26,6 @@ interface InviteData {
 }
 
 export default function AcceptInvitePage() {
-  const router = useRouter();
   const params = useParams();
   const inviteId = params.id as string;
 
@@ -48,75 +47,22 @@ export default function AcceptInvitePage() {
   useEffect(() => {
     async function fetchInvite() {
       try {
-        const supabase = createClient();
+        const result = await fetchInviteDetails(inviteId);
 
-        // Check if user is logged in
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        setIsLoggedIn(!!user);
-
-        // Fetch the invite record
-        const { data: inviteData, error: inviteError } = await supabase
-          .from("family_invites")
-          .select("family_id, invited_by, role, accepted, expires_at")
-          .eq("id", inviteId)
-          .single();
-
-        if (inviteError || !inviteData) {
+        if (!result.ok) {
           setInvite(null);
-          setError("This invite link is invalid or has been removed.");
+          setError(result.error);
           setFetching(false);
           return;
         }
 
-        if (inviteData.accepted) {
-          // Check if current user is already a member
-          if (user) {
-            const { data: memberCheck } = await supabase
-              .from("family_members")
-              .select("id")
-              .eq("family_id", inviteData.family_id)
-              .eq("user_id", user.id)
-              .maybeSingle();
-
-            if (memberCheck) {
-              // Already a member — just go to dashboard
-              window.location.href = "/dashboard";
-              return;
-            }
-          }
-          setInvite(null);
-          setError("This invite has already been accepted.");
-          setFetching(false);
+        if (result.alreadyMember) {
+          window.location.href = "/dashboard";
           return;
         }
 
-        const expired = new Date(inviteData.expires_at) < new Date();
-
-        // Fetch family name
-        const { data: family } = await supabase
-          .from("families")
-          .select("name")
-          .eq("id", inviteData.family_id)
-          .single();
-
-        // Fetch inviter's display name
-        const { data: inviter } = await supabase
-          .from("family_members")
-          .select("display_name")
-          .eq("user_id", inviteData.invited_by)
-          .eq("family_id", inviteData.family_id)
-          .limit(1)
-          .single();
-
-        setInvite({
-          familyName: family?.name || "Unknown Family",
-          invitedBy: inviter?.display_name || "A family member",
-          role: inviteData.role,
-          familyId: inviteData.family_id,
-          expired,
-        });
+        setIsLoggedIn(result.isLoggedIn);
+        setInvite(result.invite);
       } catch (e) {
         console.error("Failed to fetch invite:", e);
         setInvite(null);

@@ -219,13 +219,13 @@ export async function generateMetadata({
       .eq("id", id)
       .single();
 
-    if (!entry) return { title: "Entry | MAI Legacy" };
+    if (!entry) return { title: "Entry" };
 
     const config = typeConfig[entry.type as EntryType] ?? typeConfig.general;
     const siteUrl = getSiteUrl();
 
     return {
-      title: `${entry.title} | MAI Legacy`,
+      title: entry.title,
       description: `${config.emoji} ${config.label} preserved on MAI Legacy`,
       openGraph: {
         title: entry.title,

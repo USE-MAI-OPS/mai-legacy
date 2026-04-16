@@ -22,8 +22,7 @@ export async function verifyFamilyMembership(familyId: string): Promise<
     return { user: null, error: "Not authenticated" };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: membership } = await (supabase as any)
+  const { data: membership } = await supabase
     .from("family_members")
     .select("id, role")
     .eq("user_id", user.id)
@@ -54,8 +53,7 @@ export async function verifyFamilyAdmin(familyId: string): Promise<
     return { user: null, error: "Not authenticated" };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: membership } = await (supabase as any)
+  const { data: membership } = await supabase
     .from("family_members")
     .select("id, role")
     .eq("user_id", user.id)
@@ -71,4 +69,24 @@ export async function verifyFamilyAdmin(familyId: string): Promise<
   }
 
   return { user, error: null };
+}
+
+/**
+ * Check whether a specific user is an admin of a family.
+ * Returns true only when a membership row exists with role = 'admin'.
+ * Uses the caller-supplied supabase client to reuse the current request's auth context.
+ */
+export async function isUserFamilyAdmin(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  familyId: string
+): Promise<boolean> {
+  const { data: membership } = await supabase
+    .from("family_members")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("family_id", familyId)
+    .maybeSingle();
+
+  return membership?.role === "admin";
 }

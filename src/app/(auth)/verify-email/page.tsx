@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { ShieldCheck, Loader2, RotateCcw } from "lucide-react";
 import {
   Card,
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { verifyEmailCode, resendVerificationCode } from "../actions";
 import { createClient } from "@/lib/supabase/client";
+import { getSafeRedirect } from "@/lib/safe-redirect";
 
 export default function VerifyEmailPage() {
   return (
@@ -31,7 +32,6 @@ export default function VerifyEmailPage() {
 }
 
 function VerifyEmailContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect");
 
@@ -128,13 +128,11 @@ function VerifyEmailContent() {
 
     setSuccess(true);
 
-    // Redirect after brief success animation
+    // Redirect after brief success animation. getSafeRedirect rejects
+    // absolute URLs / protocol-relative URLs so an attacker cannot craft
+    // ?redirect=https://evil.com to phish verified users.
     setTimeout(() => {
-      if (redirectTo) {
-        window.location.href = redirectTo;
-      } else {
-        window.location.href = "/onboarding";
-      }
+      window.location.href = getSafeRedirect(redirectTo, "/onboarding");
     }, 1000);
   }
 

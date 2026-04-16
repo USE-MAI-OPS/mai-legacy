@@ -14,6 +14,8 @@ import type { EntryType } from "@/types/database";
 export interface GapConfig {
   type: EntryType;
   label: string;
+  /** Singular form of the label, used in CTAs like "Add Story" */
+  singularLabel: string;
   minCount: number; // suggest if below this count
   /** Short prompt shown in the gap card */
   prompt: string;
@@ -29,6 +31,7 @@ const GAP_CONFIGS: GapConfig[] = [
   {
     type: "recipe",
     label: "Recipes",
+    singularLabel: "Recipe",
     minCount: 2,
     prompt: "Your family has no recipes — want to add one?",
     griotSuggestion:
@@ -39,6 +42,7 @@ const GAP_CONFIGS: GapConfig[] = [
   {
     type: "story",
     label: "Stories",
+    singularLabel: "Story",
     minCount: 2,
     prompt: "No family stories yet — share one to get started.",
     griotSuggestion:
@@ -49,6 +53,7 @@ const GAP_CONFIGS: GapConfig[] = [
   {
     type: "skill",
     label: "Skills",
+    singularLabel: "Skill",
     minCount: 1,
     prompt: "Preserve a skill or how-to from someone in your family.",
     griotSuggestion:
@@ -59,6 +64,7 @@ const GAP_CONFIGS: GapConfig[] = [
   {
     type: "lesson",
     label: "Lessons",
+    singularLabel: "Lesson",
     minCount: 1,
     prompt: "No life lessons recorded yet — what wisdom should be passed down?",
     griotSuggestion:
@@ -69,6 +75,7 @@ const GAP_CONFIGS: GapConfig[] = [
   {
     type: "connection",
     label: "Connections",
+    singularLabel: "Connection",
     minCount: 1,
     prompt: "Document a family connection or relationship story.",
     griotSuggestion:
@@ -89,6 +96,7 @@ export interface FamilyEntryCounts {
 export interface GapSuggestion {
   type: EntryType;
   label: string;
+  singularLabel: string;
   prompt: string;
   griotSuggestion: string;
   emoji: string;
@@ -119,6 +127,7 @@ export function detectGaps(
       suggestions.push({
         type: config.type,
         label: config.label,
+        singularLabel: config.singularLabel,
         prompt: config.prompt,
         griotSuggestion: config.griotSuggestion,
         emoji: config.emoji,

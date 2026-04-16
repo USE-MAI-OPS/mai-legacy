@@ -52,12 +52,11 @@ export async function GET(request: NextRequest) {
 
       await supabase
         .from("background_jobs")
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .update({
           status: "done" as const,
           processed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        } as any)
+        })
         .eq("id", job.id);
 
       processed++;
@@ -70,12 +69,11 @@ export async function GET(request: NextRequest) {
 
       await supabase
         .from("background_jobs")
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .update({
           status: newStatus,
           error: errorMsg,
           updated_at: new Date().toISOString(),
-        } as any)
+        })
         .eq("id", job.id);
 
       failed++;

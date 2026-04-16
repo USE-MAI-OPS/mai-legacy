@@ -1,10 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Mail, MessageSquare } from "lucide-react";
 import Link from "next/link";
+import { ContactForm } from "./contact-form";
 
 export const metadata = {
   title: "Contact Us",
@@ -33,54 +29,7 @@ export default function ContactPage() {
           </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <MessageSquare className="h-5 w-5 text-primary" />
-              Send us a message
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form
-              action="mailto:support@usemai.com"
-              method="POST"
-              encType="text/plain"
-              className="space-y-4"
-            >
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input id="name" name="name" placeholder="Your name" required />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="message">Message</Label>
-                <Textarea
-                  id="message"
-                  name="message"
-                  placeholder="How can we help?"
-                  rows={5}
-                  required
-                />
-              </div>
-
-              <Button type="submit" className="w-full">
-                <Mail className="mr-2 h-4 w-4" />
-                Send Message
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+        <ContactForm />
 
         <p className="text-center text-xs text-muted-foreground">
           Or email us directly at{" "}

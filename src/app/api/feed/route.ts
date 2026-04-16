@@ -8,6 +8,15 @@ import type { EntryType } from "@/types/database";
 export const dynamic = "force-dynamic";
 
 // ---------------------------------------------------------------------------
+// Escape user-provided text before interpolating into a PostgREST .or() ilike
+// filter. Strips the filter-string separators (`,` `(` `)`) that would break
+// out of the filter grammar, and backslash-escapes the LIKE wildcards `%` and
+// `_` so they don't match unintended rows.
+// ---------------------------------------------------------------------------
+const sanitizeIlike = (s: string) =>
+  s.replace(/[%_\\]/g, "\\$&").replace(/[,()]/g, "");
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 export interface FeedEntry {
@@ -160,8 +169,9 @@ export async function GET(req: NextRequest) {
 
   // Apply search query to entries (title or content ilike)
   if (searchQuery) {
+    const q = sanitizeIlike(searchQuery);
     entryQuery = entryQuery.or(
-      `title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`
+      `title.ilike.%${q}%,content.ilike.%${q}%`
     );
   }
 
@@ -262,8 +272,9 @@ export async function GET(req: NextRequest) {
       .limit(3);
 
     if (searchQuery) {
+      const q = sanitizeIlike(searchQuery);
       eventQuery = eventQuery.or(
-        `title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`
+        `title.ilike.%${q}%,description.ilike.%${q}%`
       );
     }
 
@@ -332,6 +343,10 @@ export async function GET(req: NextRequest) {
   }
 
   // --- Fetch Griot discoveries (recent, up to 5) ---
+  // griot_discoveries has no owner column; privacy-filter client-side by
+  // related_members overlap with the connection chain. Rows with no related
+  // members are family-scope and remain visible. Overfetch (10) to avoid
+  // starvation after filtering.
   const discoveryItems: FeedDiscovery[] = [];
   if (!cursor && filterTypes.length === 0 && !searchQuery) {
     try {
@@ -340,9 +355,16 @@ export async function GET(req: NextRequest) {
         .select("id, discovery_type, title, body, related_entries, related_members, created_at")
         .eq("family_id", familyId)
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(10);
 
-      for (const d of discoveries ?? []) {
+      const visibleUserIds = new Set(chain.connectedUserIds);
+      const filtered = (discoveries ?? []).filter((d: { related_members: string[] | null }) => {
+        const refs = d.related_members ?? [];
+        if (refs.length === 0) return true;
+        return refs.some((m) => visibleUserIds.has(m));
+      }).slice(0, 5);
+
+      for (const d of filtered) {
         discoveryItems.push({
           kind: "discovery",
           id: d.id,
@@ -366,12 +388,14 @@ export async function GET(req: NextRequest) {
         .select("id, title, description, target_count, current_count, status, due_date, created_at")
         .eq("family_id", familyId)
         .eq("status", "active")
+        .in("created_by", chain.connectedUserIds)
         .order("created_at", { ascending: false })
         .limit(3);
 
       if (searchQuery) {
+        const q = sanitizeIlike(searchQuery);
         goalQuery = goalQuery.or(
-          `title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`
+          `title.ilike.%${q}%,description.ilike.%${q}%`
         );
       }
 
@@ -394,6 +418,7 @@ export async function GET(req: NextRequest) {
   }
 
   // --- Fetch Griot gap suggestions as insight cards (only on first page) ---
+  // Same privacy filter as discoveries above.
   const insightItems: FeedGriotInsight[] = [];
   if (!cursor && filterTypes.length === 0 && !searchQuery) {
     try {
@@ -403,9 +428,16 @@ export async function GET(req: NextRequest) {
         .eq("family_id", familyId)
         .eq("discovery_type", "missing_piece")
         .order("created_at", { ascending: false })
-        .limit(2);
+        .limit(6);
 
-      for (const g of gaps ?? []) {
+      const visibleUserIds = new Set(chain.connectedUserIds);
+      const filteredGaps = (gaps ?? []).filter((g: { related_members: string[] | null }) => {
+        const refs = g.related_members ?? [];
+        if (refs.length === 0) return true;
+        return refs.some((m) => visibleUserIds.has(m));
+      }).slice(0, 2);
+
+      for (const g of filteredGaps) {
         insightItems.push({
           kind: "griot_insight",
           id: `insight-${g.id}`,

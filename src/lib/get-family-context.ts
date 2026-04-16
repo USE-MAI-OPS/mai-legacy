@@ -1,5 +1,4 @@
-"use server";
-
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import {
   getActiveFamilyIdFromCookie,
@@ -33,7 +32,7 @@ export type FamilyContext = {
  * 6. Computes connection chain (which members the user can see)
  * 7. Returns full context or null
  */
-export async function getFamilyContext(): Promise<FamilyContext | null> {
+export const getFamilyContext = cache(async (): Promise<FamilyContext | null> => {
   const supabase = await createClient();
 
   const {
@@ -67,8 +66,9 @@ export async function getFamilyContext(): Promise<FamilyContext | null> {
   if (!familyId) {
     const { data: firstMember } = await sb
       .from("family_members")
-      .select("family_id")
+      .select("family_id, joined_at")
       .eq("user_id", user.id)
+      .order("joined_at", { ascending: true })
       .limit(1)
       .maybeSingle();
 
@@ -99,4 +99,4 @@ export async function getFamilyContext(): Promise<FamilyContext | null> {
     connectedTreeMemberIds: chain.connectedTreeMemberIds,
     hasTreeNode: chain.hasTreeNode,
   };
-}
+});

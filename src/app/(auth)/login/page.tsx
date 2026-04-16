@@ -14,6 +14,11 @@ import { Separator } from "@/components/ui/separator";
 import { SubmitButton } from "@/components/submit-button";
 import { PasswordInput } from "@/components/password-input";
 
+export const metadata = {
+  title: "Sign In",
+  description: "Sign in to your MAI Legacy account.",
+};
+
 export default async function LoginPage({
   searchParams,
 }: {

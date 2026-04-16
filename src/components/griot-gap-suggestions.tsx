@@ -109,7 +109,7 @@ export function GriotGapSuggestions({
                   className="inline-flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
                 >
                   <Plus className="h-3 w-3" />
-                  Add {gap.label.replace(/s$/, "")}
+                  Add {gap.singularLabel}
                 </Link>
                 {onAskGriot && (
                   <button

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 /**
  * POST /api/stripe/portal
@@ -18,6 +19,10 @@ export async function POST() {
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Rate limit: 10 requests per 60s per user
+  const rl = rateLimit(`stripe-portal:${user.id}`, 10);
+  if (rl.limited) return rateLimitResponse(rl.retryAfterMs);
 
   // Must be family admin
   const { data: membership } = await supabase

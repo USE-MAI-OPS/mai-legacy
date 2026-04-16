@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,9 +17,27 @@ import { createEntry } from "./actions";
 import { getActiveFamilyIdClient } from "@/lib/active-family";
 import type { EntryType, EntryStructuredData, EntryVisibility } from "@/types/database";
 
+const VALID_TYPES: ReadonlyArray<EntryType> = [
+  "recipe",
+  "story",
+  "skill",
+  "lesson",
+  "connection",
+  "general",
+];
+
+function parseTypeParam(value: string | null): EntryType | null {
+  if (!value) return null;
+  return (VALID_TYPES as readonly string[]).includes(value)
+    ? (value as EntryType)
+    : null;
+}
+
 export default function NewEntryPage() {
   const router = useRouter();
-  const [selectedType, setSelectedType] = useState<EntryType | null>(null);
+  const searchParams = useSearchParams();
+  const initialType = parseTypeParam(searchParams.get("type"));
+  const [selectedType, setSelectedType] = useState<EntryType | null>(initialType);
   const [saving, setSaving] = useState(false);
   const [navigating, setNavigating] = useState(false);
   const [familyId, setFamilyId] = useState<string | null>(null);

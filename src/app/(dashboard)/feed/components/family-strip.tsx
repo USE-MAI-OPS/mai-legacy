@@ -99,12 +99,13 @@ export function FamilyStrip({ members, onFilterByMember }: FamilyStripProps) {
                 )}
               </div>
               <span
+                title={member.display_name}
                 className={cn(
-                  "text-[10px] font-medium w-14 text-center truncate",
+                  "text-[10px] font-medium w-16 text-center truncate",
                   isActive ? "text-[#C17B54]" : "text-muted-foreground"
                 )}
               >
-                {member.display_name.split(" ")[0]}
+                {member.display_name}
               </span>
             </button>
           );

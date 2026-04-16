@@ -151,7 +151,7 @@ async function getDashboardData() {
     ] = await Promise.all([
       sb.from("entries").select("id", { count: "exact", head: true }).eq("family_id", familyId).in("author_id", connectedUserIds),
       sb.from("griot_conversations").select("id", { count: "exact", head: true }).eq("family_id", familyId),
-      sb.from("family_tree_members").select("id", { count: "exact", head: true }).eq("family_id", familyId),
+      sb.from("family_members").select("id", { count: "exact", head: true }).eq("family_id", familyId),
       sb.from("family_events").select("id", { count: "exact", head: true }).eq("family_id", familyId),
       sb.from("family_traditions").select("id", { count: "exact", head: true }).eq("family_id", familyId),
       sb

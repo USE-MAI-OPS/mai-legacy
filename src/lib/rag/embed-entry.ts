@@ -21,7 +21,7 @@ export async function embedEntry(entryId: string): Promise<void> {
     const supabase = createAdminClient();
 
     // 1. Fetch the entry
-    const { data: entry, error: entryError } = await (supabase as any)
+    const { data: entry, error: entryError } = await supabase
       .from("entries")
       .select("id, family_id, title, content")
       .eq("id", entryId)
@@ -46,7 +46,7 @@ export async function embedEntry(entryId: string): Promise<void> {
     const embeddings = await generateEmbeddings(chunkTexts, "RETRIEVAL_DOCUMENT");
 
     // 4. Delete existing embeddings (idempotent re-embed)
-    const { error: deleteError } = await (supabase as any)
+    const { error: deleteError } = await supabase
       .from("entry_embeddings")
       .delete()
       .eq("entry_id", entryId);
@@ -65,7 +65,7 @@ export async function embedEntry(entryId: string): Promise<void> {
       embedding: embeddings[i],
     }));
 
-    const { error: insertError } = await (supabase as any)
+    const { error: insertError } = await supabase
       .from("entry_embeddings")
       .insert(rows);
 

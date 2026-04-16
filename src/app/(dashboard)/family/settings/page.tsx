@@ -3,7 +3,6 @@ import { getFamilyContext } from "@/lib/get-family-context";
 import { FamilySettingsClient } from "./family-settings-client";
 import type { PlanTier, SubscriptionStatus } from "@/types/database";
 
-// Mock data fallback
 interface MemberData {
   id: string;
   name: string;
@@ -18,54 +17,6 @@ interface InviteData {
   sentAt: string;
   role: string;
 }
-
-const MOCK_FAMILY_ID = "mock-family-id";
-const MOCK_FAMILY_NAME = "The Powell Family";
-const MOCK_MEMBERS: MemberData[] = [
-  {
-    id: "1",
-    name: "Kobe Powell",
-    email: "kobe@example.com",
-    initials: "KP",
-    role: "admin",
-    joined: "Jan 15, 2026",
-  },
-  {
-    id: "2",
-    name: "Auntie Mae",
-    email: "mae@example.com",
-    initials: "AM",
-    role: "member",
-    joined: "Jan 16, 2026",
-  },
-  {
-    id: "3",
-    name: "Marcus Jr.",
-    email: "marcus@example.com",
-    initials: "MJ",
-    role: "member",
-    joined: "Jan 18, 2026",
-  },
-  {
-    id: "4",
-    name: "Ray Powell",
-    email: "ray@example.com",
-    initials: "RP",
-    role: "member",
-    joined: "Feb 1, 2026",
-  },
-  {
-    id: "5",
-    name: "Lisa Powell",
-    email: "lisa@example.com",
-    initials: "LP",
-    role: "member",
-    joined: "Feb 10, 2026",
-  },
-];
-const MOCK_PENDING_INVITES: InviteData[] = [
-  { email: "cousin.james@example.com", sentAt: "2 days ago", role: "member" },
-];
 
 function getInitials(name: string) {
   return name
@@ -98,96 +49,71 @@ function timeAgo(dateStr: string) {
 }
 
 export default async function FamilySettingsPage() {
-  // Redirect to onboarding if user has no family
-  const preCtx = await getFamilyContext();
-  if (!preCtx) {
+  const ctx = await getFamilyContext();
+  if (!ctx) {
     redirect("/onboarding");
   }
 
-  let familyId = MOCK_FAMILY_ID;
-  let familyName = MOCK_FAMILY_NAME;
-  let members = MOCK_MEMBERS;
-  let pendingInvites = MOCK_PENDING_INVITES;
-  let planTier: PlanTier = "seedling";
-  let subscriptionStatus: SubscriptionStatus = "none";
-  let isAdmin = false;
+  const { supabase, familyId, userId } = ctx;
 
-  try {
-    const ctx = await getFamilyContext();
+  // Fetch family name + billing info
+  const { data: family, error: familyError } = await supabase
+    .from("families")
+    .select("name, plan_tier, subscription_status")
+    .eq("id", familyId)
+    .single();
 
-    if (ctx) {
-      const { supabase } = ctx;
-      familyId = ctx.familyId;
-
-      {
-        // Fetch family name + billing info
-        const { data: family } = await supabase
-          .from("families")
-          .select("name, plan_tier, subscription_status")
-          .eq("id", familyId)
-          .single();
-
-        if (family) {
-          familyName = family.name;
-          planTier = family.plan_tier;
-          subscriptionStatus = family.subscription_status;
-        }
-
-        // Check if current user is admin
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: membership } = await supabase
-            .from("family_members")
-            .select("role")
-            .eq("family_id", familyId)
-            .eq("user_id", user.id)
-            .single();
-          isAdmin = membership?.role === "admin";
-        }
-
-        // Fetch members
-        const { data: membersData } = await supabase
-          .from("family_members")
-          .select("id, user_id, display_name, role, joined_at")
-          .eq("family_id", familyId)
-          .order("joined_at", { ascending: true });
-
-        if (membersData && membersData.length > 0) {
-          members = membersData.map((m) => ({
-            id: m.id,
-            name: m.display_name,
-            email: null,
-            initials: getInitials(m.display_name),
-            role: m.role,
-            joined: formatDate(m.joined_at),
-          }));
-        }
-
-        // Fetch pending invites
-        const { data: invitesData } = await supabase
-          .from("family_invites")
-          .select("email, role, created_at")
-          .eq("family_id", familyId)
-          .eq("accepted", false)
-          .order("created_at", { ascending: false });
-
-        if (invitesData) {
-          pendingInvites = invitesData.map((inv) => ({
-            email: inv.email,
-            sentAt: timeAgo(inv.created_at),
-            role: inv.role,
-          }));
-        }
-      }
-    }
-  } catch (e) {
-    console.error("Failed to fetch family settings, using mock data:", e);
+  if (familyError || !family) {
+    console.error("Failed to load family record for settings page:", familyError);
+    redirect("/onboarding");
   }
+
+  // Check if current user is admin
+  const { data: membership } = await supabase
+    .from("family_members")
+    .select("role")
+    .eq("family_id", familyId)
+    .eq("user_id", userId)
+    .single();
+  const isAdmin = membership?.role === "admin";
+
+  // Fetch members
+  const { data: membersData } = await supabase
+    .from("family_members")
+    .select("id, user_id, display_name, role, joined_at")
+    .eq("family_id", familyId)
+    .order("joined_at", { ascending: true });
+
+  const members: MemberData[] = (membersData ?? []).map((m) => ({
+    id: m.id,
+    name: m.display_name,
+    email: null,
+    initials: getInitials(m.display_name),
+    role: m.role,
+    joined: formatDate(m.joined_at),
+  }));
+
+  // Fetch pending invites
+  const { data: invitesData } = await supabase
+    .from("family_invites")
+    .select("email, role, created_at")
+    .eq("family_id", familyId)
+    .eq("accepted", false)
+    .order("created_at", { ascending: false });
+
+  const pendingInvites: InviteData[] = (invitesData ?? []).map((inv) => ({
+    email: inv.email,
+    sentAt: timeAgo(inv.created_at),
+    role: inv.role,
+  }));
+
+  const planTier: PlanTier = family.plan_tier;
+  const subscriptionStatus: SubscriptionStatus = family.subscription_status;
 
   return (
     <FamilySettingsClient
       familyId={familyId}
-      initialFamilyName={familyName}
+      initialFamilyName={family.name}
       members={members}
       pendingInvites={pendingInvites}
       planTier={planTier}

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isUserFamilyAdmin } from "@/lib/auth-helpers";
 import { revalidatePath } from "next/cache";
 import type { RelationshipLabel } from "@/types/database";
 
@@ -184,6 +185,29 @@ export async function deleteTreeMember(id: string) {
   } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Not authenticated" };
 
+  // Verify the caller is either the person who added this tree member
+  // or an admin of the family it belongs to.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: member } = await (supabase as any)
+    .from("family_tree_members")
+    .select("added_by, family_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!member) return { success: false, error: "Tree member not found" };
+
+  const isAdder = member.added_by === user.id;
+  const isAdmin =
+    !isAdder && (await isUserFamilyAdmin(supabase, user.id, member.family_id));
+
+  if (!isAdder && !isAdmin) {
+    return {
+      success: false,
+      error:
+        "Only the person who added this tree member or a family admin can delete it",
+    };
+  }
+
   const { error } = await supabase
     .from("family_tree_members")
     .delete()
@@ -258,6 +282,27 @@ export async function deleteEvent(eventId: string) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "Not authenticated" };
+
+  // Verify the caller is either the event's creator or a family admin.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: event } = await (supabase as any)
+    .from("family_events")
+    .select("created_by, family_id")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (!event) return { success: false, error: "Event not found" };
+
+  const isCreator = event.created_by === user.id;
+  const isAdmin =
+    !isCreator && (await isUserFamilyAdmin(supabase, user.id, event.family_id));
+
+  if (!isCreator && !isAdmin) {
+    return {
+      success: false,
+      error: "Only the event creator or a family admin can delete this event",
+    };
+  }
 
   const { error } = await supabase
     .from("family_events")

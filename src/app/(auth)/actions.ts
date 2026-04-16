@@ -362,7 +362,19 @@ export async function acceptInvite(inviteId: string, displayName: string) {
       .from("family_invites")
       .update({ accepted: true })
       .eq("id", inviteId);
-    return { success: true, alreadyMember: true };
+    // Issue 1.4: also set active family + clear stale has-family cache,
+    // matching the main success path below. Previously this branch
+    // returned without touching cookies, so users who revisited an
+    // unaccepted invite for a family they were already in could be
+    // redirected to /onboarding by middleware for up to 5 minutes.
+    try {
+      await setActiveFamilyCookie(invite.family_id);
+      const cookieStore = await cookies();
+      cookieStore.delete("mai_has_family");
+    } catch {
+      // Non-critical
+    }
+    return { success: true, alreadyMember: true, familyId: invite.family_id };
   }
 
   // Insert as family member
@@ -378,6 +390,25 @@ export async function acceptInvite(inviteId: string, displayName: string) {
     .single();
 
   if (memberError) {
+    // Issue 1.3: if two accept requests race past the "existing" check,
+    // the UNIQUE (family_id, user_id) constraint from migration 026 will
+    // reject the second insert with Postgres code 23505. Treat that as
+    // success — the other request already seated the row.
+    const code = (memberError as { code?: string }).code;
+    if (code === "23505") {
+      await admin
+        .from("family_invites")
+        .update({ accepted: true })
+        .eq("id", inviteId);
+      try {
+        await setActiveFamilyCookie(invite.family_id);
+        const cookieStore = await cookies();
+        cookieStore.delete("mai_has_family");
+      } catch {
+        // Non-critical
+      }
+      return { success: true, alreadyMember: true, familyId: invite.family_id };
+    }
     console.error("[invite] Failed to insert member:", memberError);
     return { error: "Failed to join family: " + memberError.message };
   }
@@ -645,4 +676,60 @@ export async function resendVerificationCode() {
 
   await sendVerificationCode(user.email, user.id);
   return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// Find pending invites for the current user (used during onboarding so new
+// signups can accept an existing invite instead of creating a redundant family)
+// ---------------------------------------------------------------------------
+
+export interface PendingInviteSummary {
+  id: string;
+  familyId: string;
+  familyName: string;
+  role: string;
+}
+
+export async function getPendingInvitesForCurrentUser(): Promise<{
+  invites: PendingInviteSummary[];
+}> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user?.email) return { invites: [] };
+
+  const admin = createAdminClient();
+  const nowIso = new Date().toISOString();
+
+  const { data, error } = await admin
+    .from("family_invites")
+    .select("id, family_id, role, families(name)")
+    .ilike("email", user.email)
+    .eq("accepted", false)
+    .gt("expires_at", nowIso)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return { invites: [] };
+
+  // Supabase nested select can return either an object or an array — normalize
+  type Row = {
+    id: string;
+    family_id: string;
+    role: string;
+    families: { name: string } | { name: string }[] | null;
+  };
+
+  const invites: PendingInviteSummary[] = (data as unknown as Row[]).map((row) => {
+    const fam = Array.isArray(row.families) ? row.families[0] : row.families;
+    return {
+      id: row.id,
+      familyId: row.family_id,
+      familyName: fam?.name ?? "a family",
+      role: row.role,
+    };
+  });
+
+  return { invites };
 }

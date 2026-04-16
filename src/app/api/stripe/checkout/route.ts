@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { stripe, getStripePriceId } from "@/lib/stripe";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import type { PlanTier } from "@/types/database";
 
 /**
@@ -20,6 +21,10 @@ export async function POST(request: NextRequest) {
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Rate limit: 10 requests per 60s per user
+  const rl = rateLimit(`stripe-checkout:${user.id}`, 10);
+  if (rl.limited) return rateLimitResponse(rl.retryAfterMs);
 
   const body = await request.json();
   const tier = body.tier as PlanTier;

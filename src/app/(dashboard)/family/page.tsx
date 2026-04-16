@@ -131,17 +131,21 @@ async function getFamilyData() {
         entryCounts[row.type] = Number(row.count);
       }
     } catch {
-      // Fall back to client-side count
+      // Fall back to client-side count — run queries in parallel
       try {
-        const types = ["recipe", "skill", "lesson", "story", "connection"];
-        for (const t of types) {
-          const { count } = await sb
-            .from("entries")
-            .select("id", { count: "exact", head: true })
-            .eq("family_id", familyId)
-            .eq("type", t as EntryType);
-          entryCounts[t] = count ?? 0;
-        }
+        const types: EntryType[] = ["recipe", "skill", "lesson", "story", "connection"];
+        const results = await Promise.all(
+          types.map((t) =>
+            sb
+              .from("entries")
+              .select("id", { count: "exact", head: true })
+              .eq("family_id", familyId)
+              .eq("type", t)
+          )
+        );
+        types.forEach((t, i) => {
+          entryCounts[t] = results[i].count ?? 0;
+        });
       } catch {
         // Silently ignore — counts will be 0
       }

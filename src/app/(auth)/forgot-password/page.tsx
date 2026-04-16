@@ -12,6 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/submit-button";
 
+export const metadata = {
+  title: "Forgot Password",
+  description: "Reset your MAI Legacy password.",
+};
+
 export default async function ForgotPasswordPage({
   searchParams,
 }: {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { detectGaps, type FamilyEntryCounts } from "@/lib/gap-detection";
+import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 
 /**
  * GET /api/griot/gaps?familyId=xxx
@@ -28,9 +29,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Rate limit: 20 requests per 60s per user
+    const rl = rateLimit(`griot-gaps:${user.id}`, 20);
+    if (rl.limited) return rateLimitResponse(rl.retryAfterMs);
+
     const admin = createAdminClient();
 
-    // Verify membership
+    // Verify membership and admin role
     const { data: membership } = await admin
       .from("family_members")
       .select("role")
@@ -40,6 +45,12 @@ export async function GET(request: NextRequest) {
 
     if (!membership) {
       return NextResponse.json({ error: "Family not found" }, { status: 404 });
+    }
+    if (membership.role !== "admin") {
+      return NextResponse.json(
+        { error: "Only family admins can view gap suggestions" },
+        { status: 403 }
+      );
     }
 
     // Count entries per type

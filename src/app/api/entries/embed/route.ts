@@ -48,12 +48,30 @@ export async function POST(request: NextRequest) {
     if (rl.limited) return rateLimitResponse(rl.retryAfterMs);
 
     // -----------------------------------------------------------------------
-    // 1. Fetch the entry (RLS ensures the caller has access).
+    // 1. Resolve the caller's family and fetch the entry scoped to that
+    //    family. Don't trust RLS alone — require the entry belong to the
+    //    user's family. Return a generic 404 to avoid leaking entry existence
+    //    across families.
     // -----------------------------------------------------------------------
+    const { data: membership } = await supabase
+      .from("family_members")
+      .select("family_id")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!membership) {
+      return NextResponse.json(
+        { error: "No family membership" },
+        { status: 403 }
+      );
+    }
+    const familyId = membership.family_id;
+
     const { data: entry, error: entryError } = await supabase
       .from("entries")
       .select("id, family_id, title, content")
       .eq("id", entryId)
+      .eq("family_id", familyId)
       .single();
 
     if (entryError || !entry) {
@@ -84,20 +102,17 @@ export async function POST(request: NextRequest) {
     const embeddings = await generateEmbeddings(chunkTexts, "RETRIEVAL_DOCUMENT");
 
     // -----------------------------------------------------------------------
-    // 4. Delete existing embeddings for this entry (idempotent re-embed).
+    // 4. Atomic-ish re-embed: snapshot old embedding IDs, insert new rows,
+    //    THEN delete the snapshotted old rows. If the insert fails, the entry
+    //    keeps its existing embeddings (no empty window / data loss).
     // -----------------------------------------------------------------------
-    const { error: deleteError } = await supabase
+    const { data: oldRows } = await supabase
       .from("entry_embeddings")
-      .delete()
+      .select("id")
       .eq("entry_id", entryId);
+    const oldIds = (oldRows ?? []).map((r: { id: string }) => r.id);
 
-    if (deleteError) {
-      throw new Error(`Failed to delete old embeddings: ${deleteError.message}`);
-    }
-
-    // -----------------------------------------------------------------------
-    // 5. Insert new embeddings.
-    // -----------------------------------------------------------------------
+    // 4a. Insert new rows FIRST.
     const rows = chunks.map((chunk, i) => ({
       entry_id: entryId,
       family_id: entry.family_id,
@@ -112,6 +127,20 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       throw new Error(`Failed to insert embeddings: ${insertError.message}`);
+    }
+
+    // 4b. Only after a successful insert, delete the old rows by id.
+    if (oldIds.length > 0) {
+      const { error: deleteError } = await supabase
+        .from("entry_embeddings")
+        .delete()
+        .in("id", oldIds);
+
+      if (deleteError) {
+        // Soft-fail: new embeddings are in place. Log and continue so we
+        // don't surface a 500 when the payload was saved successfully.
+        console.error("[embed] Failed to delete old embeddings:", deleteError);
+      }
     }
 
     return NextResponse.json({

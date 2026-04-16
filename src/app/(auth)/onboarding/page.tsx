@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, ArrowLeft } from "lucide-react";
+import { ArrowRight, ArrowLeft, Users } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -13,7 +13,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createFamily } from "../actions";
+import {
+  acceptInvite,
+  createFamily,
+  getPendingInvitesForCurrentUser,
+  type PendingInviteSummary,
+} from "../actions";
 
 // ---------------------------------------------------------------------------
 // Progress bar
@@ -55,6 +60,57 @@ export default function OnboardingPage() {
   const [state, setState] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Pending invite detection — if the signup email has an outstanding invite,
+  // offer to join that family instead of making a new one.
+  const [pendingInvites, setPendingInvites] = useState<PendingInviteSummary[]>(
+    [],
+  );
+  const [acceptingInviteId, setAcceptingInviteId] = useState<string | null>(
+    null,
+  );
+  const [dismissedInvites, setDismissedInvites] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { invites } = await getPendingInvitesForCurrentUser();
+        if (!cancelled) setPendingInvites(invites);
+      } catch (e) {
+        console.error("Failed to load pending invites:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleAcceptInvite(invite: PendingInviteSummary) {
+    if (!displayName.trim()) {
+      setError("Please enter your name above before joining a family.");
+      setStep(0);
+      return;
+    }
+    setAcceptingInviteId(invite.id);
+    setError(null);
+    try {
+      const result = await acceptInvite(invite.id, displayName.trim());
+      if (result.error) {
+        setError(result.error);
+        setAcceptingInviteId(null);
+        return;
+      }
+      window.location.href = "/dashboard";
+    } catch (e) {
+      console.error("Accept invite error:", e);
+      setError("Something went wrong. Please try again.");
+      setAcceptingInviteId(null);
+    }
+  }
+
+  const showInvitePrompt =
+    pendingInvites.length > 0 && !dismissedInvites && step <= 1;
 
   function canGoNext() {
     if (step === 0) return displayName.trim().length > 0;
@@ -105,6 +161,62 @@ export default function OnboardingPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-6">
         <StepProgress current={step} total={TOTAL_STEPS} />
+
+        {/* Pending invite shortcut */}
+        {showInvitePrompt && (
+          <Card className="border-primary/40 bg-primary/5">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Users className="size-4 text-primary" />
+                <CardTitle className="text-base">
+                  {pendingInvites.length === 1
+                    ? "You have a family invitation"
+                    : `You have ${pendingInvites.length} family invitations`}
+                </CardTitle>
+              </div>
+              <CardDescription>
+                {pendingInvites.length === 1
+                  ? `Join ${pendingInvites[0].familyName} instead of starting a new family.`
+                  : "Join one of these families instead of starting a new one."}
+                {step === 0 && " Enter your name below, then tap Join."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {pendingInvites.map((invite) => (
+                <Button
+                  key={invite.id}
+                  className="w-full justify-between"
+                  variant="default"
+                  onClick={() => handleAcceptInvite(invite)}
+                  disabled={
+                    acceptingInviteId !== null ||
+                    loading ||
+                    !displayName.trim()
+                  }
+                >
+                  <span>
+                    Join {invite.familyName}
+                    {invite.role === "admin" ? " (admin)" : ""}
+                  </span>
+                  {acceptingInviteId === invite.id ? (
+                    <span className="text-xs">Joining…</span>
+                  ) : (
+                    <ArrowRight className="size-4" />
+                  )}
+                </Button>
+              ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-muted-foreground"
+                onClick={() => setDismissedInvites(true)}
+                disabled={acceptingInviteId !== null}
+              >
+                No thanks, start a new family
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Step 0 — Your Name */}
         {step === 0 && (

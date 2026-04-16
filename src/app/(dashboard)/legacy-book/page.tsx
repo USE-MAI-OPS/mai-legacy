@@ -55,25 +55,21 @@ export default async function LegacyBookPage() {
     const familyName = family?.name ?? "Our Family";
 
     // Fetch entries
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: rawEntries } = await (supabase as any)
+    const { data: rawEntries } = await supabase
       .from("entries")
       .select("id, title, content, type, tags, created_at, author_id")
       .eq("family_id", familyId)
       .order("created_at", { ascending: false });
 
-    const entries: LegacyBookEntryItem[] = (rawEntries ?? []).map(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (e: any) => ({
-        id: e.id,
-        title: e.title ?? "Untitled",
-        content: e.content ?? "",
-        type: e.type ?? "general",
-        tags: e.tags ?? [],
-        authorName: "Family Member",
-        date: e.created_at,
-      })
-    );
+    const entries: LegacyBookEntryItem[] = (rawEntries ?? []).map((e) => ({
+      id: e.id,
+      title: e.title ?? "Untitled",
+      content: e.content ?? "",
+      type: e.type ?? "general",
+      tags: e.tags ?? [],
+      authorName: "Family Member",
+      date: e.created_at,
+    }));
 
     return (
       <LegacyBookClient

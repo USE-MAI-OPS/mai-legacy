@@ -129,6 +129,23 @@ export async function deleteAccount() {
     const e6d = await admin.from("family_goals").delete().eq("created_by", userId);
     if (e6d.error) throw new Error(`family_goals: ${e6d.error.message}`);
 
+    const e6e = await admin.from("tradition_memories").delete().eq("created_by", userId);
+    if (e6e.error) throw new Error(`tradition_memories: ${e6e.error.message}`);
+
+    // Wipe DM history. dm_conversations.participant_ids is TEXT[] (per
+    // schema quirk). Deleting the conversation cascades to its messages
+    // via direct_messages.conversation_id ON DELETE CASCADE.
+    const e6f = await admin
+      .from("dm_conversations")
+      .delete()
+      .contains("participant_ids", [userId]);
+    if (e6f.error) throw new Error(`dm_conversations: ${e6f.error.message}`);
+
+    // Defensive sweep for any direct_messages still pointing at this user
+    // as sender (sender_id has no FK, so cascade doesn't cover it).
+    const e6g = await admin.from("direct_messages").delete().eq("sender_id", userId);
+    if (e6g.error) throw new Error(`direct_messages: ${e6g.error.message}`);
+
     const e7 = await admin.from("family_members").delete().eq("user_id", userId);
     if (e7.error) throw new Error(`family_members: ${e7.error.message}`);
 

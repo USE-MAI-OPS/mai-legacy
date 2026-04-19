@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -47,7 +46,7 @@ import {
   Globe,
 } from "lucide-react";
 import { toast } from "sonner";
-import { changePassword } from "./actions";
+import { changePassword, deleteAccount } from "./actions";
 
 interface SettingsClientProps {
   email: string;
@@ -93,6 +92,8 @@ export function SettingsClient({
 }: SettingsClientProps) {
   // Danger zone
   const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Password form
   const [currentPassword, setCurrentPassword] = useState("");
@@ -152,6 +153,26 @@ export function SettingsClient({
         toast.error(result.error ?? "Failed to update password");
       }
     });
+  }
+
+  async function handleDeleteAccount() {
+    if (deleteConfirmText !== "DELETE" || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      const result = await deleteAccount();
+      if (result.success) {
+        toast.success("Your account has been deleted.");
+        // Hard redirect to force past any cached React state / stale server
+        // action IDs now that the auth user no longer exists.
+        window.location.href = "/";
+      } else {
+        toast.error(result.error ?? "Failed to delete account.");
+        setIsDeleting(false);
+      }
+    } catch {
+      toast.error("Something went wrong. Please try again.");
+      setIsDeleting(false);
+    }
   }
 
   return (
@@ -527,7 +548,16 @@ export function SettingsClient({
         </p>
       </div>
 
-      <AlertDialog open={deleteAccountOpen} onOpenChange={setDeleteAccountOpen}>
+      <AlertDialog
+        open={deleteAccountOpen}
+        onOpenChange={(open) => {
+          // Block close while the delete is in flight — don't strand the user
+          // with a half-deleted account and no UI feedback.
+          if (isDeleting && !open) return;
+          setDeleteAccountOpen(open);
+          if (!open) setDeleteConfirmText("");
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete your account?</AlertDialogTitle>
@@ -535,19 +565,40 @@ export function SettingsClient({
               This will permanently delete your account and all associated data including entries, stories, and memories. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label
+              htmlFor="delete-confirm"
+              className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground"
+            >
+              Type DELETE to confirm
+            </Label>
+            <Input
+              id="delete-confirm"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="DELETE"
+              autoComplete="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              disabled={isDeleting}
+            />
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setDeleteAccountOpen(false);
-                toast.error(
-                  "To delete your account, please contact support at support@usemai.com"
-                );
-              }}
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <Button
+              onClick={handleDeleteAccount}
+              disabled={deleteConfirmText !== "DELETE" || isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Continue to Delete
-            </AlertDialogAction>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting…
+                </>
+              ) : (
+                "Continue to Delete"
+              )}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

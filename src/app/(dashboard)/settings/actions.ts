@@ -112,13 +112,30 @@ export async function deleteAccount() {
       .eq("uploaded_by", userId);
     if (e6.error) throw new Error(`interview_transcripts: ${e6.error.message}`);
 
+    // Tables that reference auth.users.id WITHOUT ON DELETE CASCADE — we
+    // must clear them explicitly or admin.deleteUser() will fail with
+    // "Database error deleting user". The comment below about cascades is
+    // wrong for griot_conversations and family_invites — they have plain
+    // NO-ACTION FKs.
+    const e6a = await admin.from("griot_conversations").delete().eq("user_id", userId);
+    if (e6a.error) throw new Error(`griot_conversations: ${e6a.error.message}`);
+
+    const e6b = await admin.from("family_invites").delete().eq("invited_by", userId);
+    if (e6b.error) throw new Error(`family_invites: ${e6b.error.message}`);
+
+    const e6c = await admin.from("family_traditions").delete().eq("created_by", userId);
+    if (e6c.error) throw new Error(`family_traditions: ${e6c.error.message}`);
+
+    const e6d = await admin.from("family_goals").delete().eq("created_by", userId);
+    if (e6d.error) throw new Error(`family_goals: ${e6d.error.message}`);
+
     const e7 = await admin.from("family_members").delete().eq("user_id", userId);
     if (e7.error) throw new Error(`family_members: ${e7.error.message}`);
 
     // Phase D — delete the auth user. Cascades everything still pointing
     // at auth.users.id (notifications, entry_reactions, entry_comments,
-    // direct_messages sender side, griot_conversations, drip_email_log,
-    // email_verifications) + nulls families.created_by.
+    // direct_messages sender side, drip_email_log, email_verifications)
+    // + nulls families.created_by (per migration 026).
     const { error: deleteUserError } = await admin.auth.admin.deleteUser(userId);
     if (deleteUserError) {
       throw new Error(`auth.deleteUser: ${deleteUserError.message}`);

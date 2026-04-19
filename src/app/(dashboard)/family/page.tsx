@@ -267,7 +267,7 @@ export default async function FamilyPage() {
         />
       </section>
 
-      {/* Family Traditions */}
+      {/* Our Traditions */}
       <section id="traditions">
         <TraditionsSection traditions={data.traditions} userId={data.currentUserId} />
       </section>

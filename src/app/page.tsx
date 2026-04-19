@@ -28,96 +28,6 @@ import {
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
-// EmailCaptureForm
-// ---------------------------------------------------------------------------
-
-function EmailCaptureForm({ source = "landing", className = "" }: { source?: string; className?: string }) {
-  const [email, setEmail] = React.useState("");
-  const [name, setName] = React.useState("");
-  const [hp, setHp] = React.useState(""); // honeypot
-  const [status, setStatus] = React.useState<"idle" | "loading" | "success" | "error">("idle");
-  const [errorMsg, setErrorMsg] = React.useState("");
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (status === "loading" || status === "success") return;
-
-    setStatus("loading");
-    setErrorMsg("");
-
-    try {
-      const res = await fetch("/api/waitlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name, source, _hp: hp }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMsg(data.error ?? "Something went wrong. Please try again.");
-        setStatus("error");
-      } else {
-        setStatus("success");
-      }
-    } catch {
-      setErrorMsg("Network error. Please try again.");
-      setStatus("error");
-    }
-  }
-
-  if (status === "success") {
-    return (
-      <div className={`flex items-center gap-2 text-sm font-medium text-emerald-400 ${className}`}>
-        <CheckCircle2 className="h-5 w-5 shrink-0" />
-        You&apos;re on the list! Check your inbox for a confirmation.
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className={`w-full ${className}`} noValidate>
-      {/* Honeypot — visually hidden */}
-      <input
-        type="text"
-        name="_hp"
-        value={hp}
-        onChange={(e) => setHp(e.target.value)}
-        tabIndex={-1}
-        aria-hidden="true"
-        style={{ position: "absolute", left: "-9999px", width: "1px", height: "1px", overflow: "hidden" }}
-      />
-      <div className="flex flex-col sm:flex-row gap-2 w-full">
-        <input
-          type="text"
-          placeholder="Your name (optional)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="flex-1 min-w-0 rounded-full px-4 py-3 text-sm bg-white/30 text-white placeholder:text-white/80 border border-white/40 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white/35"
-        />
-        <input
-          type="email"
-          placeholder="Your email address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="flex-1 min-w-0 rounded-full px-4 py-3 text-sm bg-white/30 text-white placeholder:text-white/80 border border-white/40 focus:outline-none focus:ring-2 focus:ring-white/50 focus:bg-white/35"
-        />
-        <Button
-          type="submit"
-          size="sm"
-          disabled={status === "loading"}
-          className="rounded-full px-6 h-[46px] font-semibold shrink-0 bg-white text-primary hover:bg-white/90"
-        >
-          {status === "loading" ? "Joining…" : "Join Waitlist"}
-        </Button>
-      </div>
-      {status === "error" && (
-        <p className="mt-2 text-xs text-red-300 pl-1">{errorMsg}</p>
-      )}
-    </form>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Static data
 // ---------------------------------------------------------------------------
 
@@ -214,10 +124,6 @@ export default function HomePage() {
             <Button size="lg" variant="outline" className="h-14 px-8 text-lg font-semibold rounded-full bg-white text-primary border-white hover:bg-white/90 transition-all shadow-lg" asChild>
               <Link href="/demo">Explore the Demo</Link>
             </Button>
-          </div>
-          <div className="mt-8 w-full max-w-xl mx-auto">
-            <p className="text-white/60 text-sm mb-3">Not ready to sign up? Join the waitlist — we&apos;ll let you know when it&apos;s your turn.</p>
-            <EmailCaptureForm source="hero" />
           </div>
         </div>
       </section>
@@ -557,7 +463,7 @@ export default function HomePage() {
       {/* ----------------------------------------------------------------- */}
       <footer className="border-t border-border/50 bg-background px-6 pt-16 pb-8">
         <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-4 gap-10 lg:gap-16">
-          {/* Brand + footer waitlist */}
+          {/* Brand */}
           <div className="sm:col-span-2">
             <span className="font-serif text-2xl font-bold text-primary">
               MAI Legacy
@@ -565,10 +471,6 @@ export default function HomePage() {
             <p className="mt-4 text-base text-muted-foreground w-full max-w-sm leading-relaxed">
               Built for families, by families. The interactive museum and intelligent archive for your family's most precious wisdom.
             </p>
-            <div className="mt-6">
-              <p className="text-sm font-medium text-foreground mb-2">Join the waitlist</p>
-              <FooterEmailCaptureForm />
-            </div>
           </div>
 
           {/* Product */}
@@ -749,83 +651,6 @@ function DarkGriotPreview() {
   )
 }
 
-function FooterEmailCaptureForm() {
-  const [email, setEmail] = React.useState("");
-  const [name, setName] = React.useState("");
-  const [hp, setHp] = React.useState("");
-  const [status, setStatus] = React.useState<"idle" | "loading" | "success" | "error">("idle");
-  const [errorMsg, setErrorMsg] = React.useState("");
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (status === "loading" || status === "success") return;
-    setStatus("loading");
-    setErrorMsg("");
-    try {
-      const res = await fetch("/api/waitlist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name, source: "footer", _hp: hp }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMsg(data.error ?? "Something went wrong.");
-        setStatus("error");
-      } else {
-        setStatus("success");
-      }
-    } catch {
-      setErrorMsg("Network error. Please try again.");
-      setStatus("error");
-    }
-  }
-
-  if (status === "success") {
-    return (
-      <div className="flex items-center gap-2 text-sm font-medium text-emerald-600">
-        <CheckCircle2 className="h-4 w-4 shrink-0" />
-        You&apos;re on the list!
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={handleSubmit} noValidate className="w-full max-w-sm">
-      <input
-        type="text"
-        name="_hp"
-        value={hp}
-        onChange={(e) => setHp(e.target.value)}
-        tabIndex={-1}
-        aria-hidden="true"
-        style={{ position: "absolute", left: "-9999px", width: "1px", height: "1px", overflow: "hidden" }}
-      />
-      <div className="flex flex-col gap-2">
-        <input
-          type="text"
-          placeholder="Your name (optional)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-lg px-3 py-2 text-sm bg-muted border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground placeholder:text-muted-foreground"
-        />
-        <div className="flex gap-2">
-          <input
-            type="email"
-            placeholder="Your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="flex-1 min-w-0 rounded-lg px-3 py-2 text-sm bg-muted border border-border focus:outline-none focus:ring-2 focus:ring-primary/30 text-foreground placeholder:text-muted-foreground"
-          />
-          <Button type="submit" size="sm" disabled={status === "loading"} className="shrink-0">
-            {status === "loading" ? "…" : "Join"}
-          </Button>
-        </div>
-      </div>
-      {status === "error" && <p className="mt-1.5 text-xs text-destructive">{errorMsg}</p>}
-    </form>
-  );
-}
 
 function FAQItem({ question, answer }: { question: string; answer: string }) {
   const [open, setOpen] = React.useState(false);

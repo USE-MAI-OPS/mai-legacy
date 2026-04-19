@@ -138,7 +138,7 @@ export function TraditionsSection({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CalendarHeart className="h-5 w-5 text-pink-500" />
-          <h2 className="text-lg font-semibold">Family Traditions</h2>
+          <h2 className="text-lg font-semibold">Our Traditions</h2>
         </div>
         <AddTraditionDialog open={addOpen} onOpenChange={setAddOpen} />
       </div>

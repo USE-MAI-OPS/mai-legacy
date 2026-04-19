@@ -13,6 +13,8 @@ export interface SearchResult {
   entry_id: string;
   chunk_text: string;
   similarity: number;
+  /** Entry title — resolved by a follow-up join after the RPC. */
+  title: string;
 }
 
 /**
@@ -21,7 +23,9 @@ export interface SearchResult {
  * @param query        - The natural-language question or search string.
  * @param familyId     - The family whose knowledge to search.
  * @param matchCount   - Maximum number of results to return (default 8).
- * @returns Matching entry chunks ranked by cosine similarity (descending).
+ * @returns Matching entry chunks ranked by cosine similarity (descending),
+ *          each annotated with the parent entry's title so the UI can
+ *          render proper source labels instead of "Untitled Entry".
  */
 export async function searchFamilyKnowledge(
   query: string,
@@ -47,5 +51,23 @@ export async function searchFamilyKnowledge(
     throw new Error(`Vector search failed: ${error.message}`);
   }
 
-  return (data ?? []) as SearchResult[];
+  const rows = (data ?? []) as Omit<SearchResult, "title">[];
+  if (rows.length === 0) return [];
+
+  // 3. Resolve titles for all matched entries in a single batch query.
+  const entryIds = Array.from(new Set(rows.map((r) => r.entry_id)));
+  const { data: entries } = await supabase
+    .from("entries")
+    .select("id, title")
+    .in("id", entryIds);
+
+  const titleMap = new Map<string, string>();
+  for (const e of entries ?? []) {
+    titleMap.set(e.id as string, (e.title as string) ?? "");
+  }
+
+  return rows.map((r) => ({
+    ...r,
+    title: titleMap.get(r.entry_id) ?? "",
+  }));
 }

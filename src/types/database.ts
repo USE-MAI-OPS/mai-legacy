@@ -1111,5 +1111,10 @@ export interface ConversationMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
-  sources?: { entry_id: string; chunk_text: string }[];
+  /**
+   * RAG sources referenced by an assistant message. `title` was added
+   * after initial launch — older persisted rows may not have it, so
+   * the UI should fall back to "Untitled Entry" when absent.
+   */
+  sources?: { entry_id: string; chunk_text: string; title?: string }[];
 }

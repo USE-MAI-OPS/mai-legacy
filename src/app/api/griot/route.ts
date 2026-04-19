@@ -4,7 +4,13 @@ import { searchFamilyKnowledge } from "@/lib/rag/search";
 import { getConnectionChain } from "@/lib/connection-chain";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { requireTier } from "@/lib/tier-check";
-import { buildPiiContext, sanitize, restore, type KnownMember } from "@/lib/pii/sanitizer";
+import {
+  buildPiiContext,
+  sanitize,
+  restore,
+  stripUnmappedPersonTokens,
+  type KnownMember,
+} from "@/lib/pii/sanitizer";
 import type { ConversationMessage } from "@/types/database";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -420,9 +426,14 @@ export async function POST(request: NextRequest) {
                 const parsed = JSON.parse(data) as OpenRouterStreamChunk;
                 const content = parsed.choices?.[0]?.delta?.content;
                 if (content) {
-                  // Restore PII tokens in the streamed chunk so the
-                  // user sees real names, not [PERSON_N] placeholders.
-                  const restored = restore(content, piiCtx);
+                  // Restore mapped PII tokens first, then strip any
+                  // leftover [PERSON_N] tokens the LLM may have
+                  // hallucinated (not present in our map). Stripping per
+                  // chunk is safe because unmapped tokens only appear
+                  // in completed LLM output, not spanning boundaries.
+                  const restored = stripUnmappedPersonTokens(
+                    restore(content, piiCtx)
+                  );
                   fullResponse += restored;
                   controller.enqueue(encoder.encode(restored));
                 }
@@ -448,6 +459,7 @@ export async function POST(request: NextRequest) {
               searchResults.map((r) => ({
                 entry_id: r.entry_id,
                 chunk_text: r.chunk_text,
+                title: r.title,
               }))
             ).catch((err) =>
               console.error("[griot] Failed to persist conversation:", err)
@@ -462,6 +474,11 @@ export async function POST(request: NextRequest) {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
+        // Tell nginx not to buffer this response — without this the
+        // stream arrives at the client as one big payload and the UI
+        // looks like the Griot dumped the whole message at once
+        // instead of typing it out progressively.
+        "X-Accel-Buffering": "no",
       },
     });
   } catch (error) {
@@ -546,7 +563,7 @@ async function persistConversation(
   userId: string,
   userMessage: string,
   assistantMessage: string,
-  sources: { entry_id: string; chunk_text: string }[]
+  sources: { entry_id: string; chunk_text: string; title: string }[]
 ) {
   const now = new Date().toISOString();
 

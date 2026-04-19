@@ -177,10 +177,33 @@ function replaceAll(haystack: string, needle: string, replacement: string): stri
 /**
  * Replace a name in text with a token, using word-boundary-aware matching.
  * This prevents replacing "Mary" inside "Maryland".
+ *
+ * Case-INsensitive: users often type names in lowercase ("who is kobe")
+ * while the canonical roster record is "Kobe". Without case-insensitive
+ * matching, the sanitizer would leave "kobe" in the user query while
+ * tokenising "Kobe" in the roster — so the LLM couldn't resolve them
+ * to the same person.
  */
 function replaceName(text: string, name: string, token: string): string {
   // Escape regex special chars in the name
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(`\\b${escaped}\\b`, "g");
+  const re = new RegExp(`\\b${escaped}\\b`, "gi");
   return text.replace(re, token);
+}
+
+// ---------------------------------------------------------------------------
+// Strip any unmapped [PERSON_N] tokens
+// ---------------------------------------------------------------------------
+
+/**
+ * Remove any leftover [PERSON_N] tokens that restore() couldn't resolve.
+ *
+ * LLMs sometimes hallucinate tokens they never saw in the prompt (e.g.
+ * the model may emit `[PERSON_57]` even though we only defined up to
+ * `[PERSON_5]`). These can't be restored to a real name, so they leak
+ * through to the user as gibberish. Replace them with a safe generic
+ * placeholder to keep the output readable.
+ */
+export function stripUnmappedPersonTokens(text: string): string {
+  return text.replace(/\[PERSON_\d+\]/g, "a family member");
 }

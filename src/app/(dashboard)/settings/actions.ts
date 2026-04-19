@@ -102,8 +102,9 @@ export async function deleteAccount() {
     const e4 = await admin.from("family_events").delete().eq("created_by", userId);
     if (e4.error) throw new Error(`family_events: ${e4.error.message}`);
 
-    const e5 = await admin.from("skill_tutorials").delete().eq("created_by", userId);
-    if (e5.error) throw new Error(`skill_tutorials: ${e5.error.message}`);
+    // skill_tutorials has no user reference (linked to entries via entry_id
+    // with ON DELETE CASCADE). Deleting the user's entries above already
+    // removes any tutorials they authored through their entries.
 
     const e6 = await admin
       .from("interview_transcripts")

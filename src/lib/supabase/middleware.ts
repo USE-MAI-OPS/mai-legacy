@@ -87,6 +87,12 @@ export async function updateSession(request: NextRequest) {
 
       if (createdAt && createdAt < verificationLaunchDate) {
         isEmailVerified = true;
+      } else if (user.email_confirmed_at) {
+        // Trust Supabase's own verified flag (OAuth/Google users, or any
+        // future path where "Confirm email" is enabled in Supabase Auth).
+        // Our user code never writes to email_confirmed_at, so if Supabase
+        // set it, the email is verified.
+        isEmailVerified = true;
       } else {
         const { data: verification } = await supabase
           .from("email_verifications")

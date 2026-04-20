@@ -397,11 +397,24 @@ export async function POST(request: NextRequest) {
     // Build sources payload up-front so we can ship it to the client
     // before the first LLM chunk arrives. Enables the "On This Topic"
     // panel to populate in real time instead of waiting for reload.
-    const clientSources = searchResults.map((r) => ({
-      entry_id: r.entry_id,
-      title: r.title,
-      chunk_text: r.chunk_text,
-    }));
+    //
+    // Dedupe by entry_id: the RAG search may return several chunks
+    // from the same entry (e.g. "Website Creation" split into 4
+    // pieces). The LLM still sees all chunks for answer quality, but
+    // the UI only needs one card per unique entry. searchResults is
+    // already ordered by similarity DESC, so the first occurrence of
+    // any entry_id is its best chunk — keep that.
+    const seenEntryIds = new Set<string>();
+    const clientSources: { entry_id: string; title: string; chunk_text: string }[] = [];
+    for (const r of searchResults) {
+      if (seenEntryIds.has(r.entry_id)) continue;
+      seenEntryIds.add(r.entry_id);
+      clientSources.push({
+        entry_id: r.entry_id,
+        title: r.title,
+        chunk_text: r.chunk_text,
+      });
+    }
 
     const readable = new ReadableStream({
       async start(controller) {

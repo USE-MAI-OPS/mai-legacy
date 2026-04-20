@@ -100,8 +100,22 @@ export default function GriotPage() {
   const isDisconnected = isConnected === false;
 
   const latestSources = useMemo(() => {
-    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
-    return lastAssistant?.sources ?? [];
+    // Accumulate sources across every assistant message in the
+    // current conversation, deduped by entry_id. Walking messages
+    // NEWEST-first and keeping the first sighting of each entry_id
+    // naturally floats re-referenced entries to the top of the
+    // "On This Topic" panel — so if an earlier entry gets buried
+    // and then becomes relevant again in a later turn, it pops
+    // back up without any manual reordering.
+    const seen = new Map<string, Source>();
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role !== "assistant" || !m.sources) continue;
+      for (const s of m.sources) {
+        if (!seen.has(s.entry_id)) seen.set(s.entry_id, s);
+      }
+    }
+    return Array.from(seen.values());
   }, [messages]);
 
   // -- Scroll to bottom ----------------------------------------------------

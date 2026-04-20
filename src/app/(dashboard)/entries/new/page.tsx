@@ -13,8 +13,11 @@ import StoryForm from "@/components/entry-forms/story-form";
 import LessonForm from "@/components/entry-forms/lesson-form";
 import GeneralForm from "./general-form";
 import { VisibilitySelect } from "@/components/entry-forms/visibility-select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { createEntry } from "./actions";
 import { getActiveFamilyIdClient } from "@/lib/active-family";
+import { useFamilyContext } from "@/components/providers/family-provider";
 import type { EntryType, EntryStructuredData, EntryVisibility } from "@/types/database";
 
 const VALID_TYPES: ReadonlyArray<EntryType> = [
@@ -42,6 +45,12 @@ export default function NewEntryPage() {
   const [navigating, setNavigating] = useState(false);
   const [familyId, setFamilyId] = useState<string | null>(null);
   const [visibility, setVisibility] = useState<EntryVisibility>("family");
+  // Default ON — authors' entries flow into every hub they're in
+  // unless they explicitly opt out here.
+  const [shareAcrossHubs, setShareAcrossHubs] = useState(true);
+
+  const { hubs } = useFamilyContext();
+  const hasMultipleHubs = hubs.length > 1;
 
   useEffect(() => {
     setFamilyId(getActiveFamilyIdClient());
@@ -65,6 +74,7 @@ export default function NewEntryPage() {
         structured_data: data.structured_data as EntryStructuredData,
         is_mature: data.is_mature,
         visibility,
+        share_across_hubs: shareAcrossHubs,
       });
 
       setNavigating(true);
@@ -122,6 +132,29 @@ export default function NewEntryPage() {
           <div className="px-1">
             <VisibilitySelect value={visibility} onChange={setVisibility} />
           </div>
+
+          {hasMultipleHubs && (
+            <div className="px-1 flex items-start gap-3 py-2">
+              <Switch
+                id="share-across-hubs"
+                checked={shareAcrossHubs}
+                onCheckedChange={setShareAcrossHubs}
+                className="mt-0.5"
+              />
+              <div className="grid gap-1 leading-tight">
+                <Label
+                  htmlFor="share-across-hubs"
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  Share with all my families &amp; circles
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  When on, this memory shows up in every hub you&apos;re a
+                  member of. Turn it off to keep it scoped to this hub only.
+                </p>
+              </div>
+            </div>
+          )}
 
           {selectedType === "recipe" && (
             <RecipeForm onSubmit={handleSubmit} saving={saving} familyId={familyId ?? undefined} />

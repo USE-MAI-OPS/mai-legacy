@@ -307,6 +307,7 @@ export interface Database {
           visibility: EntryVisibility;
           audio_url: string | null;
           audio_duration: number | null;
+          share_across_hubs: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -323,6 +324,7 @@ export interface Database {
           visibility?: EntryVisibility;
           audio_url?: string | null;
           audio_duration?: number | null;
+          share_across_hubs?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -339,6 +341,7 @@ export interface Database {
           visibility?: EntryVisibility;
           audio_url?: string | null;
           audio_duration?: number | null;
+          share_across_hubs?: boolean;
           created_at?: string;
           updated_at?: string;
         };

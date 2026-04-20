@@ -14,6 +14,12 @@ interface CreateEntryInput {
   structured_data?: EntryStructuredData;
   is_mature?: boolean;
   visibility?: EntryVisibility;
+  /**
+   * When true (default), the entry is visible to its author in every
+   * family/circle they belong to. When false, it stays scoped to the
+   * hub it was created in.
+   */
+  share_across_hubs?: boolean;
 }
 
 export async function createEntry(input: CreateEntryInput) {
@@ -41,6 +47,7 @@ export async function createEntry(input: CreateEntryInput) {
         tags: input.tags,
         is_mature: input.is_mature ?? false,
         visibility: input.visibility ?? "family",
+        share_across_hubs: input.share_across_hubs ?? true,
         ...(input.structured_data ? { structured_data: input.structured_data } : {}),
       })
       .select()

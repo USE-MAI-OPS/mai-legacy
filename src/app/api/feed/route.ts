@@ -148,34 +148,53 @@ export async function GET(req: NextRequest) {
   const chain = await getConnectionChain(sb, familyId!, user.id);
 
   // --- Fetch entries ---
-  let entryQuery = sb
-    .from("entries")
-    .select(
-      "id, title, content, type, tags, structured_data, is_mature, created_at, author_id"
-    )
-    .eq("family_id", familyId)
-    .in("author_id", chain.connectedUserIds)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  // Two streams merged (matches /entries page logic):
+  //   1. Hub-native: anything posted to the active hub by a connected member.
+  //   2. Cross-hub: the viewer's own entries from other hubs where
+  //      share_across_hubs = true (default). This is what makes an
+  //      author's memories show up in every circle/family they belong to.
+  const buildEntryQuery = (variant: "hub" | "cross") => {
+    let q = sb
+      .from("entries")
+      .select(
+        "id, title, content, type, tags, structured_data, is_mature, created_at, author_id, family_id"
+      )
+      .order("created_at", { ascending: false })
+      .limit(limit);
 
-  if (cursor) {
-    entryQuery = entryQuery.lt("created_at", cursor);
+    if (variant === "hub") {
+      q = q.eq("family_id", familyId).in("author_id", chain.connectedUserIds);
+    } else {
+      q = q
+        .eq("author_id", user.id)
+        .eq("share_across_hubs", true)
+        .neq("family_id", familyId);
+    }
+
+    if (cursor) q = q.lt("created_at", cursor);
+    if (filterTypes.length > 0) q = q.in("type", filterTypes as EntryType[]);
+    if (searchQuery) {
+      const qStr = sanitizeIlike(searchQuery);
+      q = q.or(`title.ilike.%${qStr}%,content.ilike.%${qStr}%`);
+    }
+    return q;
+  };
+
+  const [hubResult, crossResult] = await Promise.all([
+    buildEntryQuery("hub"),
+    buildEntryQuery("cross"),
+  ]);
+
+  const entriesError = hubResult.error;
+  const seen = new Set<string>();
+  const mergedEntries: NonNullable<typeof hubResult.data> = [];
+  for (const e of [...(hubResult.data ?? []), ...(crossResult.data ?? [])]) {
+    if (seen.has(e.id)) continue;
+    seen.add(e.id);
+    mergedEntries.push(e);
   }
-
-  // Apply type filter
-  if (filterTypes.length > 0) {
-    entryQuery = entryQuery.in("type", filterTypes as EntryType[]);
-  }
-
-  // Apply search query to entries (title or content ilike)
-  if (searchQuery) {
-    const q = sanitizeIlike(searchQuery);
-    entryQuery = entryQuery.or(
-      `title.ilike.%${q}%,content.ilike.%${q}%`
-    );
-  }
-
-  const { data: entries, error: entriesError } = await entryQuery;
+  mergedEntries.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  const entries = mergedEntries.slice(0, limit);
   if (entriesError) {
     console.error("Feed entries error:", entriesError);
     return NextResponse.json(

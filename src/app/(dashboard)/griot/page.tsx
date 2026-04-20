@@ -172,6 +172,7 @@ export default function GriotPage() {
           sources: m.sources?.map((s) => ({
             entry_id: s.entry_id,
             chunk_text: s.chunk_text,
+            title: s.title,
           })),
         })
       );
@@ -217,16 +218,59 @@ export default function GriotPage() {
         setMessages([...updatedMessages, assistantMessage]);
 
         const decoder = new TextDecoder();
+        let rawBuffer = ""; // Only used to detect the leading __META__ line.
         let fullContent = "";
+        let metaParsed = false;
+        let sources: Source[] | undefined;
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          fullContent += decoder.decode(value, { stream: true });
+
+          const chunk = decoder.decode(value, { stream: true });
+
+          // The server prepends a single `__META__:{...}\n` line
+          // carrying RAG source citations so the topic panel can
+          // render them live. We need to peel that off before
+          // appending to visible content.
+          if (!metaParsed) {
+            rawBuffer += chunk;
+            if (rawBuffer.startsWith("__META__:")) {
+              const newlineIdx = rawBuffer.indexOf("\n");
+              if (newlineIdx === -1) {
+                // Meta line still incomplete — wait for more.
+                continue;
+              }
+              const metaJson = rawBuffer.slice("__META__:".length, newlineIdx);
+              try {
+                const parsed = JSON.parse(metaJson) as { sources?: Source[] };
+                sources = parsed.sources;
+              } catch {
+                // If parse fails we just drop the meta line.
+              }
+              fullContent = rawBuffer.slice(newlineIdx + 1);
+              rawBuffer = "";
+              metaParsed = true;
+            } else {
+              // No meta line for this response — promote everything
+              // read so far into visible content and move on.
+              fullContent = rawBuffer;
+              rawBuffer = "";
+              metaParsed = true;
+            }
+          } else {
+            fullContent += chunk;
+          }
+
           setMessages((prev) => {
             const next = [...prev];
             const last = next.length - 1;
             if (last >= 0 && next[last].id === assistantId) {
-              next[last] = { ...next[last], content: fullContent };
+              next[last] = {
+                ...next[last],
+                content: fullContent,
+                ...(sources ? { sources } : {}),
+              };
             }
             return next;
           });
@@ -235,7 +279,11 @@ export default function GriotPage() {
         setIsStreaming(false);
         const finalMessages: Message[] = [
           ...updatedMessages,
-          { ...assistantMessage, content: fullContent },
+          {
+            ...assistantMessage,
+            content: fullContent,
+            ...(sources ? { sources } : {}),
+          },
         ];
         setMessages(finalMessages);
         await persistConversation(finalMessages);

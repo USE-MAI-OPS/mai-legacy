@@ -394,8 +394,25 @@ export async function POST(request: NextRequest) {
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
 
+    // Build sources payload up-front so we can ship it to the client
+    // before the first LLM chunk arrives. Enables the "On This Topic"
+    // panel to populate in real time instead of waiting for reload.
+    const clientSources = searchResults.map((r) => ({
+      entry_id: r.entry_id,
+      title: r.title,
+      chunk_text: r.chunk_text,
+    }));
+
     const readable = new ReadableStream({
       async start(controller) {
+        // Send a JSON metadata line first so the client can attach
+        // source citations to the currently-streaming assistant
+        // message. Format: `__META__:{...}\n` followed by content.
+        if (clientSources.length > 0) {
+          const meta = `__META__:${JSON.stringify({ sources: clientSources })}\n`;
+          controller.enqueue(encoder.encode(meta));
+        }
+
         const reader = llmResponse.body?.getReader();
         if (!reader) {
           controller.close();
@@ -404,6 +421,38 @@ export async function POST(request: NextRequest) {
 
         let fullResponse = "";
         let buffer = "";
+        // Holds any trailing `[...` that may be an in-flight PII token.
+        // We cannot safely run restore() on it until the `]` arrives.
+        let pendingToken = "";
+
+        /**
+         * Splits the newly-restorable text off from any in-flight token
+         * suffix. Returns [safeToEmit, newPending].
+         *
+         * An "in-flight token" is any `[` that doesn't yet have a
+         * matching `]` after it in the current text — the LLM stream
+         * is allowed to split `[PERSON_1]` across chunks, and we MUST
+         * hold the opening bracket back until the closing bracket
+         * arrives or restore() would silently leave the raw token in
+         * the user-visible output.
+         */
+        const splitPending = (text: string): [string, string] => {
+          const lastOpen = text.lastIndexOf("[");
+          if (lastOpen === -1) return [text, ""];
+          const closeAfter = text.indexOf("]", lastOpen);
+          if (closeAfter !== -1) return [text, ""];
+          return [text.slice(0, lastOpen), text.slice(lastOpen)];
+        };
+
+        const emitContent = (chunk: string) => {
+          const combined = pendingToken + chunk;
+          const [safe, pending] = splitPending(combined);
+          pendingToken = pending;
+          if (!safe) return;
+          const out = stripUnmappedPersonTokens(restore(safe, piiCtx));
+          fullResponse += out;
+          controller.enqueue(encoder.encode(out));
+        };
 
         try {
           while (true) {
@@ -425,18 +474,7 @@ export async function POST(request: NextRequest) {
               try {
                 const parsed = JSON.parse(data) as OpenRouterStreamChunk;
                 const content = parsed.choices?.[0]?.delta?.content;
-                if (content) {
-                  // Restore mapped PII tokens first, then strip any
-                  // leftover [PERSON_N] tokens the LLM may have
-                  // hallucinated (not present in our map). Stripping per
-                  // chunk is safe because unmapped tokens only appear
-                  // in completed LLM output, not spanning boundaries.
-                  const restored = stripUnmappedPersonTokens(
-                    restore(content, piiCtx)
-                  );
-                  fullResponse += restored;
-                  controller.enqueue(encoder.encode(restored));
-                }
+                if (content) emitContent(content);
               } catch {
                 // Skip malformed SSE lines.
               }
@@ -445,6 +483,16 @@ export async function POST(request: NextRequest) {
         } catch (error) {
           console.error("[griot] Stream processing error:", error);
         } finally {
+          // Flush any buffered pending-token tail (in case the stream
+          // ended with an unclosed bracket — unlikely but safe).
+          if (pendingToken) {
+            const out = stripUnmappedPersonTokens(
+              restore(pendingToken, piiCtx)
+            );
+            fullResponse += out;
+            controller.enqueue(encoder.encode(out));
+            pendingToken = "";
+          }
           controller.close();
 
           // Optionally persist the conversation asynchronously.

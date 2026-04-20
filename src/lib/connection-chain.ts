@@ -33,36 +33,30 @@ export async function getConnectionChain(
   userId: string
 ): Promise<ConnectionChain> {
   try {
-    // First check if user has a tree node
-    const { data: treeNodeCheck } = await supabase
-      .from("family_tree_members")
-      .select("id")
-      .eq("family_id", familyId)
-      .eq(
-        "linked_member_id",
-        // Need to get the family_members.id for this user
-        supabase
-          .from("family_members")
-          .select("id")
-          .eq("user_id", userId)
-          .eq("family_id", familyId)
-          .single()
-      );
-
-    // Simpler approach: call the RPC functions directly
-    // get_connected_user_ids handles the "no tree node" case by returning just the user's own ID
-
-    const { data: connectedUserIds, error: userIdError } = await supabase.rpc(
-      "get_connected_user_ids",
-      {
+    // Round trip 1 (parallel):
+    //   a. Ask Postgres for the connected user IDs via tree traversal.
+    //      The RPC returns [userId] on its own if the user has no
+    //      tree node, so we don't need a separate "do I have a node"
+    //      probe to decide whether to run this.
+    //   b. Fetch the current user's own tree node (via a join through
+    //      family_members → family_tree_members). We need the tree
+    //      node's id to run the tree-member-ids RPC later, and we
+    //      use its presence as the definitive hasTreeNode signal.
+    const [userIdsResult, myTreeNodeResult] = await Promise.all([
+      supabase.rpc("get_connected_user_ids", {
         p_family_id: familyId,
         p_user_id: userId,
-      }
-    );
+      }),
+      supabase
+        .from("family_tree_members")
+        .select("id, linked_member_id, family_members!inner(user_id)")
+        .eq("family_id", familyId)
+        .eq("family_members.user_id", userId)
+        .maybeSingle(),
+    ]);
 
-    if (userIdError) {
-      console.error("Connection chain (user IDs) error:", userIdError);
-      // Graceful fallback: return just the user's own ID
+    if (userIdsResult.error) {
+      console.error("Connection chain (user IDs) error:", userIdsResult.error);
       return {
         connectedUserIds: [userId],
         connectedTreeMemberIds: [],
@@ -70,74 +64,51 @@ export async function getConnectionChain(
       };
     }
 
-    // Check if user actually has a tree node by looking at whether they got
-    // more than just their own ID back, or by checking directly
-    const { data: userTreeNode } = await supabase
-      .from("family_tree_members")
-      .select("id, linked_member_id")
-      .eq("family_id", familyId)
-      .not("linked_member_id", "is", null);
-
-    // Find this user's tree node by matching through family_members
-    const { data: memberRow } = await supabase
-      .from("family_members")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("family_id", familyId)
-      .maybeSingle();
-
-    const myTreeNode = memberRow
-      ? (userTreeNode ?? []).find(
-          (t: { id: string; linked_member_id: string }) =>
-            t.linked_member_id === memberRow.id
-        )
-      : null;
-
+    const connectedUserIds = (userIdsResult.data as string[] | null) ?? [userId];
+    const myTreeNode = myTreeNodeResult.data as
+      | { id: string; linked_member_id: string | null }
+      | null;
     const hasTreeNode = !!myTreeNode;
 
-    // If user has no tree node, return ALL family user IDs (no filtering)
-    if (!hasTreeNode) {
-      const { data: allMembers } = await supabase
-        .from("family_members")
-        .select("user_id")
-        .eq("family_id", familyId);
-
-      const allUserIds = (allMembers ?? [])
-        .map((m: { user_id: string }) => m.user_id)
-        .filter(Boolean);
-
-      // Also get all tree member IDs
-      const { data: allTreeMembers } = await supabase
-        .from("family_tree_members")
-        .select("id")
-        .eq("family_id", familyId);
-
+    // Round trip 2: either fetch the connected tree member IDs (if the
+    // user has a tree node), or the "show everyone" fallback pair
+    // (family_members + family_tree_members) when they don't yet.
+    if (hasTreeNode) {
+      const { data: connectedTreeIds, error: treeIdError } = await supabase.rpc(
+        "get_connected_tree_member_ids",
+        {
+          p_family_id: familyId,
+          p_tree_member_id: myTreeNode.id,
+        }
+      );
+      if (treeIdError) {
+        console.error("Connection chain (tree IDs) error:", treeIdError);
+      }
       return {
-        connectedUserIds: allUserIds.length > 0 ? allUserIds : [userId],
-        connectedTreeMemberIds: (allTreeMembers ?? []).map(
-          (t: { id: string }) => t.id
-        ),
-        hasTreeNode: false,
+        connectedUserIds,
+        connectedTreeMemberIds: (connectedTreeIds as string[] | null) ?? [],
+        hasTreeNode: true,
       };
     }
 
-    // User has a tree node — get connected tree member IDs too
-    const { data: connectedTreeIds, error: treeIdError } = await supabase.rpc(
-      "get_connected_tree_member_ids",
-      {
-        p_family_id: familyId,
-        p_tree_member_id: myTreeNode.id,
-      }
+    // No tree node yet — graceful "show everyone in the family" so the
+    // new member sees content until they finish onboarding tree setup.
+    const [allMembersResult, allTreeResult] = await Promise.all([
+      supabase.from("family_members").select("user_id").eq("family_id", familyId),
+      supabase.from("family_tree_members").select("id").eq("family_id", familyId),
+    ]);
+
+    const allUserIds = (allMembersResult.data ?? [])
+      .map((m: { user_id: string }) => m.user_id)
+      .filter(Boolean);
+    const allTreeIds = (allTreeResult.data ?? []).map(
+      (t: { id: string }) => t.id
     );
 
-    if (treeIdError) {
-      console.error("Connection chain (tree IDs) error:", treeIdError);
-    }
-
     return {
-      connectedUserIds: connectedUserIds ?? [userId],
-      connectedTreeMemberIds: connectedTreeIds ?? [],
-      hasTreeNode: true,
+      connectedUserIds: allUserIds.length > 0 ? allUserIds : [userId],
+      connectedTreeMemberIds: allTreeIds,
+      hasTreeNode: false,
     };
   } catch (err) {
     console.error("Connection chain failed:", err);

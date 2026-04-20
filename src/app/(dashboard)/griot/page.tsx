@@ -8,6 +8,7 @@ import {
   loadConversation,
   getCurrentFamilyId,
   deleteConversation,
+  renameConversation,
   type ConversationSummary,
 } from "@/lib/griot";
 import type { ConversationMessage } from "@/types/database";
@@ -433,6 +434,26 @@ export default function GriotPage() {
     }
   };
 
+  const handleRenameConversation = async (
+    convoId: string,
+    newTitle: string
+  ) => {
+    // Optimistic update so the sidebar feels instant.
+    const previous = conversations;
+    setConversations((p) =>
+      p.map((c) =>
+        c.id === convoId
+          ? { ...c, title: newTitle.trim().length > 0 ? newTitle.trim() : null }
+          : c
+      )
+    );
+    const ok = await renameConversation(convoId, newTitle);
+    if (!ok) {
+      // Revert on failure.
+      setConversations(previous);
+    }
+  };
+
   // -- Follow-up / suggestion click ----------------------------------------
   const handleSuggestionClick = useCallback((text: string) => {
     setInput(text);
@@ -454,6 +475,7 @@ export default function GriotPage() {
           onNewConversation={handleNewConversation}
           onSelectConversation={handleSelectConversation}
           onDeleteConversation={handleDeleteConversation}
+          onRenameConversation={handleRenameConversation}
         />
 
         {/* Center: Chat area */}

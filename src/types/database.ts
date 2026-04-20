@@ -407,6 +407,7 @@ export interface Database {
           family_id: string;
           user_id: string;
           messages: ConversationMessage[];
+          title: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -415,6 +416,7 @@ export interface Database {
           family_id: string;
           user_id: string;
           messages?: ConversationMessage[];
+          title?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -423,6 +425,7 @@ export interface Database {
           family_id?: string;
           user_id?: string;
           messages?: ConversationMessage[];
+          title?: string | null;
           created_at?: string;
           updated_at?: string;
         };

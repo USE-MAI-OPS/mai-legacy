@@ -16,6 +16,8 @@ export interface ConversationSummary {
   family_id: string;
   user_id: string;
   messages: ConversationMessage[];
+  /** User-supplied conversation label. Null/empty → use the auto preview. */
+  title: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -137,7 +139,7 @@ export async function loadConversations(
 
     const { data, error } = await supabase
       .from("griot_conversations")
-      .select("id, family_id, user_id, messages, created_at, updated_at")
+      .select("id, family_id, user_id, messages, title, created_at, updated_at")
       .eq("family_id", familyId)
       .order("updated_at", { ascending: false })
       .limit(50);
@@ -165,7 +167,7 @@ export async function loadConversation(
 
     const { data, error } = await supabase
       .from("griot_conversations")
-      .select("id, family_id, user_id, messages, created_at, updated_at")
+      .select("id, family_id, user_id, messages, title, created_at, updated_at")
       .eq("id", conversationId)
       .single();
 
@@ -178,6 +180,33 @@ export async function loadConversation(
   } catch (err) {
     console.error("[griot] loadConversation error:", err);
     return null;
+  }
+}
+
+/**
+ * Rename a conversation. Pass null/empty to clear the custom title
+ * and fall back to the auto-generated preview.
+ */
+export async function renameConversation(
+  conversationId: string,
+  newTitle: string | null
+): Promise<boolean> {
+  try {
+    const supabase = createClient();
+    const trimmed = (newTitle ?? "").trim();
+    const { error } = await supabase
+      .from("griot_conversations")
+      .update({ title: trimmed.length > 0 ? trimmed : null })
+      .eq("id", conversationId);
+
+    if (error) {
+      console.error("[griot] renameConversation error:", error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("[griot] renameConversation error:", err);
+    return false;
   }
 }
 
@@ -237,6 +266,19 @@ export async function getCurrentFamilyId(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Get a display label for a conversation. Prefers the user-set
+ * `title`, falls back to the first user message truncated.
+ */
+export function getConversationLabel(convo: {
+  title?: string | null;
+  messages: ConversationMessage[];
+}): string {
+  const customTitle = (convo.title ?? "").trim();
+  if (customTitle.length > 0) return customTitle;
+  return getConversationPreview(convo.messages);
 }
 
 /**

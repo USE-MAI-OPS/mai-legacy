@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -8,15 +9,18 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import {
+  CheckIcon,
   MessageSquareIcon,
+  PencilIcon,
   PlusIcon,
   SparklesIcon,
   Trash2Icon,
+  XIcon,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import type { ConversationSummary } from "@/lib/griot";
-import { getConversationPreview } from "@/lib/griot";
+import { getConversationLabel } from "@/lib/griot";
 
 interface GriotSidebarProps {
   conversations: ConversationSummary[];
@@ -28,6 +32,7 @@ interface GriotSidebarProps {
   onNewConversation: () => void;
   onSelectConversation: (convo: ConversationSummary) => void;
   onDeleteConversation: (e: React.MouseEvent, id: string) => void;
+  onRenameConversation: (id: string, newTitle: string) => Promise<void> | void;
 }
 
 function SidebarContent({
@@ -38,7 +43,41 @@ function SidebarContent({
   onNewConversation,
   onSelectConversation,
   onDeleteConversation,
+  onRenameConversation,
 }: Omit<GriotSidebarProps, "mobileOpen" | "onMobileOpenChange">) {
+  // Which conversation is currently being renamed inline.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus the input the moment rename mode starts.
+  useEffect(() => {
+    if (editingId && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editingId]);
+
+  async function commitRename() {
+    if (!editingId) return;
+    const id = editingId;
+    const value = editingValue.trim();
+    setEditingId(null);
+    setEditingValue("");
+    await onRenameConversation(id, value);
+  }
+
+  function cancelRename() {
+    setEditingId(null);
+    setEditingValue("");
+  }
+
+  function startRename(e: React.MouseEvent, convo: ConversationSummary) {
+    e.stopPropagation();
+    setEditingId(convo.id);
+    setEditingValue(getConversationLabel(convo));
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -92,8 +131,75 @@ function SidebarContent({
           ) : (
             conversations.map((convo) => {
               const isActive = convo.id === activeConversationId;
-              const preview = getConversationPreview(convo.messages);
+              const label = getConversationLabel(convo);
+              const isEditing = editingId === convo.id;
               const updatedAt = new Date(convo.updated_at);
+
+              // When renaming, render a non-button container so the
+              // input can receive focus without the wrapping <button>
+              // swallowing pointer events.
+              if (isEditing) {
+                return (
+                  <div
+                    key={convo.id}
+                    className={cn(
+                      "w-full text-left px-3 py-2.5 rounded-lg text-sm relative",
+                      "bg-background text-foreground border border-border shadow-sm border-l-2 border-l-primary"
+                    )}
+                  >
+                    <div className="flex items-center gap-1.5 pr-14">
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        value={editingValue}
+                        onChange={(e) => setEditingValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            commitRename();
+                          } else if (e.key === "Escape") {
+                            e.preventDefault();
+                            cancelRename();
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        maxLength={80}
+                        className="flex-1 min-w-0 bg-transparent border-b border-primary/40 focus:border-primary outline-none font-serif text-sm leading-snug"
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">
+                      Press Enter to save, Esc to cancel
+                    </p>
+                    <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          commitRename();
+                        }}
+                        title="Save (Enter)"
+                      >
+                        <CheckIcon className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          cancelRename();
+                        }}
+                        title="Cancel (Esc)"
+                      >
+                        <XIcon className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <button
                   key={convo.id}
@@ -105,8 +211,8 @@ function SidebarContent({
                       : "hover:bg-muted/50 text-muted-foreground border border-transparent"
                   )}
                 >
-                  <p className="truncate font-serif text-sm leading-snug pr-6">
-                    {preview}
+                  <p className="truncate font-serif text-sm leading-snug pr-14">
+                    {label}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">
                     {updatedAt.toLocaleDateString([], {
@@ -119,19 +225,31 @@ function SidebarContent({
                       minute: "2-digit",
                     })}
                   </p>
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                  <div
                     className={cn(
-                      "absolute right-1.5 top-1/2 -translate-y-1/2 h-6 w-6",
-                      "opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity",
-                      "text-muted-foreground hover:text-red-500 hover:bg-red-50"
+                      "absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5",
+                      "opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity"
                     )}
-                    onClick={(e) => onDeleteConversation(e, convo.id)}
-                    title="Delete"
                   >
-                    <Trash2Icon className="h-3.5 w-3.5" />
-                  </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                      onClick={(e) => startRename(e, convo)}
+                      title="Rename"
+                    >
+                      <PencilIcon className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground hover:text-red-500 hover:bg-red-50"
+                      onClick={(e) => onDeleteConversation(e, convo.id)}
+                      title="Delete"
+                    >
+                      <Trash2Icon className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </button>
               );
             })
@@ -164,6 +282,7 @@ export function GriotSidebar(props: GriotSidebarProps) {
               props.onMobileOpenChange(false);
             }}
             onDeleteConversation={props.onDeleteConversation}
+            onRenameConversation={props.onRenameConversation}
           />
         </SheetContent>
       </Sheet>
@@ -180,6 +299,7 @@ export function GriotSidebar(props: GriotSidebarProps) {
         onNewConversation={props.onNewConversation}
         onSelectConversation={props.onSelectConversation}
         onDeleteConversation={props.onDeleteConversation}
+        onRenameConversation={props.onRenameConversation}
       />
     </aside>
   );

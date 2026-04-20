@@ -88,22 +88,33 @@ export function HubSwipeWrapper({ children }: HubSwipeWrapperProps) {
       break;
   }
 
+  const activeHubName = hubs[currentIndex]?.name;
+  const prevHubName = hasPrev ? hubs[currentIndex - 1]?.name : undefined;
+  const nextHubName = hasNext ? hubs[currentIndex + 1]?.name : undefined;
+
   return (
-    <div className="relative overflow-hidden">
-      {/* Touch container */}
-      <div
-        {...swipeHandlers}
-        style={{ transform, transition }}
-      >
-        {children}
+    // Outer wrapper is NOT overflow-hidden, so the arrows (which sit
+    // outside the animating content) don't get clipped.
+    <div className="relative">
+      {/* Animating content lives in its own clip container so slide
+          transforms don't peek out on either side during transitions. */}
+      <div className="overflow-hidden">
+        <div {...swipeHandlers} style={{ transform, transition }}>
+          {children}
+        </div>
       </div>
 
-      {/* Desktop arrow buttons */}
+      {/* Desktop arrow buttons — hidden on mobile (use swipe instead).
+          Positioned on top of the content, padded slightly inside the
+          viewport so they don't crowd the edge. Each arrow shows a
+          tooltip with the target hub name so users know what they're
+          switching to. */}
       {hasPrev && slidePhase === "idle" && (
         <button
           onClick={goPrev}
-          className="hidden md:flex absolute left-0 top-1/3 -translate-x-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-card border shadow-sm hover:bg-accent transition-colors"
-          aria-label="Previous hub"
+          className="hidden md:flex absolute left-2 lg:left-4 top-1/3 z-20 w-10 h-10 items-center justify-center rounded-full bg-card border border-border shadow-md hover:bg-accent hover:shadow-lg transition-all"
+          aria-label={prevHubName ? `Switch to ${prevHubName}` : "Previous hub"}
+          title={prevHubName ? `Switch to ${prevHubName}` : "Previous hub"}
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
@@ -111,26 +122,34 @@ export function HubSwipeWrapper({ children }: HubSwipeWrapperProps) {
       {hasNext && slidePhase === "idle" && (
         <button
           onClick={goNext}
-          className="hidden md:flex absolute right-0 top-1/3 translate-x-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-card border shadow-sm hover:bg-accent transition-colors"
-          aria-label="Next hub"
+          className="hidden md:flex absolute right-2 lg:right-4 top-1/3 z-20 w-10 h-10 items-center justify-center rounded-full bg-card border border-border shadow-md hover:bg-accent hover:shadow-lg transition-all"
+          aria-label={nextHubName ? `Switch to ${nextHubName}` : "Next hub"}
+          title={nextHubName ? `Switch to ${nextHubName}` : "Next hub"}
         >
           <ChevronRight className="h-5 w-5" />
         </button>
       )}
 
-      {/* Dots indicator */}
-      <div className="flex justify-center gap-1.5 py-3">
-        {hubs.map((hub, i) => (
-          <div
-            key={hub.id}
-            className={cn(
-              "rounded-full transition-all duration-300",
-              i === currentIndex
-                ? "w-5 h-1.5 bg-primary"
-                : "w-1.5 h-1.5 bg-muted-foreground/30"
-            )}
-          />
-        ))}
+      {/* Dots indicator + (desktop) current hub name */}
+      <div className="flex flex-col items-center gap-1 py-3">
+        <div className="flex justify-center gap-1.5">
+          {hubs.map((hub, i) => (
+            <div
+              key={hub.id}
+              className={cn(
+                "rounded-full transition-all duration-300",
+                i === currentIndex
+                  ? "w-5 h-1.5 bg-primary"
+                  : "w-1.5 h-1.5 bg-muted-foreground/30"
+              )}
+            />
+          ))}
+        </div>
+        {activeHubName && (
+          <span className="hidden md:block text-[11px] font-serif italic text-muted-foreground mt-1">
+            {activeHubName}
+          </span>
+        )}
       </div>
     </div>
   );

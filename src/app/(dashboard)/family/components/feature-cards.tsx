@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ChefHat, Wrench, GraduationCap, Search } from "lucide-react";
-import type { EntryType } from "@/types/database";
+import type { EntryType, HubType } from "@/types/database";
 
 interface FeatureCardConfig {
   type: EntryType;
@@ -17,38 +17,48 @@ interface FeatureCardConfig {
   placeholder: string;
 }
 
-const FEATURE_CARDS: FeatureCardConfig[] = [
-  {
-    type: "recipe",
-    title: "Family Kitchen",
-    countLabel: "Recipes",
-    icon: <ChefHat className="h-5 w-5" />,
-    color: "text-orange-600 dark:text-orange-400",
-    bgColor: "bg-orange-100 dark:bg-orange-900/30",
-    placeholder: "Search recipes...",
-  },
-  {
-    type: "skill",
-    title: "Shared Skills",
-    countLabel: "Skills",
-    icon: <Wrench className="h-5 w-5" />,
-    color: "text-green-600 dark:text-green-400",
-    bgColor: "bg-green-100 dark:bg-green-900/30",
-    placeholder: "Search skills...",
-  },
-  {
-    type: "lesson",
-    title: "Life Lessons",
-    countLabel: "Lessons",
-    icon: <GraduationCap className="h-5 w-5" />,
-    color: "text-purple-600 dark:text-purple-400",
-    bgColor: "bg-purple-100 dark:bg-purple-900/30",
-    placeholder: "Search lessons...",
-  },
-];
+/**
+ * Build the three feature card configs, picking labels that match the
+ * current hub type. Circles use "Our <X>" phrasing so the hub reads
+ * as a shared space for whoever is in the circle, while families keep
+ * the warmer "Family Kitchen / Shared Skills / Life Lessons" labels.
+ */
+function buildFeatureCards(hubType: HubType): FeatureCardConfig[] {
+  const isCircle = hubType === "circle";
+  return [
+    {
+      type: "recipe",
+      title: isCircle ? "Our Kitchen" : "Family Kitchen",
+      countLabel: "Recipes",
+      icon: <ChefHat className="h-5 w-5" />,
+      color: "text-orange-600 dark:text-orange-400",
+      bgColor: "bg-orange-100 dark:bg-orange-900/30",
+      placeholder: "Search recipes...",
+    },
+    {
+      type: "skill",
+      title: isCircle ? "Our Skills" : "Shared Skills",
+      countLabel: "Skills",
+      icon: <Wrench className="h-5 w-5" />,
+      color: "text-green-600 dark:text-green-400",
+      bgColor: "bg-green-100 dark:bg-green-900/30",
+      placeholder: "Search skills...",
+    },
+    {
+      type: "lesson",
+      title: isCircle ? "Our Lessons" : "Life Lessons",
+      countLabel: "Lessons",
+      icon: <GraduationCap className="h-5 w-5" />,
+      color: "text-purple-600 dark:text-purple-400",
+      bgColor: "bg-purple-100 dark:bg-purple-900/30",
+      placeholder: "Search lessons...",
+    },
+  ];
+}
 
 interface FeatureCardsProps {
   entryCounts: Record<string, number>;
+  hubType: HubType;
 }
 
 function FeatureCard({
@@ -103,10 +113,11 @@ function FeatureCard({
   );
 }
 
-export function FeatureCards({ entryCounts }: FeatureCardsProps) {
+export function FeatureCards({ entryCounts, hubType }: FeatureCardsProps) {
+  const cards = buildFeatureCards(hubType);
   return (
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {FEATURE_CARDS.map((config) => (
+      {cards.map((config) => (
         <FeatureCard
           key={config.type}
           config={config}

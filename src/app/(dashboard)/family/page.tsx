@@ -349,7 +349,7 @@ export default async function FamilyPage() {
 
       {/* Feature Cards (Recipes, Skills, Lessons) */}
       <section>
-        <FeatureCards entryCounts={data.entryCounts} />
+        <FeatureCards entryCounts={data.entryCounts} hubType={data.hubType} />
       </section>
     </div>
     </HubContentWrapper>

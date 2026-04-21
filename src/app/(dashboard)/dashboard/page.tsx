@@ -652,7 +652,7 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Family Members — 3-column grid */}
+        {/* Family Members — 4-column grid, up to 3 rows */}
         <Card className="flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Family Members</CardTitle>
@@ -665,8 +665,8 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="flex-1">
             {familyMembers.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {familyMembers.slice(0, 9).map(
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                {familyMembers.slice(0, 12).map(
                   (member: { name: string; initials: string; role: string }, idx: number) => (
                     <div
                       key={`${member.name}-${idx}`}

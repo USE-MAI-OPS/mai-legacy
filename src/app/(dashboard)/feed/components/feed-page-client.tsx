@@ -32,6 +32,7 @@ interface FeedPageClientProps {
   members: FamilyMember[];
   stats: FeedStats;
   familyName: string;
+  currentUserId: string;
 }
 
 export function FeedPageClient({
@@ -40,6 +41,7 @@ export function FeedPageClient({
   members,
   stats,
   familyName,
+  currentUserId,
 }: FeedPageClientProps) {
   const [filteredMemberId, setFilteredMemberId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
@@ -174,6 +176,7 @@ export function FeedPageClient({
         filterType={activeFilter !== "all" && activeFilter !== "event" ? activeFilter : undefined}
         searchQuery={searchQuery.trim() || undefined}
         filterEventOnly={activeFilter === "event"}
+        shareRecipients={members.filter((m) => m.user_id !== currentUserId)}
       />
     </>
   );

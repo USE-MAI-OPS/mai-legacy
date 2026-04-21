@@ -613,6 +613,24 @@ export interface Database {
         };
         Relationships: [];
       };
+      entry_bookmarks: {
+        Row: {
+          user_id: string;
+          entry_id: string;
+          created_at: string;
+        };
+        Insert: {
+          user_id: string;
+          entry_id: string;
+          created_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          entry_id?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       family_goals: {
         Row: {
           id: string;

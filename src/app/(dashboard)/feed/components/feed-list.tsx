@@ -22,17 +22,36 @@ import {
   Trophy,
   Share2,
   Bookmark,
+  Copy,
+  User as UserIcon,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { typeConfig } from "@/lib/entry-type-config";
-import { toggleReaction, addComment } from "@/app/(dashboard)/entries/social-actions";
+import {
+  toggleReaction,
+  addComment,
+  toggleBookmark,
+  shareEntryToDM,
+} from "@/app/(dashboard)/entries/social-actions";
 import type { ReactionType } from "@/app/(dashboard)/entries/social-actions";
 import type { FeedItem, FeedEntry, FeedPrompt, FeedEvent, FeedDiscovery, FeedGoal, FeedGriotInsight } from "@/app/api/feed/route";
 import type { EntryType, EntryStructuredData } from "@/types/database";
+import type { FamilyMember } from "./family-strip";
 import { GoalCard } from "./goal-card";
 import { GriotInsightCard } from "./griot-insight-card";
 
@@ -45,6 +64,7 @@ interface FeedListProps {
   filterType?: string;
   searchQuery?: string;
   filterEventOnly?: boolean;
+  shareRecipients?: FamilyMember[];
 }
 
 // ---------------------------------------------------------------------------
@@ -158,7 +178,7 @@ const FEED_REACTIONS: { type: ReactionType; emoji: string; label: string }[] = [
 // ---------------------------------------------------------------------------
 // Feed Entry Card — image-first, with inline reactions + quick comment
 // ---------------------------------------------------------------------------
-function FeedEntryCard({ item }: { item: FeedEntry }) {
+function FeedEntryCard({ item, shareRecipients }: { item: FeedEntry; shareRecipients: FamilyMember[] }) {
   const config = typeConfig[item.type as EntryType] ?? typeConfig.general;
   const summary = getEntrySummary(item);
   const [isPending, startTransition] = useTransition();
@@ -167,7 +187,64 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
   const [localCommentCount, setLocalCommentCount] = useState(item.comment_count);
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [isBookmarked, setIsBookmarked] = useState(item.is_bookmarked);
   const commentInputRef = useRef<HTMLInputElement>(null);
+
+  function handleCopyLink(e: React.MouseEvent | Event) {
+    e.preventDefault();
+    if ("stopPropagation" in e) e.stopPropagation();
+    const url = `${window.location.origin}/entries/${item.id}`;
+    navigator.clipboard
+      .writeText(url)
+      .then(() => toast.success("Link copied"))
+      .catch(() => toast.error("Couldn't copy link"));
+  }
+
+  async function handleNativeShare(e: React.MouseEvent | Event) {
+    e.preventDefault();
+    if ("stopPropagation" in e) e.stopPropagation();
+    const url = `${window.location.origin}/entries/${item.id}`;
+    if (typeof navigator !== "undefined" && "share" in navigator) {
+      try {
+        await (navigator as Navigator & { share: (d: ShareData) => Promise<void> }).share({
+          title: item.title,
+          text: `${item.author_name} shared a memory`,
+          url,
+        });
+      } catch {
+        // User cancelled — silently ignore.
+      }
+    } else {
+      handleCopyLink(e);
+    }
+  }
+
+  function handleShareToDM(recipientUserId: string, recipientName: string) {
+    startTransition(async () => {
+      const result = await shareEntryToDM(item.id, recipientUserId);
+      if (result.success) {
+        toast.success(`Shared with ${recipientName}`);
+      } else {
+        toast.error(result.error ?? "Couldn't share");
+      }
+    });
+  }
+
+  function handleBookmark(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const wasBookmarked = isBookmarked;
+    setIsBookmarked(!wasBookmarked);
+    startTransition(async () => {
+      const result = await toggleBookmark(item.id);
+      if (!result.success) {
+        setIsBookmarked(wasBookmarked);
+        toast.error(result.error ?? "Couldn't update bookmark");
+      } else {
+        toast.success(result.bookmarked ? "Bookmarked" : "Bookmark removed");
+      }
+    });
+  }
 
   // Extract first image from structured_data
   const sd = item.structured_data as EntryStructuredData | null;
@@ -328,26 +405,76 @@ function FeedEntryCard({ item }: { item: FeedEntry }) {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={handleCommentToggle}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs text-muted-foreground hover:bg-muted transition-colors"
           >
             <MessageCircle className="h-4 w-4" />
           </button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                onClick={(e) => e.stopPropagation()}
+                className="p-1.5 rounded-full text-muted-foreground hover:bg-muted transition-colors"
+                title="Share"
+              >
+                <Share2 className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem onSelect={(e) => handleCopyLink(e)}>
+                <Copy className="mr-2 h-4 w-4" />
+                Copy link
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={(e) => handleNativeShare(e)}>
+                <Share2 className="mr-2 h-4 w-4" />
+                Share via…
+              </DropdownMenuItem>
+              {shareRecipients.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <Send className="mr-2 h-4 w-4" />
+                      Send in DM
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="max-h-64 overflow-y-auto">
+                      <DropdownMenuLabel className="text-xs text-muted-foreground">
+                        Send to…
+                      </DropdownMenuLabel>
+                      {shareRecipients.map((m) => (
+                        <DropdownMenuItem
+                          key={m.user_id}
+                          onSelect={() => handleShareToDM(m.user_id, m.display_name)}
+                        >
+                          <UserIcon className="mr-2 h-4 w-4" />
+                          {m.display_name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            className="p-1.5 rounded-full text-muted-foreground hover:bg-muted transition-colors"
-            title="Share"
+            onClick={handleBookmark}
+            disabled={isPending}
+            className={cn(
+              "p-1.5 rounded-full transition-colors",
+              isBookmarked
+                ? "text-primary hover:bg-primary/10"
+                : "text-muted-foreground hover:bg-muted"
+            )}
+            title={isBookmarked ? "Remove bookmark" : "Bookmark"}
           >
-            <Share2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-            className="p-1.5 rounded-full text-muted-foreground hover:bg-muted transition-colors"
-            title="Bookmark"
-          >
-            <Bookmark className="h-4 w-4" />
+            <Bookmark
+              className={cn("h-4 w-4", isBookmarked && "fill-current")}
+            />
           </button>
         </div>
       </div>
@@ -567,7 +694,14 @@ function FeedDiscoveryCard({ item }: { item: FeedDiscovery }) {
 // ---------------------------------------------------------------------------
 // Feed List (with infinite scroll)
 // ---------------------------------------------------------------------------
-export function FeedList({ initialItems, initialCursor, filterType, searchQuery, filterEventOnly }: FeedListProps) {
+export function FeedList({
+  initialItems,
+  initialCursor,
+  filterType,
+  searchQuery,
+  filterEventOnly,
+  shareRecipients = [],
+}: FeedListProps) {
   const [items, setItems] = useState<FeedItem[]>(initialItems);
   const [cursor, setCursor] = useState<string | null>(initialCursor);
   const [loading, setLoading] = useState(false);
@@ -694,7 +828,7 @@ export function FeedList({ initialItems, initialCursor, filterType, searchQuery,
       {items.map((item) => {
         switch (item.kind) {
           case "entry":
-            return <FeedEntryCard key={item.id} item={item} />;
+            return <FeedEntryCard key={item.id} item={item} shareRecipients={shareRecipients} />;
           case "event":
             return <FeedEventCard key={`event-${item.id}`} item={item} />;
           case "prompt":

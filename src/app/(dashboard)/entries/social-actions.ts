@@ -1,6 +1,5 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { getFamilyContext } from "@/lib/get-family-context";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "@/lib/notifications";
@@ -342,4 +341,170 @@ export async function getSocialData(entryId: string): Promise<SocialData> {
     comments: topLevel,
     totalComments: commentData.length,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Toggle bookmark (save/unsave an entry for the current user)
+// ---------------------------------------------------------------------------
+export async function toggleBookmark(
+  entryId: string
+): Promise<{ success: boolean; bookmarked: boolean; error?: string }> {
+  const ctx = await getFamilyContext();
+  if (!ctx) return { success: false, bookmarked: false, error: "Not authenticated" };
+
+  const { userId, supabase } = ctx;
+
+  const { data: existing } = await supabase
+    .from("entry_bookmarks")
+    .select("entry_id")
+    .eq("user_id", userId)
+    .eq("entry_id", entryId)
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await supabase
+      .from("entry_bookmarks")
+      .delete()
+      .eq("user_id", userId)
+      .eq("entry_id", entryId);
+    if (error) return { success: false, bookmarked: true, error: error.message };
+    revalidatePath("/feed");
+    revalidatePath(`/entries/${entryId}`);
+    return { success: true, bookmarked: false };
+  }
+
+  const { error } = await supabase
+    .from("entry_bookmarks")
+    .insert({ user_id: userId, entry_id: entryId });
+  if (error) return { success: false, bookmarked: false, error: error.message };
+
+  revalidatePath("/feed");
+  revalidatePath(`/entries/${entryId}`);
+  return { success: true, bookmarked: true };
+}
+
+// ---------------------------------------------------------------------------
+// Share an entry into a DM with another connected user
+// ---------------------------------------------------------------------------
+export async function shareEntryToDM(
+  entryId: string,
+  recipientUserId: string
+): Promise<{ success: boolean; conversationId?: string; error?: string }> {
+  const ctx = await getFamilyContext();
+  if (!ctx) return { success: false, error: "Not authenticated" };
+
+  const { userId, familyId, familyIds, connectedUserIdsAll, supabase } = ctx;
+
+  if (recipientUserId === userId) {
+    return { success: false, error: "Cannot share to yourself" };
+  }
+  if (!connectedUserIdsAll.includes(recipientUserId)) {
+    return { success: false, error: "Recipient is not in your connection chain" };
+  }
+
+  // Fetch entry title + family so we can include a readable preview in the DM.
+  // Entry must be in one of the viewer's hubs; prevents leaking IDs from
+  // unrelated families.
+  const { data: entry } = await supabase
+    .from("entries")
+    .select("id, title, family_id")
+    .eq("id", entryId)
+    .in("family_id", familyIds)
+    .maybeSingle();
+
+  if (!entry) return { success: false, error: "Entry not found" };
+
+  // Prefer a hub both users are in; fall back to the active hub.
+  const { data: recipientHubs } = await supabase
+    .from("family_members")
+    .select("family_id")
+    .eq("user_id", recipientUserId)
+    .in("family_id", familyIds);
+
+  const sharedHubIds = new Set((recipientHubs ?? []).map((r) => r.family_id as string));
+  const conversationFamilyId = sharedHubIds.has(entry.family_id as string)
+    ? (entry.family_id as string)
+    : sharedHubIds.has(familyId)
+      ? familyId
+      : (recipientHubs ?? [])[0]?.family_id as string | undefined;
+
+  if (!conversationFamilyId) {
+    return { success: false, error: "No shared hub with this recipient" };
+  }
+
+  // Find or create a 2-person dm_conversation in the shared hub.
+  const { data: existing } = await supabase
+    .from("dm_conversations")
+    .select("id, participant_ids")
+    .eq("family_id", conversationFamilyId)
+    .contains("participant_ids", [userId])
+    .contains("participant_ids", [recipientUserId]);
+
+  const match = (existing ?? []).find(
+    (c) =>
+      c.participant_ids.length === 2 &&
+      c.participant_ids.includes(userId) &&
+      c.participant_ids.includes(recipientUserId)
+  );
+
+  let conversationId: string;
+  if (match) {
+    conversationId = match.id as string;
+  } else {
+    const { data: newConv, error: convErr } = await supabase
+      .from("dm_conversations")
+      .insert({
+        family_id: conversationFamilyId,
+        participant_ids: [userId, recipientUserId],
+        last_message_at: null,
+      })
+      .select("id")
+      .single();
+    if (convErr || !newConv) {
+      return { success: false, error: convErr?.message ?? "Failed to start conversation" };
+    }
+    conversationId = newConv.id as string;
+  }
+
+  // Send a message referencing the entry. Plain text with a relative URL —
+  // the messages UI can promote it to an entry card later if needed.
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+  const entryUrl = `${appUrl}/entries/${entryId}`;
+  const content = `Shared a memory: ${entry.title}\n${entryUrl}`;
+
+  const { error: msgErr } = await supabase
+    .from("direct_messages")
+    .insert({
+      conversation_id: conversationId,
+      sender_id: userId,
+      content,
+      read: false,
+    });
+  if (msgErr) return { success: false, error: msgErr.message };
+
+  await supabase
+    .from("dm_conversations")
+    .update({ last_message_at: new Date().toISOString() })
+    .eq("id", conversationId);
+
+  revalidatePath("/messages");
+  revalidatePath(`/messages/${conversationId}`);
+  return { success: true, conversationId };
+}
+
+// ---------------------------------------------------------------------------
+// Get the set of entry IDs the current user has bookmarked (for hydrating
+// feed/list pages). Used as a small helper — avoids a per-row query.
+// ---------------------------------------------------------------------------
+export async function getBookmarkedEntryIds(): Promise<Set<string>> {
+  const ctx = await getFamilyContext();
+  if (!ctx) return new Set();
+
+  const { userId, supabase } = ctx;
+  const { data } = await supabase
+    .from("entry_bookmarks")
+    .select("entry_id")
+    .eq("user_id", userId);
+
+  return new Set((data ?? []).map((r) => r.entry_id as string));
 }

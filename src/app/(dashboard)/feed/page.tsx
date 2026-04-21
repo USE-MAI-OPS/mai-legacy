@@ -17,6 +17,7 @@ async function getInitialFeed(): Promise<{
   members: FamilyMember[];
   stats: FeedStats;
   familyName: string;
+  currentUserId: string;
 }> {
   try {
     const ctx = await getFamilyContext();
@@ -27,8 +28,9 @@ async function getInitialFeed(): Promise<{
         members: [],
         stats: { entries: 0, members: 0, traditions: 0, goals: 0, events: 0 },
         familyName: "",
+        currentUserId: "",
       };
-    const { familyId, familyIds, supabase, connectedUserIdsAll } = ctx;
+    const { userId, familyId, familyIds, supabase, connectedUserIdsAll } = ctx;
 
     const sb = supabase;
 
@@ -150,10 +152,11 @@ async function getInitialFeed(): Promise<{
         created_at: e.created_at,
         reaction_count: 0,
         comment_count: 0,
+        is_bookmarked: false,
       })
     );
 
-    // Fetch reaction/comment counts
+    // Fetch reaction/comment/bookmark state
     const entryIds = feedEntries.map((e) => e.id);
     if (entryIds.length > 0) {
       try {
@@ -175,6 +178,18 @@ async function getInitialFeed(): Promise<{
         for (const c of commentData ?? []) {
           const fe = feedEntries.find((e) => e.id === c.entry_id);
           if (fe) fe.comment_count++;
+        }
+      } catch { /* table may not exist yet */ }
+
+      try {
+        // RLS scopes bookmarks to the viewer, so no user_id filter needed.
+        const { data: bookmarkData } = await sb
+          .from("entry_bookmarks")
+          .select("entry_id")
+          .in("entry_id", entryIds);
+        for (const b of bookmarkData ?? []) {
+          const fe = feedEntries.find((e) => e.id === b.entry_id);
+          if (fe) fe.is_bookmarked = true;
         }
       } catch { /* table may not exist yet */ }
     }
@@ -357,7 +372,7 @@ async function getInitialFeed(): Promise<{
     const nextCursor =
       feedEntries.length >= 20 ? lastEntry?.created_at ?? null : null;
 
-    return { items, nextCursor, members, stats, familyName };
+    return { items, nextCursor, members, stats, familyName, currentUserId: userId };
   } catch (err) {
     console.error("Feed fetch error:", err);
     return {
@@ -366,6 +381,7 @@ async function getInitialFeed(): Promise<{
       members: [],
       stats: { entries: 0, members: 0, traditions: 0, goals: 0, events: 0 },
       familyName: "",
+      currentUserId: "",
     };
   }
 }
@@ -380,7 +396,7 @@ export default async function FeedPage() {
     redirect("/onboarding");
   }
 
-  const { items, nextCursor, members, stats, familyName } = await getInitialFeed();
+  const { items, nextCursor, members, stats, familyName, currentUserId } = await getInitialFeed();
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
@@ -390,6 +406,7 @@ export default async function FeedPage() {
         members={members}
         stats={stats}
         familyName={familyName}
+        currentUserId={currentUserId}
       />
     </div>
   );

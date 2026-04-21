@@ -31,6 +31,7 @@ export interface FeedEntry {
   created_at: string;
   reaction_count: number;
   comment_count: number;
+  is_bookmarked: boolean;
 }
 
 export interface FeedPrompt {
@@ -176,6 +177,7 @@ export async function GET(req: NextRequest) {
   const reactionCountMap: Record<string, number> = {};
   const commentCountMap: Record<string, number> = {};
 
+  const bookmarkedSet = new Set<string>();
   if (entryIds.length > 0) {
     // Reaction counts per entry
     try {
@@ -196,6 +198,18 @@ export async function GET(req: NextRequest) {
         .in("entry_id", entryIds);
       for (const c of commentData ?? []) {
         commentCountMap[c.entry_id] = (commentCountMap[c.entry_id] ?? 0) + 1;
+      }
+    } catch { /* table may not exist yet */ }
+
+    // Which of these entries has the viewer bookmarked? RLS restricts rows to
+    // the viewer's own bookmarks so we don't need to filter by user_id here.
+    try {
+      const { data: bookmarkData } = await sb
+        .from("entry_bookmarks")
+        .select("entry_id")
+        .in("entry_id", entryIds);
+      for (const b of bookmarkData ?? []) {
+        bookmarkedSet.add(b.entry_id);
       }
     } catch { /* table may not exist yet */ }
   }
@@ -226,6 +240,7 @@ export async function GET(req: NextRequest) {
       created_at: e.created_at,
       reaction_count: reactionCountMap[e.id] ?? 0,
       comment_count: commentCountMap[e.id] ?? 0,
+      is_bookmarked: bookmarkedSet.has(e.id),
     })
   );
 

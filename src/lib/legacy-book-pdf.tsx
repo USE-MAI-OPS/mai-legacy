@@ -33,7 +33,6 @@ export interface LegacyBookEntry {
 }
 
 export interface LegacyBookOptions {
-  familyName: string;
   entries: LegacyBookEntry[];
   generatedAt?: string;
 }
@@ -223,11 +222,11 @@ function capitalize(str: string): string {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function CoverPage({ familyName, entryCount, generatedAt }: { familyName: string; entryCount: number; generatedAt: string }) {
+function CoverPage({ entryCount, generatedAt }: { entryCount: number; generatedAt: string }) {
   return (
     <Page size="A4" style={styles.coverPage}>
       <View style={styles.coverDecorLine} />
-      <Text style={styles.coverTitle}>{familyName}</Text>
+      <Text style={styles.coverTitle}>MAI</Text>
       <Text style={styles.coverSubtitle}>Legacy Book</Text>
       <Text style={[styles.coverDate, { marginBottom: 12 }]}>{entryCount} {entryCount === 1 ? "memory" : "memories"}</Text>
       <Text style={styles.coverDate}>Generated {formatDate(generatedAt)}</Text>
@@ -285,15 +284,15 @@ function EntryPage({ entry, index }: { entry: LegacyBookEntry; index: number }) 
 // Document
 // ---------------------------------------------------------------------------
 
-function LegacyBookDocument({ familyName, entries, generatedAt }: LegacyBookOptions) {
+function LegacyBookDocument({ entries, generatedAt }: LegacyBookOptions) {
   const ts = generatedAt ?? new Date().toISOString();
   return (
     <Document
-      title={`${familyName} Legacy Book`}
+      title="MAI Legacy Book"
       author="MAI Legacy"
       subject="Family Legacy Keepsake"
     >
-      <CoverPage familyName={familyName} entryCount={entries.length} generatedAt={ts} />
+      <CoverPage entryCount={entries.length} generatedAt={ts} />
       <TableOfContents entries={entries} />
       {entries.map((entry, i) => (
         <EntryPage key={entry.id} entry={entry} index={i} />

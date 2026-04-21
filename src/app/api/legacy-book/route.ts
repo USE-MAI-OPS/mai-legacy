@@ -23,22 +23,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // activeFamilyId is ignored here — the book is always titled "MAI Legacy
+    // Book" and contains entries aggregated across every hub the viewer
+    // belongs to. Kept in the request body for backwards compatibility.
+    void activeFamilyId;
+
     const { familyIds, connectedUserIdsAll } = ctx;
-    const headerFamilyId = activeFamilyId && familyIds.includes(activeFamilyId)
-      ? activeFamilyId
-      : ctx.familyId;
-
     const admin = createAdminClient();
-
-    // Fetch family name from the hub the viewer is on — used only for the
-    // book title and filename. Entries themselves span every hub.
-    const { data: family } = await admin
-      .from("families")
-      .select("name")
-      .eq("id", headerFamilyId)
-      .single();
-
-    const familyName = family?.name ?? "Our Family";
 
     // Fetch entries across every hub the viewer belongs to, scoped to authors
     // in their combined connection chain.
@@ -92,12 +83,11 @@ export async function POST(request: NextRequest) {
 
     // Generate PDF
     const pdfBuffer = await generateLegacyBookPdf({
-      familyName,
       entries: bookEntries,
       generatedAt: new Date().toISOString(),
     });
 
-    const filename = `${familyName.replace(/[^a-z0-9]/gi, "_")}_Legacy_Book_${new Date().toISOString().slice(0, 10)}.pdf`;
+    const filename = `MAI_Legacy_Book_${new Date().toISOString().slice(0, 10)}.pdf`;
 
     return new Response(pdfBuffer.buffer as ArrayBuffer, {
       status: 200,

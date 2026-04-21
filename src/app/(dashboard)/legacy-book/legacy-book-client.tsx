@@ -40,8 +40,6 @@ function formatDate(iso: string): string {
 // Props
 // ---------------------------------------------------------------------------
 interface LegacyBookClientProps {
-  familyId: string;
-  familyName: string;
   entries: LegacyBookEntryItem[];
 }
 
@@ -69,11 +67,7 @@ export function LegacyBookSkeleton() {
 // ---------------------------------------------------------------------------
 // Main client component
 // ---------------------------------------------------------------------------
-export function LegacyBookClient({
-  familyId,
-  familyName,
-  entries,
-}: LegacyBookClientProps) {
+export function LegacyBookClient({ entries }: LegacyBookClientProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     () => new Set(entries.map((e) => e.id))
   );
@@ -119,7 +113,6 @@ export function LegacyBookClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          familyId,
           entryIds: allSelected ? undefined : Array.from(selectedIds),
         }),
       });
@@ -136,7 +129,7 @@ export function LegacyBookClient({
       a.href = url;
       const disposition = res.headers.get("Content-Disposition") ?? "";
       const match = disposition.match(/filename="([^"]+)"/);
-      a.download = match?.[1] ?? `${familyName}_Legacy_Book.pdf`;
+      a.download = match?.[1] ?? "MAI_Legacy_Book.pdf";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -205,8 +198,8 @@ export function LegacyBookClient({
           <p className="text-xs font-semibold uppercase tracking-widest text-[#c8a96e] mb-1">
             Preview
           </p>
-          <h2 className="text-xl font-bold">{familyName}</h2>
-          <p className="text-sm text-white/70 mt-1">Legacy Book · {selectedCount} {selectedCount === 1 ? "memory" : "memories"}</p>
+          <h2 className="text-xl font-bold">MAI Legacy Book</h2>
+          <p className="text-sm text-white/70 mt-1">{selectedCount} {selectedCount === 1 ? "memory" : "memories"}</p>
         </div>
         <BookOpen className="h-12 w-12 text-[#c8a96e] opacity-80" />
       </div>

@@ -29,16 +29,7 @@ async function LegacyBookData() {
     redirect("/onboarding");
   }
 
-  const { familyId, familyIds, supabase, connectedUserIdsAll } = ctx;
-
-  // Family name from the active hub (for header / filename only).
-  const { data: family } = await supabase
-    .from("families")
-    .select("name")
-    .eq("id", familyId)
-    .single();
-
-  const familyName = family?.name ?? "Our Family";
+  const { familyIds, supabase, connectedUserIdsAll } = ctx;
 
   // Entries aggregated across every hub the viewer belongs to, from any
   // author in their combined connection chain. Author names come from the
@@ -74,13 +65,7 @@ async function LegacyBookData() {
     date: e.created_at,
   }));
 
-  return (
-    <LegacyBookClient
-      familyId={familyId}
-      familyName={familyName}
-      entries={entries}
-    />
-  );
+  return <LegacyBookClient entries={entries} />;
 }
 
 // ---------------------------------------------------------------------------

@@ -166,10 +166,21 @@ export function MaiTreeCanvas({
         setSplitViewId((prev) => (prev === id ? null : id));
         return;
       }
+      // "Everyone" is a reset affordance — clear everything else rather than
+      // stacking, since stacking it with another filter would AND an empty
+      // groups list into the prior filter (no visible change, but confusing).
+      if (id === "all") {
+        setActiveFilterIds([]);
+        setSplitViewId(null);
+        return;
+      }
       setSplitViewId(null);
-      setActiveFilterIds((prev) =>
-        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-      );
+      setActiveFilterIds((prev) => {
+        const withoutAll = prev.filter((x) => x !== "all");
+        return withoutAll.includes(id)
+          ? withoutAll.filter((x) => x !== id)
+          : [...withoutAll, id];
+      });
     },
     [views]
   );
@@ -190,9 +201,8 @@ export function MaiTreeCanvas({
 
   // ─── Save current as view ─────────────────────────────────────
   const canSave = activeFilterIds.length > 0 || !!splitViewId;
-  const onSaveCurrent = useCallback(async () => {
-    const name = window.prompt("Name this view:");
-    if (!name) return;
+  const onSaveCurrent = useCallback(async (name: string) => {
+    if (!name.trim()) return;
     if (splitView?.split) {
       const newView: Omit<View, "id"> = {
         label: name,

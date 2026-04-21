@@ -295,12 +295,37 @@ function clampFilter(raw: unknown): FilterSpec | null {
   return out;
 }
 
+const GROUP_LABELS: Record<TreeGroup, string> = {
+  family: "Family",
+  friend: "Friends",
+  work: "Work",
+  school: "School",
+  mentor: "Mentors",
+  community: "Community",
+  other: "Other",
+};
+
+function deriveSplitLabel(filter: FilterSpec): string {
+  // Prefer a labeled group, else a tag, else a side hint, else generic.
+  if (filter.groups && filter.groups.length === 1) {
+    if (filter.side === "mom") return "Mom's side";
+    if (filter.side === "dad") return "Dad's side";
+    return GROUP_LABELS[filter.groups[0]];
+  }
+  if (filter.tags && filter.tags.length === 1) return filter.tags[0];
+  if (filter.side === "mom") return "Mom's side";
+  if (filter.side === "dad") return "Dad's side";
+  return "Group";
+}
+
 function clampSplitSide(raw: unknown): (FilterSpec & { label: string }) | null {
   const base = clampFilter(raw);
   if (!base) return null;
-  const label = typeof (raw as { label?: unknown }).label === "string"
-    ? ((raw as { label: string }).label)
-    : "Group";
+  const rawLabel = (raw as { label?: unknown }).label;
+  const label =
+    typeof rawLabel === "string" && rawLabel.trim()
+      ? rawLabel.trim()
+      : deriveSplitLabel(base);
   return { ...base, label };
 }
 

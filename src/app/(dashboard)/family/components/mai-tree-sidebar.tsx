@@ -3,6 +3,7 @@
 // MAI Tree — sidebar. Ported from handoff/MAITree.jsx :550-625.
 // Built-ins + SAVED VIEWS (from DB) + Save current as view + Add Member.
 
+import { useState } from "react";
 import {
   Sparkles,
   Users,
@@ -15,6 +16,7 @@ import {
   Bookmark,
   Plus,
   X,
+  Check,
   TriangleAlert,
   Menu,
 } from "lucide-react";
@@ -71,7 +73,8 @@ interface SidebarProps {
   onToggleFilter: (id: string) => void;
   onClearAll: () => void;
   onAddMember: () => void;
-  onSaveCurrent: () => void;
+  /** Called with the user's chosen name once they confirm. */
+  onSaveCurrent: (name: string) => void;
   canSave: boolean;
   onDeleteView: (id: string) => void;
 }
@@ -88,6 +91,19 @@ function SidebarContent({
 }: SidebarProps) {
   const builtins = views.filter((v) => v.builtin);
   const customs = views.filter((v) => !v.builtin && !v.griot);
+
+  // Inline save form — replaces the native window.prompt() UX (which blocks
+  // the page and can't be automated or styled).
+  const [saving, setSaving] = useState(false);
+  const [saveName, setSaveName] = useState("");
+
+  const handleSaveSubmit = () => {
+    const name = saveName.trim();
+    if (!name) return;
+    onSaveCurrent(name);
+    setSaving(false);
+    setSaveName("");
+  };
 
   const renderItem = (v: View) => {
     const active = activeFilterIds.includes(v.id);
@@ -267,30 +283,117 @@ function SidebarContent({
             {customs.map(renderItem)}
           </>
         )}
-        <button
-          onClick={onSaveCurrent}
-          disabled={!canSave}
-          style={{
-            width: "100%",
-            textAlign: "left",
-            padding: "10px",
-            borderRadius: 10,
-            border: "1px dashed rgba(192,112,74,0.3)",
-            cursor: canSave ? "pointer" : "default",
-            background: "transparent",
-            color: canSave ? "#C0704A" : "#bfad97",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginTop: 10,
-            fontWeight: 600,
-            fontSize: 13,
-            opacity: canSave ? 1 : 0.6,
-          }}
-        >
-          <Bookmark size={16} />
-          Save current as view
-        </button>
+        {!saving && (
+          <button
+            onClick={() => {
+              if (!canSave) return;
+              setSaveName("");
+              setSaving(true);
+            }}
+            disabled={!canSave}
+            style={{
+              width: "100%",
+              textAlign: "left",
+              padding: "10px",
+              borderRadius: 10,
+              border: "1px dashed rgba(192,112,74,0.3)",
+              cursor: canSave ? "pointer" : "default",
+              background: "transparent",
+              color: canSave ? "#C0704A" : "#bfad97",
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginTop: 10,
+              fontWeight: 600,
+              fontSize: 13,
+              opacity: canSave ? 1 : 0.6,
+            }}
+          >
+            <Bookmark size={16} />
+            Save current as view
+          </button>
+        )}
+        {saving && (
+          <div
+            style={{
+              marginTop: 10,
+              padding: 8,
+              borderRadius: 10,
+              border: "1px dashed rgba(192,112,74,0.45)",
+              display: "flex",
+              gap: 6,
+              alignItems: "center",
+            }}
+          >
+            <input
+              value={saveName}
+              autoFocus
+              onChange={(e) => setSaveName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveSubmit();
+                if (e.key === "Escape") {
+                  setSaving(false);
+                  setSaveName("");
+                }
+              }}
+              placeholder="Name this view"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                padding: "6px 8px",
+                borderRadius: 6,
+                border: "1px solid rgba(192,112,74,0.3)",
+                background: "#fff",
+                fontSize: 12,
+                fontFamily: "system-ui, -apple-system, sans-serif",
+                color: "#3D2B1F",
+                outline: "none",
+              }}
+            />
+            <button
+              onClick={handleSaveSubmit}
+              disabled={!saveName.trim()}
+              aria-label="Save view"
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                border: "none",
+                background: saveName.trim() ? "#C0704A" : "rgba(192,112,74,0.3)",
+                color: "#fff",
+                cursor: saveName.trim() ? "pointer" : "default",
+                display: "grid",
+                placeItems: "center",
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              <Check size={14} />
+            </button>
+            <button
+              onClick={() => {
+                setSaving(false);
+                setSaveName("");
+              }}
+              aria-label="Cancel"
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                border: "1px solid rgba(192,112,74,0.25)",
+                background: "transparent",
+                color: "#9b8670",
+                cursor: "pointer",
+                display: "grid",
+                placeItems: "center",
+                padding: 0,
+                flexShrink: 0,
+              }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
       </div>
       <div style={{ padding: 16 }}>
         <Button

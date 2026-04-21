@@ -16,9 +16,9 @@ const faqs = [
       "MAI Legacy is a family knowledge platform that helps you document and preserve your family's stories, recipes, skills, lessons, and connections. Think of it as a living archive powered by AI that your whole family can contribute to.",
   },
   {
-    question: "What is The Griot?",
+    question: "What is Griot?",
     answer:
-      "The Griot is your family's AI-powered storyteller. It draws from all the memories your family has created to answer questions, surface connections, and help you explore your family's collective knowledge through conversation.",
+      "Griot is your family's AI-powered storyteller. It draws from all the memories your family has created to answer questions, surface connections, and help you explore your family's collective knowledge through conversation.",
   },
   {
     question: "How do I invite family members?",
@@ -38,7 +38,7 @@ const faqs = [
   {
     question: "How does the AI understand my family?",
     answer:
-      "When you create an entry, it's automatically processed and embedded into your family's knowledge base. The Griot uses this to provide contextual, personalized answers drawn from your family's actual stories and knowledge.",
+      "When you create an entry, it's automatically processed and embedded into your family's knowledge base. Griot uses this to provide contextual, personalized answers drawn from your family's actual stories and knowledge.",
   },
 ];
 
@@ -47,7 +47,7 @@ const featureGuides = [
     icon: FileText,
     title: "Creating Memories",
     description:
-      "Document your family's stories, recipes, skills, and lessons. Each memory is searchable and feeds into The Griot's knowledge.",
+      "Document your family's stories, recipes, skills, and lessons. Each memory is searchable and feeds into Griot's knowledge.",
     iconColor: "text-blue-600",
     iconBg: "bg-blue-100 dark:bg-blue-900/30",
   },
@@ -61,7 +61,7 @@ const featureGuides = [
   },
   {
     icon: Sparkles,
-    title: "Using The Griot",
+    title: "Using Griot",
     description:
       'Ask questions about your family\'s knowledge. Try prompts like "What recipes has Grandma shared?" or "Tell me about our family traditions."',
     iconColor: "text-purple-600",
@@ -71,7 +71,7 @@ const featureGuides = [
     icon: Target,
     title: "Your Profile & Life Story",
     description:
-      "Build your personal life story with career history, education, milestones, and more. This enriches The Griot's understanding of your family.",
+      "Build your personal life story with career history, education, milestones, and more. This enriches Griot's understanding of your family.",
     iconColor: "text-green-600",
     iconBg: "bg-green-100 dark:bg-green-900/30",
   },

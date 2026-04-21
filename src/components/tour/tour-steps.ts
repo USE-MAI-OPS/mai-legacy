@@ -60,7 +60,7 @@ export const TOUR_STEPS: TourStep[] = [
     icon: MessageCircle,
     iconColor: "text-green-600",
     iconBg: "bg-green-100 dark:bg-green-900/30",
-    title: "Ask The Griot",
+    title: "Ask Griot",
     description:
       "Your family's AI assistant. It searches all your memories to answer questions \u2014 like a wise elder with perfect recall.",
   },

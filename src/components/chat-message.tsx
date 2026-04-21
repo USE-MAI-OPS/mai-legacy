@@ -153,7 +153,7 @@ export function ChatMessage({
       <div className={cn("flex flex-col gap-1 max-w-[80%]", isUser ? "items-end" : "items-start")}>
         {!isUser && (
           <span className="text-[10px] font-serif font-medium text-muted-foreground ml-2 uppercase tracking-wider">
-            The Griot
+            Griot
           </span>
         )}
         <div className="group relative">

@@ -103,7 +103,7 @@ export function GriotChatArea({
           </div>
           <div>
             <h1 className="text-lg font-bold font-serif text-foreground">
-              The Griot
+              Griot
             </h1>
             <p className="text-xs text-muted-foreground font-serif italic">
               Your family&apos;s AI knowledge keeper
@@ -133,11 +133,11 @@ export function GriotChatArea({
                 <SparklesIcon className="size-7 text-primary" />
               </div>
               <h2 className="text-2xl font-bold mb-3 font-serif text-foreground">
-                Ask the Griot
+                Ask Griot
               </h2>
               <p className="text-muted-foreground text-sm mb-8 leading-relaxed max-w-sm mx-auto font-serif italic">
                 Your family&apos;s AI knowledge keeper. Ask anything — stories,
-                recipes, skills, traditions — and the Griot will search your
+                recipes, skills, traditions — and Griot will search your
                 family&apos;s documented wisdom.
               </p>
               <div className="grid gap-2 max-w-sm mx-auto">
@@ -198,7 +198,7 @@ export function GriotChatArea({
               <div className="flex justify-start mb-4">
                 <div className="max-w-[80%] space-y-1.5">
                   <span className="text-[10px] font-serif font-medium text-muted-foreground ml-2 uppercase tracking-wider">
-                    The Griot is thinking...
+                    Griot is thinking...
                   </span>
                   <div className="rounded-2xl rounded-bl-sm bg-muted border border-border px-4 py-3">
                     <div className="flex items-center gap-1.5">
@@ -223,7 +223,7 @@ export function GriotChatArea({
               value={input}
               onChange={(e) => onInputChange(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Ask the Griot about your family's knowledge..."
+              placeholder="Ask Griot about your family's knowledge..."
               className="min-h-[44px] max-h-[120px] resize-none border-0 shadow-none focus-visible:ring-0 bg-transparent px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground placeholder:font-serif placeholder:italic font-serif leading-relaxed"
               rows={1}
             />
@@ -250,7 +250,7 @@ export function GriotChatArea({
             </div>
           </Card>
           <p className="text-[11px] text-muted-foreground text-center mt-3 font-serif italic px-4">
-            The Griot draws from your documented entries to answer questions.
+            Griot draws from your documented entries to answer questions.
             Responses are AI-generated — verify important details with family.
           </p>
         </div>

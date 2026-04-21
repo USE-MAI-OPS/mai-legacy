@@ -214,17 +214,17 @@ export function DashboardNav() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Our Family Dropdown */}
+          {/* Hubs Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-base font-medium transition-colors outline-none whitespace-nowrap font-serif",
-                pathname.startsWith("/family") || pathname.startsWith("/goals") || pathname.startsWith("/messages")
+                pathname.startsWith("/family") || pathname.startsWith("/goals")
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
             >
-              {activeHub?.type === "circle" ? "Our Circle" : "Our Family"} <ChevronDown className="h-3.5 w-3.5 opacity-50" />
+              Hubs <ChevronDown className="h-3.5 w-3.5 opacity-50" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">
               <DropdownMenuItem asChild>
@@ -237,30 +237,37 @@ export function DashboardNav() {
                 <Link href="/goals" className="w-full cursor-pointer">Goals</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/messages" className="w-full cursor-pointer">
-                  <Mail className="mr-2 h-4 w-4" />
-                  Messages
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
                 <Link href="/family#traditions" className="w-full cursor-pointer">Traditions</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* The Griot */}
+          {/* Griot */}
           <Link
             href="/griot"
             data-tour-step="nav-griot"
             className="ml-2 flex items-center gap-2 px-4 py-1.5 rounded-full text-base font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90 whitespace-nowrap font-serif shadow-sm"
           >
             <Sparkles className="h-4 w-4" />
-            The Griot
+            Griot
           </Link>
         </nav>
 
-        {/* Right side: notifications + user menu (hub switcher lives on /family) */}
+        {/* Right side: messages + notifications + user menu (hub switcher lives on /family) */}
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          <Link
+            href="/messages"
+            aria-label="Messages"
+            className={cn(
+              "p-2 rounded-full transition-colors",
+              pathname.startsWith("/messages")
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            )}
+          >
+            <Mail className="h-5 w-5" />
+          </Link>
+
           <NotificationBell />
 
           {/* User menu */}

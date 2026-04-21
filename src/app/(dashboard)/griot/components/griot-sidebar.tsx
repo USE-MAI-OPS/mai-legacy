@@ -87,7 +87,7 @@ function SidebarContent({
             <SparklesIcon className="h-3.5 w-3.5 text-primary" />
           </div>
           <h2 className="text-sm font-bold font-serif text-foreground">
-            The Griot
+            Griot
           </h2>
         </div>
         <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mt-2">

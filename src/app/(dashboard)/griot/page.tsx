@@ -314,7 +314,7 @@ export default function GriotPage() {
             role: "assistant",
             content:
               mock.content +
-              "\n\n---\n*Note: Connect Supabase and OpenRouter to enable the Griot.*",
+              "\n\n---\n*Note: Connect Supabase and OpenRouter to enable Griot.*",
             sources: mock.sources,
             timestamp: new Date(),
           },

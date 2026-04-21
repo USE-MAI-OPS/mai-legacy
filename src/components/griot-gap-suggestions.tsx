@@ -117,7 +117,7 @@ export function GriotGapSuggestions({
                     className="inline-flex items-center gap-1 text-xs font-medium px-3 py-1.5 rounded-full border border-border hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
                   >
                     <Sparkles className="h-3 w-3" />
-                    Ask the Griot
+                    Ask Griot
                   </button>
                 )}
               </div>

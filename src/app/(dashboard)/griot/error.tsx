@@ -23,7 +23,7 @@ export default function GriotError({ error, reset }: ErrorProps) {
       <div className="space-y-2">
         <h2 className="text-xl font-semibold">Griot is unavailable</h2>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Something went wrong loading the Griot. Your conversations are safe.
+          Something went wrong loading Griot. Your conversations are safe.
         </p>
       </div>
       <Button variant="outline" onClick={reset}>

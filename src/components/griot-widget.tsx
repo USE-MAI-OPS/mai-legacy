@@ -125,14 +125,14 @@ export function GriotWidget() {
             <div className="flex items-center gap-2 mb-2">
               <Sparkles className="h-5 w-5 text-orange-500" />
               <p className="text-base uppercase tracking-widest text-orange-600 dark:text-orange-400 font-semibold">
-                The Griot
+                Griot
               </p>
             </div>
             <h2 className="text-3xl md:text-4xl font-serif font-bold text-foreground leading-tight mb-3">
               Ask your family&apos;s AI anything.
             </h2>
             <p className="text-base text-muted-foreground mb-6 leading-relaxed">
-              The Griot knows your family&apos;s stories, recipes, skills, and
+              Griot knows your family&apos;s stories, recipes, skills, and
               wisdom. Ask a question and get an answer drawn from your collective
               knowledge.
             </p>
@@ -144,7 +144,7 @@ export function GriotWidget() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask the Griot something..."
+                placeholder="Ask Griot something..."
                 disabled={isStreaming || !familyId}
                 className="flex-1 rounded-full border border-border bg-background px-5 py-3 text-base placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-orange-400/40 focus:border-orange-300 disabled:opacity-50 transition-all"
               />

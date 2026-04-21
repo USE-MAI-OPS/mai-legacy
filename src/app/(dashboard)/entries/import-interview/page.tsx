@@ -299,7 +299,7 @@ function ImportInterviewContent() {
             {saveResult.entriesCreated === 1 ? "memory" : "memories"} saved
             {saveResult.profileUpdated &&
               ` and ${subjectName}'s profile updated`}
-            . {subjectName}&apos;s stories are now searchable by the Griot.
+            . {subjectName}&apos;s stories are now searchable by Griot.
           </p>
           <div className="flex items-center justify-center gap-3 mt-6">
             <Button variant="outline" asChild>

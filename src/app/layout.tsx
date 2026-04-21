@@ -23,7 +23,7 @@ const lora = Lora({
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://mailegacy.com";
 const defaultTitle = "MAI Legacy — The Family Knowledge Platform";
 const defaultDescription =
-  "Build your family's living knowledge base. Document stories, skills, recipes, and wisdom. Ask the Griot anything.";
+  "Build your family's living knowledge base. Document stories, skills, recipes, and wisdom. Ask Griot anything.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

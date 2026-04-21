@@ -7,7 +7,6 @@ import { ChatMessage } from "@/components/chat-message";
 import {
   AlertTriangleIcon,
   MicIcon,
-  PanelLeftOpenIcon,
   PlusIcon,
   SendHorizontalIcon,
   SparklesIcon,
@@ -37,11 +36,9 @@ interface GriotChatAreaProps {
   isEmpty: boolean;
   isDisconnected: boolean;
   isConnected: boolean;
-  showSidebarToggle: boolean;
   onInputChange: (value: string) => void;
   onSend: () => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
-  onToggleSidebar: () => void;
   onNewConversation: () => void;
   onSuggestionClick: (text: string) => void;
   onGapAskGriot: (prompt: string) => void;
@@ -57,11 +54,9 @@ export function GriotChatArea({
   isEmpty,
   isDisconnected,
   isConnected,
-  showSidebarToggle,
   onInputChange,
   onSend,
   onKeyDown,
-  onToggleSidebar,
   onNewConversation,
   onSuggestionClick,
   onGapAskGriot,
@@ -87,17 +82,6 @@ export function GriotChatArea({
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-background/80 backdrop-blur-md shrink-0">
         <div className="flex items-center gap-3">
-          {showSidebarToggle && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              onClick={onToggleSidebar}
-              title="Show sidebar"
-            >
-              <PanelLeftOpenIcon className="h-4 w-4" />
-            </Button>
-          )}
           <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 border border-primary/20">
             <SparklesIcon className="size-4 text-primary" />
           </div>

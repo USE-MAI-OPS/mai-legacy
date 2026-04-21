@@ -4,11 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
   CheckIcon,
   MessageSquareIcon,
   PencilIcon,
@@ -17,7 +12,6 @@ import {
   Trash2Icon,
   XIcon,
 } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import type { ConversationSummary } from "@/lib/griot";
 import { getConversationLabel } from "@/lib/griot";
@@ -27,8 +21,6 @@ interface GriotSidebarProps {
   activeConversationId: string;
   conversationsLoaded: boolean;
   isDisconnected: boolean;
-  mobileOpen: boolean;
-  onMobileOpenChange: (open: boolean) => void;
   onNewConversation: () => void;
   onSelectConversation: (convo: ConversationSummary) => void;
   onDeleteConversation: (e: React.MouseEvent, id: string) => void;
@@ -44,7 +36,7 @@ function SidebarContent({
   onSelectConversation,
   onDeleteConversation,
   onRenameConversation,
-}: Omit<GriotSidebarProps, "mobileOpen" | "onMobileOpenChange">) {
+}: GriotSidebarProps) {
   // Which conversation is currently being renamed inline.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
@@ -261,46 +253,12 @@ function SidebarContent({
 }
 
 export function GriotSidebar(props: GriotSidebarProps) {
-  const isMobile = useIsMobile();
-
-  if (isMobile) {
-    return (
-      <Sheet open={props.mobileOpen} onOpenChange={props.onMobileOpenChange}>
-        <SheetContent side="left" className="w-72 p-0">
-          <SheetTitle className="sr-only">Griot Conversations</SheetTitle>
-          <SidebarContent
-            conversations={props.conversations}
-            activeConversationId={props.activeConversationId}
-            conversationsLoaded={props.conversationsLoaded}
-            isDisconnected={props.isDisconnected}
-            onNewConversation={() => {
-              props.onNewConversation();
-              props.onMobileOpenChange(false);
-            }}
-            onSelectConversation={(convo) => {
-              props.onSelectConversation(convo);
-              props.onMobileOpenChange(false);
-            }}
-            onDeleteConversation={props.onDeleteConversation}
-            onRenameConversation={props.onRenameConversation}
-          />
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
+  // Desktop-only: the mobile toggle button was removed, so the sidebar simply
+  // hides on small screens. Mobile users focus on the chat; conversation
+  // history is accessible on desktop.
   return (
     <aside className="hidden md:flex w-72 shrink-0 flex-col border-r border-border bg-card h-full">
-      <SidebarContent
-        conversations={props.conversations}
-        activeConversationId={props.activeConversationId}
-        conversationsLoaded={props.conversationsLoaded}
-        isDisconnected={props.isDisconnected}
-        onNewConversation={props.onNewConversation}
-        onSelectConversation={props.onSelectConversation}
-        onDeleteConversation={props.onDeleteConversation}
-        onRenameConversation={props.onRenameConversation}
-      />
+      <SidebarContent {...props} />
     </aside>
   );
 }

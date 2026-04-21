@@ -524,7 +524,7 @@ export async function sendDripWelcome(opts: {
                 </tr>
                 <tr>
                   <td style="padding:10px 0;">
-                    <p style="margin:0;font-size:14px;color:#18181b;"><strong>3. Ask the Griot</strong></p>
+                    <p style="margin:0;font-size:14px;color:#18181b;"><strong>3. Ask Griot</strong></p>
                     <p style="margin:4px 0 0;font-size:13px;color:#71717a;line-height:1.5;">Your AI Griot learns from every memory. Once you have a few, ask it anything about your family's documented knowledge.</p>
                   </td>
                 </tr>
@@ -613,7 +613,7 @@ export async function sendDripDay3(opts: {
               <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;background-color:#f9f9f9;border-radius:8px;">
                 <tr>
                   <td style="padding:20px;">
-                    <p style="margin:0 0 6px;font-size:15px;font-weight:700;color:#18181b;">Ask the Griot</p>
+                    <p style="margin:0 0 6px;font-size:15px;font-weight:700;color:#18181b;">Ask Griot</p>
                     <p style="margin:0;font-size:14px;color:#52525b;line-height:1.5;">
                       Your AI Griot is trained only on <em>your</em> family's memories — nothing else.
                       Ask it "What did grandma teach about cooking?" or "What skills has our family passed down?"
@@ -698,7 +698,7 @@ export async function sendDripDay7(opts: {
                 <tr>
                   <td style="padding:0 0 0 16px;">
                     <p style="margin:0 0 4px;font-size:14px;color:#18181b;line-height:1.5;font-style:italic;">
-                      "My dad passed last year. I'm so grateful I had him record his stories in MAI Legacy. My kids can still ask the Griot questions about him."
+                      "My dad passed last year. I'm so grateful I had him record his stories in MAI Legacy. My kids can still ask Griot questions about him."
                     </p>
                     <p style="margin:0;font-size:12px;color:#71717a;">— Early MAI Legacy family</p>
                   </td>

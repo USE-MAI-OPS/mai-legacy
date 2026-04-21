@@ -8,7 +8,7 @@ export function BlogCta() {
         Start preserving your family stories
       </h3>
       <p className="mt-2 text-stone-600">
-        Upload memories, ask the Griot AI anything about your family, and export
+        Upload memories, ask Griot AI anything about your family, and export
         a Legacy Book you can hold in your hands.
       </p>
       <Link

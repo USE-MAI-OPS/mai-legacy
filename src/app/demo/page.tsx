@@ -303,7 +303,7 @@ export default function DemoPage() {
           </SectionContainer>
 
           {/* ---- STOP 4: Griot ---- */}
-          <SectionContainer id="griot" title="The Oracle: Meet The Griot" description="The Griot searches exclusively through your family's documented knowledge. No made-up answers. Only your own stories.">
+          <SectionContainer id="griot" title="The Oracle: Meet Griot" description="Griot searches exclusively through your family's documented knowledge. No made-up answers. Only your own stories.">
             <div className="rounded-3xl border border-border bg-card p-2 sm:p-8 shadow-xl relative overflow-hidden">
                <GriotDemo />
             </div>
@@ -447,7 +447,7 @@ function GriotDemo() {
             </div>
          </div>
          <div className="mt-6 border border-border bg-background rounded-full px-4 py-2.5 flex items-center text-muted-foreground text-sm">
-            Ask the Griot a question...
+            Ask Griot a question...
             <ArrowRight className="h-4 w-4 ml-auto" />
          </div>
       </div>

@@ -77,7 +77,7 @@ Create folders by person, era, or topic — whichever your family will actually 
 - Transcribe audio recordings so the words become searchable text
 - Use an AI-powered tool that can surface connections across hundreds of entries
 
-MAI Legacy does this automatically. Upload entries — text, photos, audio — and the Griot AI indexes everything so you can ask questions like "What did Grandma say about growing up in Detroit?" and get real answers drawn from your own family archive.`,
+MAI Legacy does this automatically. Upload entries — text, photos, audio — and Griot AI indexes everything so you can ask questions like "What did Grandma say about growing up in Detroit?" and get real answers drawn from your own family archive.`,
     },
     {
       heading: "Step 6: Share With Family",

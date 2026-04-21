@@ -117,7 +117,7 @@ export default function TermsPage() {
               available&quot; without warranties of any kind, either express or
               implied. We do not guarantee that the Service will be
               uninterrupted, error-free, or completely secure. AI-generated
-              responses from the Griot are based on user-contributed content and
+              responses from Griot are based on user-contributed content and
               may not always be accurate.
             </p>
           </Section>

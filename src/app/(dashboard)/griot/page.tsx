@@ -89,7 +89,6 @@ export default function GriotPage() {
   const [conversationsLoaded, setConversationsLoaded] = useState(false);
 
   // Sidebar
-  const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
 
   // Refs
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -464,14 +463,12 @@ export default function GriotPage() {
   return (
     <div className="relative h-[calc(100vh-3.5rem)] overflow-hidden bg-background text-foreground">
       <div className="flex h-full relative z-10">
-        {/* Left: Conversation sidebar */}
+        {/* Left: Conversation sidebar (desktop-only; no mobile toggle anymore) */}
         <GriotSidebar
           conversations={conversations}
           activeConversationId={conversationId}
           conversationsLoaded={conversationsLoaded}
           isDisconnected={isDisconnected}
-          mobileOpen={sidebarMobileOpen}
-          onMobileOpenChange={setSidebarMobileOpen}
           onNewConversation={handleNewConversation}
           onSelectConversation={handleSelectConversation}
           onDeleteConversation={handleDeleteConversation}
@@ -487,11 +484,9 @@ export default function GriotPage() {
           isEmpty={isEmpty}
           isDisconnected={isDisconnected}
           isConnected={isConnected === true}
-          showSidebarToggle={true}
           onInputChange={setInput}
           onSend={handleSend}
           onKeyDown={handleKeyDown}
-          onToggleSidebar={() => setSidebarMobileOpen(true)}
           onNewConversation={handleNewConversation}
           onSuggestionClick={handleSuggestionClick}
           onGapAskGriot={handleGapAskGriot}

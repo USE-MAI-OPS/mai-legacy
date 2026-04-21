@@ -74,7 +74,7 @@ Most options force you to choose between privacy and functionality. Group chats 
 
 **Private by default.** Your family data is never used for training, advertising, or anything outside your family. You control who sees what.
 
-**AI-powered search.** The Griot AI indexes every entry — text, photos, voice recordings — so you can ask natural questions like "What did Dad say about his first job?" and get real answers from your own family archive.
+**AI-powered search.** Griot AI indexes every entry — text, photos, voice recordings — so you can ask natural questions like "What did Dad say about his first job?" and get real answers from your own family archive.
 
 **Full export.** Generate a Legacy Book — a formatted PDF with cover page, family tree, and curated entries — that you can print and give as a gift. Your data is always yours.
 

@@ -75,7 +75,7 @@ export default function PrivacyPage() {
             <ul className="list-disc list-inside space-y-1 text-muted-foreground">
               <li>Provide, maintain, and improve the Service</li>
               <li>
-                Power the Griot AI by generating embeddings from your family&apos;s
+                Power Griot AI by generating embeddings from your family&apos;s
                 content to enable search and question-answering within your family
               </li>
               <li>Send you important service-related communications</li>

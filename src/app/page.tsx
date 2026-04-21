@@ -72,7 +72,7 @@ const FAQ_ITEMS = [
   { question: "Who can see my family's data?", answer: "Only members you explicitly invite to your family can view your entries. Each family is a private, isolated space. No one outside your family — including MAI Legacy staff — browses your content." },
   { question: "Is my data encrypted?", answer: "Yes. All data is encrypted in transit and at rest using industry-standard encryption. Your family's entries are stored securely with row-level security ensuring complete isolation between families." },
   { question: "Do you sell our family's data?", answer: "Never. Your family's stories, recipes, and wisdom will never be sold, shared with advertisers, or used for any purpose other than powering your own Griot. Your data is yours." },
-  { question: "How does the Griot AI work?", answer: "The Griot uses Retrieval-Augmented Generation (RAG). When you ask a question, it searches your family's entries for relevant information, then uses AI to compose a natural answer grounded in what your family has documented. It always cites its sources." },
+  { question: "How does Griot AI work?", answer: "Griot uses Retrieval-Augmented Generation (RAG). When you ask a question, it searches your family's entries for relevant information, then uses AI to compose a natural answer grounded in what your family has documented. It always cites its sources." },
   { question: "How do I invite family members?", answer: "From your family dashboard, you can send magic link invitations via email. When a family member clicks the link, they're automatically added to your family and can start contributing right away." },
 ];
 
@@ -112,7 +112,7 @@ export default function HomePage() {
             <span className="text-white italic font-medium">preserved forever.</span>
           </h1>
           <p className="mt-4 text-xl sm:text-2xl text-white/90 max-w-2xl mx-auto font-light leading-relaxed drop-shadow-lg">
-            Document your stories, skills, recipes, and lessons in a private sanctuary. Then ask the Griot — your family&apos;s AI — anything.
+            Document your stories, skills, recipes, and lessons in a private sanctuary. Then ask Griot — your family&apos;s AI — anything.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mt-10 justify-center w-full sm:w-auto">
             <Button size="lg" className="h-14 px-8 text-lg font-semibold rounded-full shadow-xl transition-transform hover:scale-105" asChild>
@@ -206,7 +206,7 @@ export default function HomePage() {
                   <h3 className="font-serif text-2xl font-bold">Living Knowledge Base</h3>
                 </div>
                 <p className="text-muted-foreground leading-relaxed mb-6">
-                  Document stories, recipes, skills, life lessons, and family connections in one beautifully searchable place. Every entry is indexed and ready for the Griot.
+                  Document stories, recipes, skills, life lessons, and family connections in one beautifully searchable place. Every entry is indexed and ready for Griot.
                 </p>
                 <span className="inline-flex items-center text-sm font-semibold text-primary transition-all group-hover:gap-2 gap-1">
                   Explore Entries <ArrowRight className="h-4 w-4" />
@@ -295,7 +295,7 @@ export default function HomePage() {
             {
               step: "3",
               icon: MessageCircle,
-              title: "Ask the Griot Anything",
+              title: "Ask Griot Anything",
               description: "Your family\u2019s AI searches everything you\u2019ve documented and answers questions with cited sources. Like having a family historian on call.",
             },
           ].map((item) => (
@@ -316,7 +316,7 @@ export default function HomePage() {
       </section>
 
       {/* ----------------------------------------------------------------- */}
-      {/* The Griot Section                                                 */}
+      {/* Griot Section                                                 */}
       {/* ----------------------------------------------------------------- */}
       <section className="bg-muted/30 py-24 px-6 border-y border-border/50">
         <div className="max-w-6xl mx-auto">
@@ -327,10 +327,10 @@ export default function HomePage() {
                 <Search className="h-4 w-4" /> Powered by AI
               </div>
               <h2 className="font-serif text-4xl sm:text-5xl font-bold mb-6 text-foreground">
-                Meet The Griot. <br/> Your family&apos;s brain.
+                Meet Griot. <br/> Your family&apos;s brain.
               </h2>
               <p className="text-lg text-muted-foreground leading-relaxed mb-8">
-                Stop losing recipes in group chats. The Griot uses the latest AI to search exclusively through the stories, recipes, and lessons your family has documented, providing direct answers with cited sources.
+                Stop losing recipes in group chats. Griot uses the latest AI to search exclusively through the stories, recipes, and lessons your family has documented, providing direct answers with cited sources.
               </p>
 
               <ul className="space-y-4 mb-10">

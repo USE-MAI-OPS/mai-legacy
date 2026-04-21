@@ -368,7 +368,7 @@ export async function POST(request: NextRequest) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
         "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
-        "X-Title": "MAI Legacy - The Griot",
+        "X-Title": "MAI Legacy - Griot",
       },
       body: JSON.stringify({
         model: OPENROUTER_MODEL,
@@ -383,7 +383,7 @@ export async function POST(request: NextRequest) {
       const errorBody = await llmResponse.text();
       console.error("[griot] OpenRouter error:", llmResponse.status, errorBody);
       return new Response(
-        JSON.stringify({ error: "Failed to get a response from the Griot" }),
+        JSON.stringify({ error: "Failed to get a response from Griot" }),
         { status: 502, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -562,7 +562,7 @@ function buildSystemPrompt(
   knowledgeContext: string,
   familyRoster: string
 ): string {
-  const basePrompt = `You are the Griot of the ${familyName} family -- a wise, warm, and deeply knowledgeable keeper of family history, stories, skills, recipes, and life lessons.
+  const basePrompt = `You are Griot, the AI knowledge keeper of the ${familyName} family -- a wise, warm, and deeply knowledgeable keeper of family history, stories, skills, recipes, and life lessons.
 
 Your role:
 - You speak with cultural depth, warmth, and a storytelling voice.

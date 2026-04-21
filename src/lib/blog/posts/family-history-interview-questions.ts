@@ -122,7 +122,7 @@ This list gives you 47 questions organized by who you are interviewing and what 
 - Tag by person, era, and topic so family members can browse
 - Share with relatives while the stories are fresh
 
-MAI Legacy is built for this exact workflow. Upload your interview recordings, transcripts, and photos. The Griot AI indexes everything and lets your family search, explore, and ask questions about your shared history. When you are ready, export it all as a Legacy Book — a formatted family history you can print and give as a gift.`,
+MAI Legacy is built for this exact workflow. Upload your interview recordings, transcripts, and photos. Griot AI indexes everything and lets your family search, explore, and ask questions about your shared history. When you are ready, export it all as a Legacy Book — a formatted family history you can print and give as a gift.`,
     },
   ],
 };

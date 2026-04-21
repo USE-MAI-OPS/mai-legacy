@@ -235,7 +235,10 @@ export async function POST(request: NextRequest) {
     const userMessage = sanitize(query, piiCtx);
 
     // ------------------------------------------------------------------
-    // Call OpenRouter with JSON-object mode.
+    // Call OpenRouter. We intentionally do NOT send response_format here:
+    // MiniMax M2.5 on OpenRouter returned empty content when that param
+    // was present (silent reject). Strict prompting + brace extraction
+    // handles the JSON contract instead.
     // ------------------------------------------------------------------
     const llmResponse = await fetch(OPENROUTER_API_URL, {
       method: "POST",
@@ -253,7 +256,6 @@ export async function POST(request: NextRequest) {
         ],
         temperature: 0.2,
         max_tokens: 768,
-        response_format: { type: "json_object" },
       }),
     });
 
@@ -265,12 +267,23 @@ export async function POST(request: NextRequest) {
 
     const llmJson = (await llmResponse.json()) as {
       choices?: { message?: { content?: string } }[];
+      error?: { message?: string };
     };
+
+    if (llmJson.error?.message) {
+      console.error("[griot-tree-view] OpenRouter returned error payload:", llmJson.error);
+      return json({ error: "The Griot couldn't answer right now" }, 502);
+    }
+
     const raw = llmJson.choices?.[0]?.message?.content ?? "";
+    if (!raw.trim()) {
+      console.error("[griot-tree-view] Empty content from model:", JSON.stringify(llmJson).slice(0, 500));
+      return json({ error: "The Griot didn't say anything — try rephrasing your question" }, 502);
+    }
 
     const parsed = parseModelJson(raw);
     if (!parsed) {
-      console.error("[griot-tree-view] Failed to parse model JSON:", raw);
+      console.error("[griot-tree-view] Failed to parse model JSON. Raw content:", raw.slice(0, 500));
       return json({ error: "The Griot's reply wasn't valid JSON" }, 502);
     }
 
@@ -364,17 +377,30 @@ function buildSystemPrompt(args: {
   return `You are the Griot's layout advisor for the MAI Tree (a visual people-network).
 Your job: turn the user's question into a structured view of the tree.
 
-You must respond with a single JSON object of the exact shape below. No prose outside JSON.
+OUTPUT CONTRACT — read carefully:
+- You MUST respond with a single JSON object and NOTHING ELSE.
+- No leading text. No trailing text. No markdown code fences. No explanation before or after.
+- The very first character of your reply must be \`{\` and the very last must be \`}\`.
+- If you cannot comply, still emit the empty-match JSON shape below — never refuse with prose.
+
+Required shape:
 
 {
   "viewSpec": {
-    "visibleIds": string[] | null,    // tree-member IDs to keep sharp. null = no filter.
-    "dimIds":     string[],           // tree-member IDs to fade (optional, default []).
+    "visibleIds": string[] | null,
+    "dimIds":     string[],
     "clusters":   null | [ { "label": string, "memberIds": string[] } ],
-    "pillLabel":  string | null       // short phrase shown above the canvas (e.g. "People you went to school with"). null = no pill.
+    "pillLabel":  string | null
   },
-  "narration": string                 // 1-2 warm sentences explaining the result.
+  "narration": string
 }
+
+Field meanings:
+- visibleIds: tree-member IDs to keep sharp. null = no filter (all nodes normal).
+- dimIds: tree-member IDs to fade (default [] when no dimming needed).
+- clusters: null unless the user asked for a split view comparing 2+ groups.
+- pillLabel: short phrase shown above the canvas (e.g. "People you went to school with"), or null.
+- narration: 1-2 warm sentences explaining the result.
 
 Rules:
 - You may ONLY use IDs from this allowed set:

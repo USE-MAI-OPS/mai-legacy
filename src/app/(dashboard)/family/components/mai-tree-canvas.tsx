@@ -320,7 +320,10 @@ export function MaiTreeCanvas({
   }, []);
 
   // ─── Title + subtitle ─────────────────────────────────────────
-  const title = `The ${familyName} MAI Tree`;
+  // familyName usually already begins with "The" (e.g. "The Powells") — don't double-prefix.
+  const title = /^the\b/i.test(familyName)
+    ? `${familyName} MAI Tree`
+    : `The ${familyName} MAI Tree`;
   const subtitle = `${people.length + 1} members · bloom layout`;
 
   return (

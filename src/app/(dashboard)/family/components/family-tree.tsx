@@ -57,6 +57,29 @@ function currentYear(): number {
   return new Date().getFullYear();
 }
 
+// Derive a friendly "first name" from a full display name. Handles honorifics
+// (Dr. Helen → "Dr. Helen", Ms. Henderson → "Ms. H.", Pastor James → "Pastor J.")
+// so bubbles under honorific names don't truncate to just "Dr." / "Ms." / "Pastor".
+const HONORIFICS = new Set(["dr.", "dr", "ms.", "ms", "mrs.", "mrs", "mr.", "mr", "pastor", "rev.", "rev", "sr.", "jr.", "prof.", "prof"]);
+
+function deriveFirstName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 0) return fullName;
+  const first = parts[0];
+  const isHonorific = HONORIFICS.has(first.toLowerCase());
+  if (isHonorific && parts.length >= 2) {
+    // "Pastor James" → "Pastor J." (keep the honorific, abbreviate the given name)
+    // "Dr. Helen Okafor" → "Dr. Helen" (keep both tokens; the given name is already short)
+    const given = parts[1];
+    if (parts.length >= 3) {
+      // 3+ tokens — "Pastor James Taylor" → "Pastor J."
+      return `${first} ${given[0]?.toUpperCase() ?? ""}.`;
+    }
+    return `${first} ${given}`;
+  }
+  return first;
+}
+
 // Transform a DB row → the design's Person shape.
 function rowToPerson(
   row: TreeNodeData,
@@ -71,7 +94,7 @@ function rowToPerson(
 
   const age = row.birth_year ? Math.max(0, currentYear() - row.birth_year) : null;
   const name = row.display_name;
-  const first = name.split(" ")[0] ?? name;
+  const first = deriveFirstName(name);
 
   return {
     id: row.id,
@@ -134,7 +157,7 @@ export function FamilyTree({
       meOut = {
         id: "me-placeholder",
         name: currentUserDisplayName ?? "You",
-        first: (currentUserDisplayName ?? "You").split(" ")[0] ?? "You",
+        first: deriveFirstName(currentUserDisplayName ?? "You"),
         relationship: "You",
         group: "me",
         side: null,

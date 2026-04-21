@@ -1,80 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { requireTier } from "@/lib/tier-check";
+import { createAdminClient } from "@/lib/supabase/server";
+import { getFamilyContext } from "@/lib/get-family-context";
 import { generateLegacyBookPdf, type LegacyBookEntry } from "@/lib/legacy-book-pdf";
 
 /**
  * POST /api/legacy-book
  *
- * Generate a Legacy Book PDF from a family's entries.
+ * Generate a Legacy Book PDF from the viewer's entries (aggregated across
+ * every hub they belong to).
  *
  * Body:
- *   - familyId: string
- *   - entryIds?: string[]   — subset to include; omit for all entries
- *
- * Auth: authenticated family member on roots or legacy tier.
+ *   - familyId: string        — active hub; used only for the PDF title/filename
+ *   - entryIds?: string[]     — subset to include; omit for all accessible entries
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { familyId, entryIds } = body as { familyId?: string; entryIds?: string[] };
+    const { familyId: activeFamilyId, entryIds } = body as { familyId?: string; entryIds?: string[] };
 
-    if (!familyId) {
-      return NextResponse.json({ error: "Missing required field: familyId" }, { status: 400 });
-    }
-
-    // Auth
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const ctx = await getFamilyContext();
+    if (!ctx) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { familyIds, connectedUserIdsAll } = ctx;
+    const headerFamilyId = activeFamilyId && familyIds.includes(activeFamilyId)
+      ? activeFamilyId
+      : ctx.familyId;
+
     const admin = createAdminClient();
 
-    // Verify membership
-    const { data: membership, error: memberError } = await admin
-      .from("family_members")
-      .select("role, display_name")
-      .eq("family_id", familyId)
-      .eq("user_id", user.id)
-      .single();
-
-    if (memberError || !membership) {
-      return NextResponse.json({ error: "Family not found" }, { status: 404 });
-    }
-
-    // Tier gate — requires at least "roots"
-    const { allowed, currentTier } = await requireTier(familyId, "roots");
-    if (!allowed) {
-      return NextResponse.json(
-        {
-          error: "Legacy Book export requires a paid plan",
-          currentTier,
-          requiredTier: "roots",
-        },
-        { status: 403 }
-      );
-    }
-
-    // Fetch family name
+    // Fetch family name from the hub the viewer is on — used only for the
+    // book title and filename. Entries themselves span every hub.
     const { data: family } = await admin
       .from("families")
       .select("name")
-      .eq("id", familyId)
+      .eq("id", headerFamilyId)
       .single();
 
     const familyName = family?.name ?? "Our Family";
 
-    // Fetch entries
+    // Fetch entries across every hub the viewer belongs to, scoped to authors
+    // in their combined connection chain.
     let query = admin
       .from("entries")
       .select("id, title, content, type, tags, created_at, author_id")
-      .eq("family_id", familyId)
+      .in("family_id", familyIds)
+      .in("author_id", connectedUserIdsAll)
       .order("created_at", { ascending: true });
 
     if (entryIds && entryIds.length > 0) {
@@ -92,17 +64,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "No entries found" }, { status: 404 });
     }
 
-    // Resolve author names
+    // Resolve author names across every hub that surfaced a row.
     const authorIds = [...new Set(entries.map((e) => e.author_id).filter(Boolean))];
     const authorMap: Record<string, string> = {};
     if (authorIds.length > 0) {
       const { data: members } = await admin
         .from("family_members")
         .select("user_id, display_name")
-        .eq("family_id", familyId)
+        .in("family_id", familyIds)
         .in("user_id", authorIds);
       for (const m of members ?? []) {
-        if (m.user_id && m.display_name) authorMap[m.user_id] = m.display_name;
+        if (m.user_id && m.display_name && !authorMap[m.user_id]) {
+          authorMap[m.user_id] = m.display_name;
+        }
       }
     }
 

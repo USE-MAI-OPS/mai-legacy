@@ -6,18 +6,26 @@ import {
 } from "@/lib/active-family-server";
 import {
   getConnectionChain,
+  getConnectionChainMulti,
   type ConnectionChain,
 } from "@/lib/connection-chain";
 
 export type FamilyContext = {
   userId: string;
+  /** Active hub (family or circle) — use for hub-scoped pages like /family */
   familyId: string;
+  /** All hubs the user belongs to — use for aggregated pages (dashboard, feed, etc.) */
+  familyIds: string[];
   supabase: Awaited<ReturnType<typeof createClient>>;
-  /** Auth user UUIDs of connected family members (for filtering entries) */
+  /** Auth user UUIDs of connected members in the active hub */
   connectedUserIds: string[];
-  /** Tree member UUIDs of connected members (for filtering tree view) */
+  /** Tree member UUIDs of connected members in the active hub */
   connectedTreeMemberIds: string[];
-  /** Whether the current user has a linked tree node with parents */
+  /** Auth user UUIDs of connected members across ALL hubs (for aggregated pages) */
+  connectedUserIdsAll: string[];
+  /** Tree member UUIDs of connected members across ALL hubs */
+  connectedTreeMemberIdsAll: string[];
+  /** Whether the current user has a linked tree node in the active hub */
   hasTreeNode: boolean;
 };
 
@@ -46,57 +54,46 @@ export const getFamilyContext = cache(async (): Promise<FamilyContext | null> =>
 
   const sb = supabase;
 
+  // Fetch ALL memberships in one query — needed for both active-hub resolution
+  // and the familyIds[] aggregate used by non-hub-scoped pages.
+  const { data: memberships } = await sb
+    .from("family_members")
+    .select("family_id, joined_at")
+    .eq("user_id", user.id)
+    .order("joined_at", { ascending: true });
+
+  if (!memberships || memberships.length === 0) return null;
+
+  const familyIds = memberships.map((m) => m.family_id as string);
+
+  // Resolve active family: cookie if valid, else first joined.
   let familyId: string | null = null;
-
-  // If we have a cookie, verify the user belongs to that family
-  if (cookieFamilyId) {
-    const { data: validMember } = await sb
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .eq("family_id", cookieFamilyId)
-      .maybeSingle();
-
-    if (validMember) {
-      familyId = cookieFamilyId;
-    }
-  }
-
-  // Cookie missing or invalid — fall back to first family
-  if (!familyId) {
-    const { data: firstMember } = await sb
-      .from("family_members")
-      .select("family_id, joined_at")
-      .eq("user_id", user.id)
-      .order("joined_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    if (!firstMember) return null;
-
-    familyId = firstMember.family_id;
-
-    // Set cookie for next time
+  if (cookieFamilyId && familyIds.includes(cookieFamilyId)) {
+    familyId = cookieFamilyId;
+  } else {
+    familyId = familyIds[0];
     try {
-      await setActiveFamilyCookie(familyId!);
+      await setActiveFamilyCookie(familyId);
     } catch {
       // Server component context — can't always set cookies, that's fine
     }
   }
 
-  // Compute connection chain
-  const chain: ConnectionChain = await getConnectionChain(
-    sb,
-    familyId!,
-    user.id
-  );
+  // Compute connection chains (active-hub + unioned across all hubs) in parallel
+  const [chain, chainAll]: [ConnectionChain, ConnectionChain] = await Promise.all([
+    getConnectionChain(sb, familyId, user.id),
+    getConnectionChainMulti(sb, familyIds, user.id),
+  ]);
 
   return {
     userId: user.id,
-    familyId: familyId!,
+    familyId,
+    familyIds,
     supabase,
     connectedUserIds: chain.connectedUserIds,
     connectedTreeMemberIds: chain.connectedTreeMemberIds,
+    connectedUserIdsAll: chainAll.connectedUserIds,
+    connectedTreeMemberIdsAll: chainAll.connectedTreeMemberIds,
     hasTreeNode: chain.hasTreeNode,
   };
 });

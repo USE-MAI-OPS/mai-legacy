@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { getConnectionChain } from "@/lib/connection-chain";
+import { getFamilyContext } from "@/lib/get-family-context";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
-import { getActiveFamilyIdFromCookie } from "@/lib/active-family-server";
 import type { EntryType } from "@/types/database";
 
 export const dynamic = "force-dynamic";
@@ -98,16 +96,14 @@ const VALID_ENTRY_TYPES = new Set(["story", "recipe", "skill", "lesson", "connec
 // GET /api/feed?cursor=<iso>&limit=<n>&type=<csv>&q=<search>
 // ---------------------------------------------------------------------------
 export async function GET(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getFamilyContext();
+  if (!ctx) {
+    return NextResponse.json({ items: [], nextCursor: null });
   }
+  const { userId, familyIds, supabase, connectedUserIdsAll } = ctx;
 
   // Rate limit
-  const rl = rateLimit(`feed:${user.id}`, 30);
+  const rl = rateLimit(`feed:${userId}`, 30);
   if (rl.limited) return rateLimitResponse(rl.retryAfterMs);
 
   // Parse query params
@@ -126,75 +122,29 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Resolve family
-  const cookieFamilyId = await getActiveFamilyIdFromCookie();
   const sb = supabase;
 
-  let familyId = cookieFamilyId;
-  if (!familyId) {
-    const { data: firstMember } = await sb
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
-    if (!firstMember) {
-      return NextResponse.json({ items: [], nextCursor: null });
-    }
-    familyId = firstMember.family_id;
+  // Fetch entries across every hub the viewer belongs to, from connected authors.
+  // Aggregation replaces the previous hub/cross split — everything the viewer
+  // has access to shows up regardless of which hub is "active".
+  let entryQuery = sb
+    .from("entries")
+    .select(
+      "id, title, content, type, tags, structured_data, is_mature, created_at, author_id, family_id"
+    )
+    .in("family_id", familyIds)
+    .in("author_id", connectedUserIdsAll)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (cursor) entryQuery = entryQuery.lt("created_at", cursor);
+  if (filterTypes.length > 0) entryQuery = entryQuery.in("type", filterTypes as EntryType[]);
+  if (searchQuery) {
+    const qStr = sanitizeIlike(searchQuery);
+    entryQuery = entryQuery.or(`title.ilike.%${qStr}%,content.ilike.%${qStr}%`);
   }
 
-  // Connection chain for privacy filtering
-  const chain = await getConnectionChain(sb, familyId!, user.id);
-
-  // --- Fetch entries ---
-  // Two streams merged (matches /entries page logic):
-  //   1. Hub-native: anything posted to the active hub by a connected member.
-  //   2. Cross-hub: the viewer's own entries from other hubs where
-  //      share_across_hubs = true (default). This is what makes an
-  //      author's memories show up in every circle/family they belong to.
-  const buildEntryQuery = (variant: "hub" | "cross") => {
-    let q = sb
-      .from("entries")
-      .select(
-        "id, title, content, type, tags, structured_data, is_mature, created_at, author_id, family_id"
-      )
-      .order("created_at", { ascending: false })
-      .limit(limit);
-
-    if (variant === "hub") {
-      q = q.eq("family_id", familyId).in("author_id", chain.connectedUserIds);
-    } else {
-      q = q
-        .eq("author_id", user.id)
-        .eq("share_across_hubs", true)
-        .neq("family_id", familyId);
-    }
-
-    if (cursor) q = q.lt("created_at", cursor);
-    if (filterTypes.length > 0) q = q.in("type", filterTypes as EntryType[]);
-    if (searchQuery) {
-      const qStr = sanitizeIlike(searchQuery);
-      q = q.or(`title.ilike.%${qStr}%,content.ilike.%${qStr}%`);
-    }
-    return q;
-  };
-
-  const [hubResult, crossResult] = await Promise.all([
-    buildEntryQuery("hub"),
-    buildEntryQuery("cross"),
-  ]);
-
-  const entriesError = hubResult.error;
-  const seen = new Set<string>();
-  const mergedEntries: NonNullable<typeof hubResult.data> = [];
-  for (const e of [...(hubResult.data ?? []), ...(crossResult.data ?? [])]) {
-    if (seen.has(e.id)) continue;
-    seen.add(e.id);
-    mergedEntries.push(e);
-  }
-  mergedEntries.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-  const entries = mergedEntries.slice(0, limit);
+  const { data: entries, error: entriesError } = await entryQuery;
   if (entriesError) {
     console.error("Feed entries error:", entriesError);
     return NextResponse.json(
@@ -203,7 +153,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Batch-resolve author names
+  // Batch-resolve author names across every hub
   const authorIds = [
     ...new Set(
       (entries ?? []).map((e: { author_id: string }) => e.author_id).filter(Boolean)
@@ -214,7 +164,7 @@ export async function GET(req: NextRequest) {
     const { data: members } = await sb
       .from("family_members")
       .select("user_id, display_name")
-      .eq("family_id", familyId)
+      .in("family_id", familyIds)
       .in("user_id", authorIds);
     for (const m of members ?? []) {
       if (m.user_id && m.display_name) authorMap[m.user_id] = m.display_name;
@@ -285,7 +235,7 @@ export async function GET(req: NextRequest) {
     let eventQuery = sb
       .from("family_events")
       .select("id, title, description, event_date, location, created_at")
-      .eq("family_id", familyId)
+      .in("family_id", familyIds)
       .gte("event_date", new Date().toISOString())
       .order("event_date", { ascending: true })
       .limit(3);
@@ -315,13 +265,13 @@ export async function GET(req: NextRequest) {
   // --- Generate content prompts (only on first page, skip when filtering/searching) ---
   const promptItems: FeedPrompt[] = [];
   if (!cursor && filterTypes.length === 0 && !searchQuery) {
-    // Check what entry types the family is missing
+    // Prompts surface when NO hub the user belongs to has covered the type yet.
     const types = ["recipe", "skill", "story", "lesson"];
     for (const t of types) {
       const { count } = await sb
         .from("entries")
         .select("id", { count: "exact", head: true })
-        .eq("family_id", familyId)
+        .in("family_id", familyIds)
         .eq("type", t as EntryType);
 
       if ((count ?? 0) === 0) {
@@ -372,11 +322,11 @@ export async function GET(req: NextRequest) {
       const { data: discoveries } = await sb
         .from("griot_discoveries")
         .select("id, discovery_type, title, body, related_entries, related_members, created_at")
-        .eq("family_id", familyId)
+        .in("family_id", familyIds)
         .order("created_at", { ascending: false })
         .limit(10);
 
-      const visibleUserIds = new Set(chain.connectedUserIds);
+      const visibleUserIds = new Set(connectedUserIdsAll);
       const filtered = (discoveries ?? []).filter((d: { related_members: string[] | null }) => {
         const refs = d.related_members ?? [];
         if (refs.length === 0) return true;
@@ -405,9 +355,9 @@ export async function GET(req: NextRequest) {
       let goalQuery = sb
         .from("family_goals")
         .select("id, title, description, target_count, current_count, status, due_date, created_at")
-        .eq("family_id", familyId)
+        .in("family_id", familyIds)
         .eq("status", "active")
-        .in("created_by", chain.connectedUserIds)
+        .in("created_by", connectedUserIdsAll)
         .order("created_at", { ascending: false })
         .limit(3);
 
@@ -444,12 +394,12 @@ export async function GET(req: NextRequest) {
       const { data: gaps } = await sb
         .from("griot_discoveries")
         .select("id, title, body, related_members, created_at")
-        .eq("family_id", familyId)
+        .in("family_id", familyIds)
         .eq("discovery_type", "missing_piece")
         .order("created_at", { ascending: false })
         .limit(6);
 
-      const visibleUserIds = new Set(chain.connectedUserIds);
+      const visibleUserIds = new Set(connectedUserIdsAll);
       const filteredGaps = (gaps ?? []).filter((g: { related_members: string[] | null }) => {
         const refs = g.related_members ?? [];
         if (refs.length === 0) return true;

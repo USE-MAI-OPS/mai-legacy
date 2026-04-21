@@ -4,11 +4,18 @@ import { revalidatePath } from "next/cache";
 import { getFamilyContext } from "@/lib/get-family-context";
 import type { GoalStatus } from "@/types/database";
 
-// Wrapper that returns the shape the rest of this file expects
+// Wrapper that returns the shape the rest of this file expects.
+// familyId = active hub (where new goals are created).
+// familyIds = every hub the user belongs to (for aggregated reads + auth checks).
 async function getUserFamily() {
   const ctx = await getFamilyContext();
   if (!ctx) return null;
-  return { userId: ctx.userId, familyId: ctx.familyId, sb: ctx.supabase };
+  return {
+    userId: ctx.userId,
+    familyId: ctx.familyId,
+    familyIds: ctx.familyIds,
+    sb: ctx.supabase,
+  };
 }
 
 export interface FamilyGoal {
@@ -35,7 +42,7 @@ export async function getGoals(): Promise<FamilyGoal[]> {
     const { data, error } = await ctx.sb
       .from("family_goals")
       .select("*")
-      .eq("family_id", ctx.familyId)
+      .in("family_id", ctx.familyIds)
       .order("status", { ascending: true })
       .order("created_at", { ascending: false });
 
@@ -111,7 +118,7 @@ export async function updateGoal(
       .from("family_goals")
       .update(updates)
       .eq("id", id)
-      .eq("family_id", ctx.familyId);
+      .in("family_id", ctx.familyIds);
 
     if (error) return { error: error.message };
 
@@ -133,7 +140,7 @@ export async function incrementProgress(id: string) {
       .from("family_goals")
       .select("current_count, target_count, status")
       .eq("id", id)
-      .eq("family_id", ctx.familyId)
+      .in("family_id", ctx.familyIds)
       .single();
 
     if (fetchError || !goal) return { error: "Goal not found" };
@@ -156,7 +163,7 @@ export async function incrementProgress(id: string) {
       .from("family_goals")
       .update(updates)
       .eq("id", id)
-      .eq("family_id", ctx.familyId);
+      .in("family_id", ctx.familyIds);
 
     if (error) return { error: error.message };
 
@@ -178,7 +185,7 @@ export async function completeGoal(id: string) {
       .from("family_goals")
       .select("target_count")
       .eq("id", id)
-      .eq("family_id", ctx.familyId)
+      .in("family_id", ctx.familyIds)
       .single();
 
     if (fetchError || !goal) return { error: "Goal not found" };
@@ -191,7 +198,7 @@ export async function completeGoal(id: string) {
         current_count: goal.target_count,
       })
       .eq("id", id)
-      .eq("family_id", ctx.familyId);
+      .in("family_id", ctx.familyIds);
 
     if (error) return { error: error.message };
 

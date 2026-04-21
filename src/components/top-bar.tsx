@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "@/components/notification-bell";
-import { HubSwitcher } from "@/components/hub-switcher";
 
 export function TopBar() {
   const [visible, setVisible] = useState(true);
@@ -34,8 +33,10 @@ export function TopBar() {
         visible ? "translate-y-0" : "-translate-y-full"
       )}
     >
-      {/* Left: Hub switcher */}
-      <HubSwitcher compact />
+      {/* Left: Brand */}
+      <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
+        <span className="text-lg font-bold">MAI</span>
+      </Link>
 
       {/* Right: Search + Notifications */}
       <div className="flex items-center gap-1 shrink-0">

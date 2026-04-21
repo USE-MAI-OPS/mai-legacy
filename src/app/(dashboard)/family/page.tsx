@@ -11,6 +11,7 @@ import { TraditionsSection } from "@/components/traditions-section";
 import { FamilyCoverPhoto } from "./components/family-cover-photo";
 import { HubContentWrapper } from "./hub-content-wrapper";
 import { CreateHubButton } from "./components/create-hub-button";
+import { HubSwitcher } from "@/components/hub-switcher";
 import { getHubLabel } from "@/lib/hub-labels";
 import type { RsvpStatus, EntryType, HubType } from "@/types/database";
 
@@ -216,6 +217,12 @@ export default async function FamilyPage() {
   return (
     <HubContentWrapper>
     <div className="p-6 space-y-8 max-w-6xl mx-auto">
+      {/* Hub switcher — lives here so non-hub pages stay stable while the
+          user still has a clear way to jump between family and circles. */}
+      <div className="flex justify-end">
+        <HubSwitcher />
+      </div>
+
       {/* Storytelling Header Block */}
       <section className="relative rounded-2xl overflow-hidden mb-12 shadow-sm border bg-[#2C4835] dark:bg-green-950">
         <div className="grid grid-cols-1 md:grid-cols-2">

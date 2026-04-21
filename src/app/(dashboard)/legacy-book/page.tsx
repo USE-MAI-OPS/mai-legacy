@@ -1,7 +1,7 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getFamilyContext } from "@/lib/get-family-context";
-import { requireTier } from "@/lib/tier-check";
-import { LegacyBookClient } from "./legacy-book-client";
+import { LegacyBookClient, LegacyBookSkeleton } from "./legacy-book-client";
 import type { EntryType } from "@/types/database";
 
 // ---------------------------------------------------------------------------
@@ -18,78 +18,78 @@ export interface LegacyBookEntryItem {
 }
 
 // ---------------------------------------------------------------------------
-// Server component — fetches data and passes to client
+// Entry fetcher — wrapped in its own component so Suspense can isolate the
+// slow part. Switching hubs triggers router.refresh() on every page; keeping
+// the fetch behind Suspense means the UI stays interactive instead of
+// freezing while the refresh re-runs this query.
 // ---------------------------------------------------------------------------
-export default async function LegacyBookPage() {
-  try {
-    const ctx = await getFamilyContext();
-
-    if (!ctx) {
-      redirect("/onboarding");
-    }
-
-    const { familyId, supabase } = ctx;
-
-    // Tier check
-    const { allowed, currentTier } = await requireTier(familyId, "roots");
-
-    if (!allowed) {
-      return (
-        <LegacyBookClient
-          familyId={familyId}
-          familyName="Your Family"
-          entries={[]}
-          isLocked
-          currentTier={currentTier}
-        />
-      );
-    }
-
-    // Fetch family name
-    const { data: family } = await supabase
-      .from("families")
-      .select("name")
-      .eq("id", familyId)
-      .single();
-
-    const familyName = family?.name ?? "Our Family";
-
-    // Fetch entries
-    const { data: rawEntries } = await supabase
-      .from("entries")
-      .select("id, title, content, type, tags, created_at, author_id")
-      .eq("family_id", familyId)
-      .order("created_at", { ascending: false });
-
-    const entries: LegacyBookEntryItem[] = (rawEntries ?? []).map((e) => ({
-      id: e.id,
-      title: e.title ?? "Untitled",
-      content: e.content ?? "",
-      type: e.type ?? "general",
-      tags: e.tags ?? [],
-      authorName: "Family Member",
-      date: e.created_at,
-    }));
-
-    return (
-      <LegacyBookClient
-        familyId={familyId}
-        familyName={familyName}
-        entries={entries}
-        isLocked={false}
-        currentTier={currentTier}
-      />
-    );
-  } catch (err) {
-    console.error("[LegacyBookPage]", err);
-    return (
-      <LegacyBookClient
-        familyId=""
-        familyName="Your Family"
-        entries={[]}
-        isLocked
-        currentTier="seedling"
-      />
-    );
+async function LegacyBookData() {
+  const ctx = await getFamilyContext();
+  if (!ctx) {
+    redirect("/onboarding");
   }
+
+  const { familyId, familyIds, supabase, connectedUserIdsAll } = ctx;
+
+  // Family name from the active hub (for header / filename only).
+  const { data: family } = await supabase
+    .from("families")
+    .select("name")
+    .eq("id", familyId)
+    .single();
+
+  const familyName = family?.name ?? "Our Family";
+
+  // Entries aggregated across every hub the viewer belongs to, from any
+  // author in their combined connection chain. Author names come from the
+  // union of family_members rows so cross-hub authors resolve correctly.
+  const [entriesResult, membersResult] = await Promise.all([
+    supabase
+      .from("entries")
+      .select("id, title, content, type, tags, created_at, author_id, family_id")
+      .in("family_id", familyIds)
+      .in("author_id", connectedUserIdsAll)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("family_members")
+      .select("user_id, display_name")
+      .in("family_id", familyIds)
+      .in("user_id", connectedUserIdsAll),
+  ]);
+
+  const authorMap: Record<string, string> = {};
+  for (const m of membersResult.data ?? []) {
+    if (m.user_id && m.display_name && !authorMap[m.user_id]) {
+      authorMap[m.user_id] = m.display_name;
+    }
+  }
+
+  const entries: LegacyBookEntryItem[] = (entriesResult.data ?? []).map((e) => ({
+    id: e.id,
+    title: e.title ?? "Untitled",
+    content: e.content ?? "",
+    type: e.type ?? "general",
+    tags: e.tags ?? [],
+    authorName: authorMap[e.author_id] ?? "Family Member",
+    date: e.created_at,
+  }));
+
+  return (
+    <LegacyBookClient
+      familyId={familyId}
+      familyName={familyName}
+      entries={entries}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Server component — Legacy Book is ungated; anyone with a hub can generate.
+// ---------------------------------------------------------------------------
+export default function LegacyBookPage() {
+  return (
+    <Suspense fallback={<LegacyBookSkeleton />}>
+      <LegacyBookData />
+    </Suspense>
+  );
 }

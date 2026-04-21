@@ -17,6 +17,8 @@ interface FamilyContextValue {
   hubs: HubInfo[];
   activeHubId: string | null;
   activeHub: HubInfo | null;
+  /** All hub IDs the user belongs to — use for aggregated queries */
+  allHubIds: string[];
   switchHub: (hubId: string) => void;
   loading: boolean;
   /** True while the server is re-rendering after a hub switch */
@@ -27,6 +29,7 @@ const FamilyContext = createContext<FamilyContextValue>({
   hubs: [],
   activeHubId: null,
   activeHub: null,
+  allHubIds: [],
   switchHub: () => {},
   loading: true,
   isHubSwitching: false,
@@ -103,9 +106,10 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
   );
 
   const activeHub = hubs.find((h) => h.id === activeHubId) ?? null;
+  const allHubIds = hubs.map((h) => h.id);
 
   return (
-    <FamilyContext.Provider value={{ hubs, activeHubId, activeHub, switchHub, loading, isHubSwitching: isPending }}>
+    <FamilyContext.Provider value={{ hubs, activeHubId, activeHub, allHubIds, switchHub, loading, isHubSwitching: isPending }}>
       {children}
     </FamilyContext.Provider>
   );

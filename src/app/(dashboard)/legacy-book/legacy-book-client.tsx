@@ -2,12 +2,10 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { BookOpen, Download, Lock, CheckSquare, Square, Loader2, Sparkles } from "lucide-react";
+import { BookOpen, Download, CheckSquare, Square, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import type { LegacyBookEntryItem } from "./page";
-import type { PlanTierKey } from "@/lib/stripe";
 
 // ---------------------------------------------------------------------------
 // Entry type display helpers
@@ -45,51 +43,25 @@ interface LegacyBookClientProps {
   familyId: string;
   familyName: string;
   entries: LegacyBookEntryItem[];
-  isLocked: boolean;
-  currentTier: PlanTierKey;
 }
 
 // ---------------------------------------------------------------------------
-// Paywall screen
+// Skeleton shown while entries fetch — keeps the UI interactive when the
+// server component re-runs during a hub switch.
 // ---------------------------------------------------------------------------
-function PaywallScreen({ currentTier }: { currentTier: PlanTierKey }) {
+export function LegacyBookSkeleton() {
   return (
-    <div className="container mx-auto max-w-3xl py-16 px-4 text-center">
-      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-100 mb-6">
-        <Lock className="h-8 w-8 text-amber-600" />
+    <div className="container mx-auto max-w-4xl py-8 px-4">
+      <div className="flex items-center gap-2 mb-8">
+        <BookOpen className="h-6 w-6 text-amber-600" />
+        <div className="h-8 w-48 bg-muted rounded animate-pulse" />
       </div>
-      <h1 className="text-3xl font-bold mb-3">Legacy Book</h1>
-      <p className="text-muted-foreground text-lg mb-2">
-        Turn your family&apos;s stories into a beautiful keepsake PDF book.
-      </p>
-      <p className="text-muted-foreground mb-8">
-        Available on the <strong>Roots</strong> plan and above.
-        {currentTier === "seedling" && " You&apos;re currently on the free Seedling plan."}
-      </p>
-
-      <div className="bg-card border rounded-xl p-8 mb-8 text-left space-y-4 max-w-md mx-auto">
-        <h2 className="font-semibold text-lg text-center mb-2">What&apos;s included</h2>
-        {[
-          "Beautifully formatted cover page",
-          "Auto-generated table of contents",
-          "One page per entry with full text",
-          "Author attribution and dates",
-          "Entry tags and categories",
-          "Print-ready A4 PDF format",
-        ].map((feature) => (
-          <div key={feature} className="flex items-start gap-3">
-            <Sparkles className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-            <span className="text-sm">{feature}</span>
-          </div>
+      <div className="h-24 bg-muted rounded-xl mb-8 animate-pulse" />
+      <div className="space-y-2">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-20 bg-muted rounded-lg animate-pulse" />
         ))}
       </div>
-
-      <Button asChild size="lg" className="gap-2">
-        <Link href="/pricing">
-          Upgrade to Roots — $9/mo
-        </Link>
-      </Button>
-      <p className="text-xs text-muted-foreground mt-4">Cancel anytime. No commitment.</p>
     </div>
   );
 }
@@ -101,8 +73,6 @@ export function LegacyBookClient({
   familyId,
   familyName,
   entries,
-  isLocked,
-  currentTier,
 }: LegacyBookClientProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     () => new Set(entries.map((e) => e.id))
@@ -116,10 +86,6 @@ export function LegacyBookClient({
     () => entries.filter((e) => selectedIds.has(e.id)),
     [entries, selectedIds]
   );
-
-  if (isLocked) {
-    return <PaywallScreen currentTier={currentTier} />;
-  }
 
   function toggleEntry(id: string) {
     setSelectedIds((prev) => {

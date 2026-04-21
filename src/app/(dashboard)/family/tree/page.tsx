@@ -61,20 +61,20 @@ async function getTreeData() {
   try {
     const ctx = await getFamilyContext();
     if (!ctx) return null;
-    const { userId, familyId, supabase, connectedTreeMemberIds } = ctx;
+    const { userId, familyId, familyIds, supabase, connectedTreeMemberIdsAll } = ctx;
 
     const sb = supabase;
 
     const fullSelect =
-      "id, display_name, relationship_label, parent_id, parent2_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url, position_x, position_y, connection_type, group_type, side, tags, occupation, location, bio";
+      "id, display_name, relationship_label, parent_id, parent2_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url, position_x, position_y, connection_type, group_type, side, tags, occupation, location, bio, family_id";
 
-    // Same visibility relaxation we applied in commit c79243b — include members
-    // the user added themselves so friends/work/school (no DNA edges) aren't
-    // stripped by the connection-chain filter.
+    // Visibility: tree members the viewer is connected to in ANY hub, plus
+    // anyone they added themselves (friends/work/school nodes that have no
+    // DNA edges would otherwise be filtered out).
     const idOrAddedByFilter =
-      connectedTreeMemberIds.length === 0
+      connectedTreeMemberIdsAll.length === 0
         ? `added_by.eq.${userId}`
-        : `id.in.(${connectedTreeMemberIds.map((id) => `"${id}"`).join(",")}),added_by.eq.${userId}`;
+        : `id.in.(${connectedTreeMemberIdsAll.map((id) => `"${id}"`).join(",")}),added_by.eq.${userId}`;
 
     const [familyResult, treeMembersResult, realMembersResult, savedViewsResult] =
       await Promise.all([
@@ -82,18 +82,18 @@ async function getTreeData() {
         sb
           .from("family_tree_members")
           .select(fullSelect)
-          .eq("family_id", familyId)
+          .in("family_id", familyIds)
           .or(idOrAddedByFilter)
           .order("created_at", { ascending: true }),
         sb
           .from("family_members")
           .select("id, display_name, user_id, occupation, country, state")
-          .eq("family_id", familyId)
+          .in("family_id", familyIds)
           .order("joined_at", { ascending: true }),
         sb
           .from("tree_views")
           .select("id, label, icon, filters, split")
-          .eq("family_id", familyId)
+          .in("family_id", familyIds)
           .eq("user_id", userId)
           .order("created_at", { ascending: true }),
       ]);
@@ -103,8 +103,8 @@ async function getTreeData() {
     const savedViews = (savedViewsResult.data as SavedViewRow[] | null) ?? [];
     const currentUserMember = realMembers.find((m) => m.user_id === userId);
 
-    // Count entries per author_id once, for tree members linked to real accounts.
-    // Splits into stories vs recipes using entries.type.
+    // Count entries per author_id across every hub the viewer belongs to,
+    // for tree members linked to real accounts. Splits into stories vs recipes.
     const linkedUserIds = treeMembersData
       .map((m) => {
         const fm = realMembers.find((r) => r.id === m.linked_member_id);
@@ -118,7 +118,7 @@ async function getTreeData() {
       const { data: entries } = await sb
         .from("entries")
         .select("author_id, type")
-        .eq("family_id", familyId)
+        .in("family_id", familyIds)
         .in("author_id", linkedUserIds);
       for (const e of entries ?? []) {
         const uid = (e as { author_id: string }).author_id;
@@ -193,7 +193,7 @@ export default async function FamilyTreePage() {
           <div>
             <h1 className="text-lg font-semibold flex items-center gap-2">
               <TreePine className="h-5 w-5 text-primary" />
-              {data.familyName} MAI Tree
+              MAI Tree
             </h1>
             <p className="text-xs text-muted-foreground">
               {memberCount} member{memberCount !== 1 ? "s" : ""} in tree

@@ -29,7 +29,7 @@ import { GriotGapSuggestions } from "@/components/griot-gap-suggestions";
 // Mock fallback data
 // ---------------------------------------------------------------------------
 const MOCK_STATS = [
-  { label: "Family Members", value: 5, icon: Users, href: "/family/settings" },
+  { label: "Connections", value: 5, icon: Users, href: "/family" },
   { label: "Griot Chats", value: 8, icon: MessageCircle, href: "/griot" },
   { label: "Memories", value: 24, icon: BookOpen, href: "/entries" },
   { label: "Traditions", value: 3, icon: Heart, href: "/family" },
@@ -120,11 +120,11 @@ async function getDashboardData() {
   try {
     const ctx = await getFamilyContext();
     if (!ctx) return null;
-    const { userId, familyId, supabase, connectedUserIds } = ctx;
+    const { userId, familyId, familyIds, supabase, connectedUserIdsAll } = ctx;
 
     const sb = supabase;
 
-    // Get display name for this family
+    // Get display name for this family (active hub — used for the welcome header)
     const { data: memberInfo } = await sb
       .from("family_members")
       .select("display_name, role")
@@ -138,6 +138,7 @@ async function getDashboardData() {
       entriesCount,
       griotCount,
       membersCount,
+      treeMembersCount,
       eventsCount,
       traditionsCount,
       recentEntriesResult,
@@ -149,18 +150,22 @@ async function getDashboardData() {
       carouselStories,
       carouselSkills,
     ] = await Promise.all([
-      sb.from("entries").select("id", { count: "exact", head: true }).eq("family_id", familyId).in("author_id", connectedUserIds),
-      sb.from("griot_conversations").select("id", { count: "exact", head: true }).eq("family_id", familyId),
-      sb.from("family_members").select("id", { count: "exact", head: true }).eq("family_id", familyId),
-      sb.from("family_events").select("id", { count: "exact", head: true }).eq("family_id", familyId),
-      sb.from("family_traditions").select("id", { count: "exact", head: true }).eq("family_id", familyId),
+      sb.from("entries").select("id", { count: "exact", head: true }).in("family_id", familyIds).in("author_id", connectedUserIdsAll),
+      sb.from("griot_conversations").select("id", { count: "exact", head: true }).in("family_id", familyIds),
+      // Distinct account-holder members across every hub the user belongs to.
+      sb.from("family_members").select("user_id").in("family_id", familyIds),
+      // Tree members across every hub — for the Connections aggregate.
+      sb.from("family_tree_members").select("id").in("family_id", familyIds),
+      sb.from("family_events").select("id", { count: "exact", head: true }).in("family_id", familyIds),
+      sb.from("family_traditions").select("id", { count: "exact", head: true }).in("family_id", familyIds),
       sb
         .from("entries")
         .select("id, title, type, created_at, author_id")
-        .eq("family_id", familyId)
-        .in("author_id", connectedUserIds)
+        .in("family_id", familyIds)
+        .in("author_id", connectedUserIdsAll)
         .order("created_at", { ascending: false })
         .limit(4),
+      // Family-members grid stays hub-scoped: shows the active hub's tree.
       sb
         .from("family_tree_members")
         .select("id, display_name, relationship_label, avatar_url")
@@ -170,12 +175,12 @@ async function getDashboardData() {
       sb
         .from("entries")
         .select("type, author_id")
-        .eq("family_id", familyId)
-        .in("author_id", connectedUserIds),
+        .in("family_id", familyIds)
+        .in("author_id", connectedUserIdsAll),
       sb
         .from("family_goals")
         .select("id, title, target_count, current_count, status")
-        .eq("family_id", familyId)
+        .in("family_id", familyIds)
         .eq("status", "active")
         .order("created_at", { ascending: false })
         .limit(3),
@@ -183,37 +188,46 @@ async function getDashboardData() {
       sb
         .from("entries")
         .select("id, title, content, structured_data")
-        .eq("family_id", familyId)
+        .in("family_id", familyIds)
         .eq("type", "recipe")
-        .in("author_id", connectedUserIds)
+        .in("author_id", connectedUserIdsAll)
         .order("created_at", { ascending: false })
         .limit(10),
       sb
         .from("entries")
         .select("id, title, content, structured_data")
-        .eq("family_id", familyId)
+        .in("family_id", familyIds)
         .eq("type", "story")
-        .in("author_id", connectedUserIds)
+        .in("author_id", connectedUserIdsAll)
         .order("created_at", { ascending: false })
         .limit(10),
       sb
         .from("entries")
         .select("id, title, content, structured_data")
-        .eq("family_id", familyId)
+        .in("family_id", familyIds)
         .eq("type", "skill")
-        .in("author_id", connectedUserIds)
+        .in("author_id", connectedUserIdsAll)
         .order("created_at", { ascending: false })
         .limit(10),
     ]);
 
-    // Build author name map from connected family members
+    // Aggregate "Connections" count: distinct account-holder user_ids (across every
+    // hub the user is in) UNION distinct family_tree_members (same scope). A tree
+    // member without a linked user_id still counts as one connection.
+    const distinctMemberUserIds = new Set<string>();
+    for (const m of membersCount.data ?? []) {
+      if (m.user_id) distinctMemberUserIds.add(m.user_id as string);
+    }
+    const connectionsCount =
+      distinctMemberUserIds.size + (treeMembersCount.count ?? 0);
+
+    // Build author name map from connected family members across every hub
     const authorNameMap: Record<string, string> = {};
-    // Fetch a lookup of user_id → display_name for connected members
     const { data: memberLookup } = await sb
       .from("family_members")
       .select("user_id, display_name")
-      .eq("family_id", familyId)
-      .in("user_id", connectedUserIds);
+      .in("family_id", familyIds)
+      .in("user_id", connectedUserIdsAll);
     for (const m of memberLookup ?? []) {
       if (m.user_id && m.display_name) authorNameMap[m.user_id] = m.display_name;
     }
@@ -273,7 +287,7 @@ async function getDashboardData() {
       stats: {
         entries: entriesCount.count ?? 0,
         griotChats: griotCount.count ?? 0,
-        members: membersCount.count ?? 0,
+        connections: connectionsCount,
         events: eventsCount.count ?? 0,
         traditions: traditionsCount.count ?? 0,
       },
@@ -315,7 +329,7 @@ export default async function DashboardPage() {
   // Resolve 6 stats
   const stats = data
     ? [
-        { label: "Family Members", value: data.stats.members, icon: Users, href: "/family/settings" },
+        { label: "Connections", value: data.stats.connections, icon: Users, href: "/family" },
         { label: "Griot Chats", value: data.stats.griotChats, icon: MessageCircle, href: "/griot" },
         { label: "Memories", value: data.stats.entries, icon: BookOpen, href: "/entries" },
         { label: "Traditions", value: data.stats.traditions, icon: Heart, href: "/family" },

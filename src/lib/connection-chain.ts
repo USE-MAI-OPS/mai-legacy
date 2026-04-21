@@ -119,3 +119,39 @@ export async function getConnectionChain(
     };
   }
 }
+
+/**
+ * Multi-hub connection chain — unions the per-hub chains across all families
+ * the user belongs to. Used for pages that show aggregated data across every
+ * hub (dashboard, feed, memories, legacy book, griot) so switching the active
+ * hub doesn't change what the user sees.
+ */
+export async function getConnectionChainMulti(
+  supabase: SupabaseClient,
+  familyIds: string[],
+  userId: string
+): Promise<ConnectionChain> {
+  if (familyIds.length === 0) {
+    return { connectedUserIds: [userId], connectedTreeMemberIds: [], hasTreeNode: false };
+  }
+
+  const chains = await Promise.all(
+    familyIds.map((fid) => getConnectionChain(supabase, fid, userId))
+  );
+
+  const userSet = new Set<string>([userId]);
+  const treeSet = new Set<string>();
+  let anyHasTreeNode = false;
+
+  for (const chain of chains) {
+    for (const uid of chain.connectedUserIds) userSet.add(uid);
+    for (const tid of chain.connectedTreeMemberIds) treeSet.add(tid);
+    if (chain.hasTreeNode) anyHasTreeNode = true;
+  }
+
+  return {
+    connectedUserIds: Array.from(userSet),
+    connectedTreeMemberIds: Array.from(treeSet),
+    hasTreeNode: anyHasTreeNode,
+  };
+}

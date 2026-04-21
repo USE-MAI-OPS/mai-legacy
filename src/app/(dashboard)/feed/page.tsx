@@ -28,11 +28,11 @@ async function getInitialFeed(): Promise<{
         stats: { entries: 0, members: 0, traditions: 0, goals: 0, events: 0 },
         familyName: "",
       };
-    const { familyId, supabase, connectedUserIds } = ctx;
+    const { familyId, familyIds, supabase, connectedUserIdsAll } = ctx;
 
     const sb = supabase;
 
-    // Fetch family name
+    // Fetch active-hub name (header context — stays hub-scoped)
     let familyName = "";
     try {
       const { data: family } = await sb
@@ -43,23 +43,27 @@ async function getInitialFeed(): Promise<{
       familyName = family?.name ?? "";
     } catch { /* ignore */ }
 
-    // Fetch family members for the strip
+    // Family strip = distinct members across every hub the user belongs to
     const { data: memberData } = await sb
       .from("family_members")
-      .select("id, user_id, display_name, avatar_url")
-      .eq("family_id", familyId)
+      .select("id, user_id, display_name, avatar_url, joined_at")
+      .in("family_id", familyIds)
       .order("joined_at", { ascending: true });
 
-    const members: FamilyMember[] = (memberData ?? []).map(
-      (m: { id: string; user_id: string; display_name: string; avatar_url: string | null }) => ({
+    const seenMemberUsers = new Set<string>();
+    const members: FamilyMember[] = [];
+    for (const m of memberData ?? []) {
+      if (!m.user_id || seenMemberUsers.has(m.user_id)) continue;
+      seenMemberUsers.add(m.user_id);
+      members.push({
         id: m.id,
         user_id: m.user_id,
         display_name: m.display_name,
         avatar_url: m.avatar_url,
-      })
-    );
+      });
+    }
 
-    // Fetch stats in parallel
+    // Fetch stats in parallel — aggregated across all hubs
     const safeCount = async (query: PromiseLike<{ count: number | null }>): Promise<number> => {
       try {
         const r = await query;
@@ -71,16 +75,16 @@ async function getInitialFeed(): Promise<{
 
     const [entriesCount, traditionsCount, goalsCount, eventsCount] = await Promise.all([
       safeCount(
-        sb.from("entries").select("id", { count: "exact", head: true }).eq("family_id", familyId)
+        sb.from("entries").select("id", { count: "exact", head: true }).in("family_id", familyIds)
       ),
       safeCount(
-        sb.from("family_traditions").select("id", { count: "exact", head: true }).eq("family_id", familyId)
+        sb.from("family_traditions").select("id", { count: "exact", head: true }).in("family_id", familyIds)
       ),
       safeCount(
-        sb.from("family_goals").select("id", { count: "exact", head: true }).eq("family_id", familyId).eq("status", "active")
+        sb.from("family_goals").select("id", { count: "exact", head: true }).in("family_id", familyIds).eq("status", "active")
       ),
       safeCount(
-        sb.from("family_events").select("id", { count: "exact", head: true }).eq("family_id", familyId)
+        sb.from("family_events").select("id", { count: "exact", head: true }).in("family_id", familyIds)
       ),
     ]);
 
@@ -92,18 +96,18 @@ async function getInitialFeed(): Promise<{
       events: eventsCount,
     };
 
-    // Fetch recent entries
+    // Fetch recent entries across every hub
     const { data: entries } = await sb
       .from("entries")
       .select(
         "id, title, content, type, tags, structured_data, is_mature, created_at, author_id"
       )
-      .eq("family_id", familyId)
-      .in("author_id", connectedUserIds)
+      .in("family_id", familyIds)
+      .in("author_id", connectedUserIdsAll)
       .order("created_at", { ascending: false })
       .limit(20);
 
-    // Resolve author names
+    // Resolve author names across hubs
     const authorIds = [
       ...new Set(
         (entries ?? []).map((e: { author_id: string }) => e.author_id).filter(Boolean)
@@ -114,7 +118,7 @@ async function getInitialFeed(): Promise<{
       const { data: authorMembers } = await sb
         .from("family_members")
         .select("user_id, display_name")
-        .eq("family_id", familyId)
+        .in("family_id", familyIds)
         .in("user_id", authorIds);
       for (const m of authorMembers ?? []) {
         if (m.user_id && m.display_name) authorMap[m.user_id] = m.display_name;
@@ -175,12 +179,12 @@ async function getInitialFeed(): Promise<{
       } catch { /* table may not exist yet */ }
     }
 
-    // Upcoming events
+    // Upcoming events — across every hub
     const eventItems: FeedEvent[] = [];
     const { data: events } = await sb
       .from("family_events")
       .select("id, title, description, event_date, location, created_at")
-      .eq("family_id", familyId)
+      .in("family_id", familyIds)
       .gte("event_date", new Date().toISOString())
       .order("event_date", { ascending: true })
       .limit(3);
@@ -197,14 +201,14 @@ async function getInitialFeed(): Promise<{
       });
     }
 
-    // Content prompts
+    // Content prompts — based on aggregated coverage across all hubs
     const promptItems: FeedPrompt[] = [];
     const types = ["recipe", "skill", "story", "lesson"];
     for (const t of types) {
       const { count } = await sb
         .from("entries")
         .select("id", { count: "exact", head: true })
-        .eq("family_id", familyId)
+        .in("family_id", familyIds)
         .eq("type", t as EntryType);
 
       if ((count ?? 0) === 0) {
@@ -243,13 +247,13 @@ async function getInitialFeed(): Promise<{
       }
     }
 
-    // Fetch Griot discoveries
+    // Fetch Griot discoveries — across every hub
     const discoveryItems: FeedDiscovery[] = [];
     try {
       const { data: discoveries } = await sb
         .from("griot_discoveries")
         .select("id, discovery_type, title, body, related_entries, related_members, created_at")
-        .eq("family_id", familyId)
+        .in("family_id", familyIds)
         .order("created_at", { ascending: false })
         .limit(5);
 
@@ -267,13 +271,13 @@ async function getInitialFeed(): Promise<{
       }
     } catch { /* table may not exist yet */ }
 
-    // Fetch active goals
+    // Fetch active goals — across every hub
     const goalItems: FeedGoal[] = [];
     try {
       const { data: goals } = await sb
         .from("family_goals")
         .select("id, title, description, target_count, current_count, status, due_date, created_at")
-        .eq("family_id", familyId)
+        .in("family_id", familyIds)
         .eq("status", "active")
         .order("created_at", { ascending: false })
         .limit(3);
@@ -293,13 +297,13 @@ async function getInitialFeed(): Promise<{
       }
     } catch { /* table may not exist yet */ }
 
-    // Fetch griot insight cards (missing_piece type)
+    // Fetch griot insight cards (missing_piece type) — across every hub
     const insightItems: FeedGriotInsight[] = [];
     try {
       const { data: gaps } = await sb
         .from("griot_discoveries")
         .select("id, title, body, related_members, created_at")
-        .eq("family_id", familyId)
+        .in("family_id", familyIds)
         .eq("discovery_type", "missing_piece")
         .order("created_at", { ascending: false })
         .limit(2);

@@ -28,7 +28,6 @@ import { createClient } from "@/lib/supabase/client";
 import { getActiveFamilyIdClient } from "@/lib/active-family";
 import { useTourOptional } from "@/components/tour/tour-provider";
 import { NotificationBell } from "@/components/notification-bell";
-import { HubSwitcher } from "@/components/hub-switcher";
 import { useFamilyContext } from "@/components/providers/family-provider";
 
 interface UserInfo {
@@ -210,7 +209,6 @@ export function DashboardNav() {
                 <Link href="/legacy-book" className="w-full cursor-pointer flex items-center gap-2">
                   <BookMarked className="h-4 w-4 text-amber-600" />
                   Legacy Book
-                  <span className="ml-auto text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full font-medium">Pro</span>
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -261,10 +259,8 @@ export function DashboardNav() {
           </Link>
         </nav>
 
-        {/* Right side: family name + notifications + user menu */}
+        {/* Right side: notifications + user menu (hub switcher lives on /family) */}
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
-          <HubSwitcher />
-
           <NotificationBell />
 
           {/* User menu */}

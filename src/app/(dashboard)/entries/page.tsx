@@ -98,80 +98,42 @@ async function getEntries(): Promise<EntryListItem[]> {
   try {
     const ctx = await getFamilyContext();
     if (!ctx) return MOCK_ENTRIES;
-    const { userId, familyId, supabase, connectedUserIds } = ctx;
+    const { familyIds, supabase, connectedUserIdsAll } = ctx;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sb = supabase;
 
-    // Two streams merged:
-    //   1. Hub-native entries — anything posted to the currently active
-    //      family/circle by a connected member.
-    //   2. Cross-hub entries of my own — my entries from other hubs
-    //      where I've kept `share_across_hubs = true` (the default).
-    //      This is what makes "my memories show up in any circle or
-    //      family I'm in" work without duplicating rows.
-    const [hubEntriesResult, myCrossHubResult] = await Promise.all([
-      sb
-        .from("entries")
-        .select("id, title, content, type, tags, structured_data, is_mature, created_at, author_id, family_id")
-        .eq("family_id", familyId)
-        .in("author_id", connectedUserIds)
-        .order("created_at", { ascending: false }),
-      sb
-        .from("entries")
-        .select("id, title, content, type, tags, structured_data, is_mature, created_at, author_id, family_id")
-        .eq("author_id", userId)
-        .eq("share_across_hubs", true)
-        .neq("family_id", familyId)
-        .order("created_at", { ascending: false }),
-    ]);
+    // Aggregated: every entry across every hub the user belongs to, from any
+    // author in their connection chain. Switching the active hub no longer
+    // changes what the user sees here.
+    const { data: entriesData, error } = await sb
+      .from("entries")
+      .select("id, title, content, type, tags, structured_data, is_mature, created_at, author_id, family_id")
+      .in("family_id", familyIds)
+      .in("author_id", connectedUserIdsAll)
+      .order("created_at", { ascending: false });
 
-    if (hubEntriesResult.error) {
-      return MOCK_ENTRIES;
-    }
+    if (error) return MOCK_ENTRIES;
+    const entries = entriesData ?? [];
+    if (entries.length === 0) return [];
 
-    // Merge + dedupe by id (user's own entries scoped to the current
-    // hub also appear in hubEntries — skip them in the cross-hub pass).
-    const seen = new Set<string>();
-    const merged: any[] = [];
-    for (const e of [
-      ...(hubEntriesResult.data ?? []),
-      ...(myCrossHubResult.data ?? []),
-    ]) {
-      if (seen.has(e.id)) continue;
-      seen.add(e.id);
-      merged.push(e);
-    }
-
-    // Sort by created_at DESC across both streams
-    merged.sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
-
-    if (merged.length === 0) {
-      return [];
-    }
-
-    // Batch-resolve author display names. For cross-hub entries the
-    // author's display_name may live in a *different* family_members
-    // row (one per hub), so query across all relevant family_ids.
-    const authorIds = [...new Set(merged.map((e) => e.author_id).filter(Boolean))];
-    const familyIds = [...new Set(merged.map((e) => e.family_id).filter(Boolean))];
+    // Batch-resolve author display names across every hub that surfaced a row.
+    const authorIds = [...new Set(entries.map((e) => e.author_id).filter(Boolean))];
+    const entryFamilyIds = [...new Set(entries.map((e) => e.family_id).filter(Boolean))];
     const authorMap: Record<string, string> = {};
-    if (authorIds.length > 0 && familyIds.length > 0) {
+    if (authorIds.length > 0 && entryFamilyIds.length > 0) {
       const { data: members } = await sb
         .from("family_members")
         .select("user_id, display_name, family_id")
-        .in("family_id", familyIds)
+        .in("family_id", entryFamilyIds)
         .in("user_id", authorIds);
       for (const m of members ?? []) {
-        // First sighting wins — prefer current-hub display_name over
-        // another hub's, since hubEntries came first in the merge.
         if (m.user_id && m.display_name && !authorMap[m.user_id]) {
           authorMap[m.user_id] = m.display_name;
         }
       }
     }
 
-    return merged.map((entry: any) => ({
+    return entries.map((entry) => ({
       id: entry.id,
       title: entry.title,
       content: entry.content,

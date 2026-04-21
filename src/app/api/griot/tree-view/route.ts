@@ -82,16 +82,21 @@ export async function POST(request: NextRequest) {
     // Fetch the roster scoped to connected members. Include group_type
     // so the model knows the existing sidebar-preset affiliations.
     // ------------------------------------------------------------------
-    let treeQuery = supabase
+    // Visibility: DNA-connected members OR anyone the user added. Matches
+    // the same relaxation in /family/tree/page.tsx — friends/work/school
+    // have no DNA edges so connection-chain alone misses them.
+    const idFilter =
+      chain.connectedTreeMemberIds.length === 0
+        ? `added_by.eq.${user.id}`
+        : `id.in.(${chain.connectedTreeMemberIds.map((id) => `"${id}"`).join(",")}),added_by.eq.${user.id}`;
+
+    const treeQuery = supabase
       .from("family_tree_members")
       .select(
         "id, display_name, birth_year, relationship_label, group_type, is_deceased, linked_member_id"
       )
-      .eq("family_id", familyId);
-
-    if (chain.connectedTreeMemberIds.length > 0) {
-      treeQuery = treeQuery.in("id", chain.connectedTreeMemberIds);
-    }
+      .eq("family_id", familyId)
+      .or(idFilter);
 
     const { data: rosterRows, error: rosterError } = await treeQuery;
     if (rosterError) {

@@ -50,15 +50,24 @@ async function getTreeData() {
     const fullSelect = "id, display_name, relationship_label, parent_id, parent2_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url, position_x, position_y, connection_type, group_type";
     const basicSelect = "id, display_name, relationship_label, parent_id, parent2_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url";
 
-    let treeQuery = sb
+    // Visibility rule for the MAI Tree: show members connected to the user
+    // via DNA / spouse edges (connectedTreeMemberIds) PLUS anyone the user
+    // added themselves — friends, coworkers, schoolmates have no DNA edges
+    // so the connection chain alone misses them. Own-adds carry over.
+    const buildIdOrAddedByFilter = () => {
+      if (connectedTreeMemberIds.length === 0) {
+        return `added_by.eq.${userId}`;
+      }
+      const quoted = connectedTreeMemberIds.map((id) => `"${id}"`).join(",");
+      return `id.in.(${quoted}),added_by.eq.${userId}`;
+    };
+
+    const treeQuery = sb
       .from("family_tree_members")
       .select(fullSelect)
       .eq("family_id", familyId)
+      .or(buildIdOrAddedByFilter())
       .order("created_at", { ascending: true });
-
-    if (connectedTreeMemberIds.length > 0) {
-      treeQuery = treeQuery.in("id", connectedTreeMemberIds);
-    }
 
     const [familyResult, treeMembersResult, realMembersResult] =
       await Promise.all([
@@ -74,14 +83,12 @@ async function getTreeData() {
     // If position columns don't exist yet, retry without them
     let treeMembersData: TreeMemberRow[] | null = treeMembersResult.data as TreeMemberRow[] | null;
     if (treeMembersResult.error?.message?.includes("does not exist")) {
-      let fallbackQuery = sb
+      const fallbackQuery = sb
         .from("family_tree_members")
         .select(basicSelect)
         .eq("family_id", familyId)
+        .or(buildIdOrAddedByFilter())
         .order("created_at", { ascending: true });
-      if (connectedTreeMemberIds.length > 0) {
-        fallbackQuery = fallbackQuery.in("id", connectedTreeMemberIds);
-      }
       const fallback = await fallbackQuery;
       treeMembersData = (fallback.data as TreeMemberRow[] | null);
     }

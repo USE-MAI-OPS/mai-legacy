@@ -9,6 +9,8 @@ import { FamilyTree } from "../components/family-tree";
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+import type { TreeGroupType } from "@/types/database";
+
 interface TreeMemberRow {
   id: string;
   display_name: string;
@@ -23,6 +25,7 @@ interface TreeMemberRow {
   position_x: number | null;
   position_y: number | null;
   connection_type: string | null;
+  group_type: TreeGroupType | null;
 }
 
 interface RealMemberRow {
@@ -42,8 +45,9 @@ async function getTreeData() {
 
     const sb = supabase;
 
-    // Build tree query — try with position columns, fall back without
-    const fullSelect = "id, display_name, relationship_label, parent_id, parent2_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url, position_x, position_y, connection_type";
+    // Build tree query — try with all optional columns, fall back to basics
+    // if a newer column doesn't exist yet in this environment.
+    const fullSelect = "id, display_name, relationship_label, parent_id, parent2_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url, position_x, position_y, connection_type, group_type";
     const basicSelect = "id, display_name, relationship_label, parent_id, parent2_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url";
 
     let treeQuery = sb

@@ -58,6 +58,7 @@ export async function addTreeMember(data: {
   isDeceased: boolean;
   linkedMemberId?: string | null;
   connectionType?: string | null;
+  groupType?: string | null;
 }) {
   const supabase = await createClient();
   const {
@@ -66,6 +67,7 @@ export async function addTreeMember(data: {
   if (!user) return { success: false, error: "Not authenticated" };
 
   const linkedId = clean(data.linkedMemberId ?? null);
+  const groupType = clean(data.groupType ?? null);
 
   const { data: inserted, error } = await supabase
     .from("family_tree_members")
@@ -80,6 +82,7 @@ export async function addTreeMember(data: {
       is_deceased: data.isDeceased,
       added_by: user.id,
       ...(data.connectionType ? { connection_type: data.connectionType } : {}),
+      ...(groupType ? { group_type: groupType as import("@/types/database").TreeGroupType } : {}),
       ...(linkedId ? { linked_member_id: linkedId } : {}),
     })
     .select("id")
@@ -112,6 +115,7 @@ export async function updateTreeMember(
     isDeceased: boolean;
     linkedMemberId: string | null;
     connectionType: string | null;
+    groupType: string | null;
   }>
 ) {
   const supabase = await createClient();
@@ -130,6 +134,7 @@ export async function updateTreeMember(
     is_deceased?: boolean;
     linked_member_id?: string | null;
     connection_type?: string | null;
+    group_type?: import("@/types/database").TreeGroupType | null;
   } = {};
   if (data.displayName !== undefined) update.display_name = capitalizeName(data.displayName);
   if (data.relationshipLabel !== undefined)
@@ -143,6 +148,8 @@ export async function updateTreeMember(
     update.linked_member_id = clean(data.linkedMemberId);
   if (data.connectionType !== undefined)
     update.connection_type = data.connectionType;
+  if (data.groupType !== undefined)
+    update.group_type = clean(data.groupType) as import("@/types/database").TreeGroupType | null;
 
   // Update the member
   const { error } = await supabase

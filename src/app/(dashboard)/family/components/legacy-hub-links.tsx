@@ -24,6 +24,8 @@ export interface ResolvedLink {
   sy: number;
   tx: number;
   ty: number;
+  /** Dim the line (filter fades non-matching edges). Optional, default false. */
+  dim?: boolean;
 }
 
 // ============================================================================
@@ -78,6 +80,8 @@ const DashedLinks = memo(function DashedLinks({
             strokeWidth={1.8}
             strokeDasharray="8 6"
             strokeLinecap="round"
+            opacity={link.dim ? 0.15 : 1}
+            style={{ transition: "opacity 0.2s ease" }}
           />
         );
       })}

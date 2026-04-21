@@ -30,7 +30,8 @@ import { InviteMemberDialog } from "./invite-member-dialog";
 import { addTreeMember, deleteTreeMember } from "../actions";
 import { toast } from "sonner";
 import { LegacyHubCanvas } from "./legacy-hub";
-import type { HubNode } from "./legacy-hub-types";
+import type { HubNode, TreeViewSpec } from "./legacy-hub-types";
+import { EMPTY_VIEW_SPEC } from "./legacy-hub-types";
 import { getMockProfile } from "./mai-tree-mock-data";
 
 // New components
@@ -76,10 +77,18 @@ export function FamilyTree({
   const [, startTransition] = useTransition();
 
   // ─── New MAI Tree state ───
-  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [viewSpec, setViewSpec] = useState<TreeViewSpec>(EMPTY_VIEW_SPEC);
   const [quickCardNode, setQuickCardNode] = useState<HubNode | null>(null);
   const [quickCardPos, setQuickCardPos] = useState<{ x: number; y: number } | null>(null);
   const [profileNode, setProfileNode] = useState<HubNode | null>(null);
+
+  // Derive active preset value from view-spec so the sidebar highlights the
+  // right button regardless of whether the spec came from a preset click or
+  // Griot. A Griot-produced spec may still match a preset shape.
+  const activeFilter =
+    viewSpec.source === "preset" && viewSpec.pillLabel
+      ? viewSpec.pillLabel.replace(/^Filtered: /i, "").toLowerCase()
+      : null;
 
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
@@ -197,8 +206,41 @@ export function FamilyTree({
     }
   }, [quickCardNode]);
 
-  const handleFilterChange = useCallback((filter: string | null) => {
-    setActiveFilter(filter);
+  // Build a TreeViewSpec from a sidebar preset (or clear it).
+  const handleFilterChange = useCallback(
+    (filter: string | null) => {
+      if (!filter) {
+        setViewSpec(EMPTY_VIEW_SPEC);
+        return;
+      }
+      const matching: string[] = [];
+      const nonMatching: string[] = [];
+      for (const m of treeMembers) {
+        // Members without an explicit group_type (pre-migration rows that
+        // bypassed the fallback) get treated as 'family' so presets stay
+        // predictable even if the DB column hasn't been backfilled yet.
+        const group = m.group_type ?? "family";
+        if (group === filter) matching.push(m.id);
+        else nonMatching.push(m.id);
+      }
+      const label = filter.charAt(0).toUpperCase() + filter.slice(1);
+      setViewSpec({
+        visibleIds: matching,
+        dimIds: nonMatching,
+        clusters: null,
+        pillLabel: `Filtered: ${label}`,
+        source: "preset",
+      });
+    },
+    [treeMembers]
+  );
+
+  const handleClearViewSpec = useCallback(() => {
+    setViewSpec(EMPTY_VIEW_SPEC);
+  }, []);
+
+  const handleViewSpecFromGriot = useCallback((spec: TreeViewSpec) => {
+    setViewSpec(spec);
   }, []);
 
   // ─── Shared dialogs (rendered in both empty + populated states) ───
@@ -311,17 +353,18 @@ export function FamilyTree({
           </div>
         )}
 
-        {/* Filter pill */}
-        {activeFilter && (
+        {/* Filter / Griot view pill */}
+        {viewSpec.pillLabel && (
           <div className="absolute top-3 right-14 z-20">
             <Badge
               variant="secondary"
               className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20"
             >
-              Filtered: {activeFilter}
+              {viewSpec.pillLabel}
               <button
-                onClick={() => setActiveFilter(null)}
+                onClick={handleClearViewSpec}
                 className="ml-0.5 hover:text-foreground transition-colors"
+                aria-label="Clear view"
               >
                 <X className="h-3 w-3" />
               </button>
@@ -333,6 +376,7 @@ export function FamilyTree({
         <LegacyHubCanvas
           members={treeMembers}
           currentUserMemberId={currentUserMemberId}
+          viewSpec={viewSpec}
           onEdit={handleHubEdit}
           onDelete={handleDelete}
           onInvite={handleInvite}
@@ -358,7 +402,10 @@ export function FamilyTree({
         )}
 
         {/* Griot panel */}
-        <MaiTreeGroitPanel />
+        <MaiTreeGroitPanel
+          familyId={familyId}
+          onViewSpec={handleViewSpecFromGriot}
+        />
       </div>
 
       {dialogs}

@@ -3,6 +3,8 @@
 // Free-form canvas with manual node placement
 // ============================================================================
 
+import type { TreeGroupType } from "@/types/database";
+
 // ---------------------------------------------------------------------------
 // Connection Types — determines the SVG line style
 // ---------------------------------------------------------------------------
@@ -12,12 +14,44 @@ export type ConnectionType =
   | "spouse";  // Marriage/partnership → solid thick line
 
 // ---------------------------------------------------------------------------
+// Tree View Spec — describes how the canvas should render the tree
+// for a given filter or Griot query. Same shape is produced by both
+// sidebar presets (client-side) and the /api/griot/tree-view endpoint.
+// ---------------------------------------------------------------------------
+export interface TreeViewCluster {
+  label: string;
+  memberIds: string[];
+}
+
+export interface TreeViewSpec {
+  /** Which nodes should be visually emphasized. null = all nodes normal. */
+  visibleIds: string[] | null;
+  /** Nodes to dim (gentler than hiding). */
+  dimIds: string[];
+  /** Optional cluster grouping for split view (radial around YOU). null = no relayout. */
+  clusters: TreeViewCluster[] | null;
+  /** Pill label shown above the canvas ("Filtered: Family"). null = no pill. */
+  pillLabel: string | null;
+  /** Provenance for the clear affordance. "none" = no spec active. */
+  source: "preset" | "griot" | "none";
+}
+
+export const EMPTY_VIEW_SPEC: TreeViewSpec = {
+  visibleIds: null,
+  dimIds: [],
+  clusters: null,
+  pillLabel: null,
+  source: "none",
+};
+
+// ---------------------------------------------------------------------------
 // Hub Node — a person on the canvas
 // ---------------------------------------------------------------------------
 export interface HubNode {
   id: string;
   displayName: string;
   connectionType: ConnectionType;
+  groupType: TreeGroupType | null;
   avatarUrl: string | null;
   birthYear: number | null;
   isDeceased: boolean;
@@ -58,6 +92,7 @@ export interface TreeNodeData {
   position_x?: number | null;
   position_y?: number | null;
   connection_type?: string | null;
+  group_type?: TreeGroupType | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -104,6 +139,7 @@ export function convertTreeData(
       id: m.id,
       displayName: m.display_name,
       connectionType: connType,
+      groupType: m.group_type ?? null,
       avatarUrl: m.avatar_url,
       birthYear: m.birth_year,
       isDeceased: m.is_deceased,

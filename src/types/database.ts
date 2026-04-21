@@ -26,6 +26,15 @@ export type EntryVisibility = "family" | "link" | "public";
 
 export type HubType = "family" | "circle";
 
+export type TreeGroupType =
+  | "family"
+  | "friend"
+  | "work"
+  | "school"
+  | "mentor"
+  | "community"
+  | "other";
+
 export type GoalStatus = "active" | "completed" | "archived";
 
 export type RsvpStatus = "going" | "maybe" | "not_going";
@@ -667,6 +676,7 @@ export interface Database {
           position_x: number | null;
           position_y: number | null;
           connection_type: string | null;
+          group_type: TreeGroupType | null;
           created_at: string;
           updated_at: string;
         };
@@ -686,6 +696,7 @@ export interface Database {
           position_x?: number | null;
           position_y?: number | null;
           connection_type?: string | null;
+          group_type?: TreeGroupType | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -705,6 +716,7 @@ export interface Database {
           position_x?: number | null;
           position_y?: number | null;
           connection_type?: string | null;
+          group_type?: TreeGroupType | null;
           created_at?: string;
           updated_at?: string;
         };

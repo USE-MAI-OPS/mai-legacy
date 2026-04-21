@@ -1,14 +1,90 @@
 "use client";
 
-import { useState } from "react";
-import { Sparkles, X, Send } from "lucide-react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { Sparkles, X, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MOCK_GRIOT_MESSAGES } from "./mai-tree-mock-data";
+import { toast } from "sonner";
+import type { TreeViewSpec } from "./legacy-hub-types";
 
-export function MaiTreeGroitPanel() {
+interface PanelMessage {
+  role: "user" | "assistant";
+  text: string;
+}
+
+interface MaiTreeGroitPanelProps {
+  familyId: string;
+  onViewSpec: (spec: TreeViewSpec) => void;
+}
+
+const SUGGESTIONS = [
+  "Show me just my family",
+  "Show family and friends separately",
+  "Who did I go to school with?",
+];
+
+export function MaiTreeGroitPanel({
+  familyId,
+  onViewSpec,
+}: MaiTreeGroitPanelProps) {
   const [open, setOpen] = useState(false);
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<PanelMessage[]>([]);
+  const [pending, setPending] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Keep chat scrolled to the latest message
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, pending]);
+
+  const submit = useCallback(
+    async (text: string) => {
+      const query = text.trim();
+      if (!query || pending) return;
+
+      setMessages((prev) => [...prev, { role: "user", text: query }]);
+      setInput("");
+      setPending(true);
+
+      try {
+        const res = await fetch("/api/griot/tree-view", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query, familyId }),
+        });
+
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as {
+            error?: string;
+          };
+          toast.error(body.error ?? "Griot couldn't reorganize the view");
+          // Keep the user's message so they can try again; don't touch spec.
+          return;
+        }
+
+        const data = (await res.json()) as {
+          viewSpec: TreeViewSpec;
+          narration: string;
+        };
+
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", text: data.narration },
+        ]);
+        onViewSpec(data.viewSpec);
+      } catch (err) {
+        console.error("[griot-panel] request failed", err);
+        toast.error("Couldn't reach the Griot");
+      } finally {
+        setPending(false);
+      }
+    },
+    [familyId, onViewSpec, pending]
+  );
 
   if (!open) {
     return (
@@ -16,6 +92,7 @@ export function MaiTreeGroitPanel() {
         onClick={() => setOpen(true)}
         className="absolute bottom-4 right-4 z-20 h-12 w-12 rounded-full shadow-lg bg-primary hover:bg-primary/90"
         size="icon"
+        aria-label="Open Griot"
       >
         <Sparkles className="h-5 w-5" />
       </Button>
@@ -37,6 +114,7 @@ export function MaiTreeGroitPanel() {
           size="icon"
           className="h-7 w-7"
           onClick={() => setOpen(false)}
+          aria-label="Close Griot"
         >
           <X className="h-3.5 w-3.5" />
         </Button>
@@ -44,8 +122,27 @@ export function MaiTreeGroitPanel() {
 
       {/* Chat area */}
       <ScrollArea className="flex-1 max-h-64">
-        <div className="p-4 space-y-3">
-          {MOCK_GRIOT_MESSAGES.map((msg, i) => (
+        <div ref={scrollRef} className="p-4 space-y-3">
+          {messages.length === 0 && !pending && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Ask me to reorganize the view. Try:
+              </p>
+              <div className="flex flex-col gap-1.5">
+                {SUGGESTIONS.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => submit(s)}
+                    className="text-left text-xs rounded-lg px-3 py-2 bg-muted/60 hover:bg-muted transition-colors text-foreground"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {messages.map((msg, i) => (
             <div
               key={i}
               className={`flex ${
@@ -71,25 +168,46 @@ export function MaiTreeGroitPanel() {
               </div>
             </div>
           ))}
+
+          {pending && (
+            <div className="flex justify-start">
+              <div className="bg-muted rounded-2xl rounded-bl-md px-3.5 py-2.5 flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                <span className="text-[10px] text-muted-foreground">
+                  Reorganizing…
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </ScrollArea>
 
-      {/* Input bar (non-functional) */}
-      <div className="flex items-center gap-2 px-3 py-2.5 border-t">
+      {/* Input bar */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit(input);
+        }}
+        className="flex items-center gap-2 px-3 py-2.5 border-t"
+      >
         <Input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about your network..."
           className="h-8 text-xs rounded-full bg-muted border-0"
-          readOnly
+          disabled={pending}
         />
         <Button
+          type="submit"
           variant="ghost"
           size="icon"
-          className="h-8 w-8 shrink-0 text-muted-foreground"
-          disabled
+          className="h-8 w-8 shrink-0"
+          disabled={pending || !input.trim()}
+          aria-label="Send"
         >
           <Send className="h-3.5 w-3.5" />
         </Button>
-      </div>
+      </form>
     </div>
   );
 }

@@ -413,6 +413,7 @@ export function AddTreeMemberDialog({
   // ─── Main member fields ───
   const [displayName, setDisplayName] = useState("");
   const [connectionType, setConnectionType] = useState("dna");
+  const [groupType, setGroupType] = useState<string>("family");
   const [relationshipLabel, setRelationshipLabel] = useState("none");
   const [parentId, setParentId] = useState("none");
   const [parent2Id, setParent2Id] = useState("none");
@@ -435,6 +436,7 @@ export function AddTreeMemberDialog({
     if (open) {
       setDisplayName(editNode?.display_name ?? "");
       setConnectionType(editNode?.connection_type ?? "dna");
+      setGroupType(editNode?.group_type ?? "family");
       setRelationshipLabel(editNode?.relationship_label ?? "none");
       setParentId(editNode?.parent_id ?? "none");
       setParent2Id(editNode?.parent2_id ?? "none");
@@ -447,6 +449,17 @@ export function AddTreeMemberDialog({
       setNewChildren([]);
     }
   }, [open, editNode]);
+
+  // Nudge group_type when connection_type changes via the picker below —
+  // handled inline in the onClick so we don't need an effect that watches
+  // its own state. A cousin who's also your coworker can still be toggled
+  // manually in the Group select.
+  const handleConnectionTypeChange = (value: string) => {
+    setConnectionType(value);
+    if (isEditing) return;
+    if (value === "friend" && groupType === "family") setGroupType("friend");
+    if (value === "dna" && groupType === "friend") setGroupType("family");
+  };
 
   // Auto-suggest relationship label when parents change (add mode)
   useEffect(() => {
@@ -518,6 +531,7 @@ export function AddTreeMemberDialog({
               birthYear: null,
               isDeceased: false,
               connectionType: "spouse",
+              groupType: "family",
             });
             if (!spouseResult.success) {
               toast.error(
@@ -543,6 +557,7 @@ export function AddTreeMemberDialog({
               spouseId: null,
               birthYear: null,
               isDeceased: false,
+              groupType: "family",
             });
             if (!childResult.success) {
               toast.error(
@@ -567,6 +582,7 @@ export function AddTreeMemberDialog({
               spouseId: null,
               birthYear: null,
               isDeceased: false,
+              groupType: "family",
             });
             if (!parentResult.success) {
               toast.error(
@@ -603,6 +619,7 @@ export function AddTreeMemberDialog({
             isDeceased,
             linkedMemberId: uuidOrNull(linkedMemberId),
             connectionType,
+            groupType,
           });
           if (!result.success) {
             toast.error(result.error ?? "Failed to update member");
@@ -637,6 +654,7 @@ export function AddTreeMemberDialog({
               spouseId: null,
               birthYear: null,
               isDeceased: false,
+              groupType: "family",
             });
             if (!parentResult.success) {
               toast.error(
@@ -676,6 +694,7 @@ export function AddTreeMemberDialog({
               birthYear: null,
               isDeceased: false,
               connectionType: "spouse",
+              groupType: "family",
             });
             if (!spouseResult.success) {
               toast.error(
@@ -698,6 +717,7 @@ export function AddTreeMemberDialog({
             birthYear: birthYear ? parseInt(birthYear, 10) : null,
             isDeceased,
             connectionType,
+            groupType,
           });
           if (!result.success) {
             toast.error(result.error ?? "Failed to add member");
@@ -724,6 +744,7 @@ export function AddTreeMemberDialog({
               spouseId: null,
               birthYear: null,
               isDeceased: false,
+              groupType: "family",
             });
             if (!childResult.success) {
               toast.error(
@@ -827,7 +848,7 @@ export function AddTreeMemberDialog({
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => setConnectionType(opt.value)}
+                  onClick={() => handleConnectionTypeChange(opt.value)}
                   className={`flex-1 rounded-lg border-2 p-2 text-center transition-colors ${
                     connectionType === opt.value
                       ? opt.value === "dna"
@@ -847,6 +868,29 @@ export function AddTreeMemberDialog({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* ─── Group (drives sidebar filter views) ─── */}
+          <div className="space-y-1.5">
+            <Label>Group</Label>
+            <Select value={groupType} onValueChange={setGroupType}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select group" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="family">Family</SelectItem>
+                <SelectItem value="friend">Friend</SelectItem>
+                <SelectItem value="work">Work</SelectItem>
+                <SelectItem value="school">School</SelectItem>
+                <SelectItem value="mentor">Mentor</SelectItem>
+                <SelectItem value="community">Community</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Powers the sidebar filter views. A cousin you went to school with
+              can be either — pick whichever network matters most.
+            </p>
           </div>
 
           {/* ─── Relationship Label ─── */}

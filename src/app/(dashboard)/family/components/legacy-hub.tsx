@@ -10,7 +10,7 @@ import {
 } from "react";
 import { Button } from "@/components/ui/button";
 import { ZoomIn, ZoomOut, Maximize, MousePointer } from "lucide-react";
-import type { HubNode, HubLink } from "./legacy-hub-types";
+import type { HubNode, HubLink, TreeViewSpec } from "./legacy-hub-types";
 import { convertTreeData, type TreeNodeData } from "./legacy-hub-types";
 import { LegacyHubNode } from "./legacy-hub-node";
 import { LegacyHubLinks } from "./legacy-hub-links";
@@ -35,6 +35,8 @@ const DraggableHubNode = memo(function DraggableHubNode({
   onSelect,
   onNodeClick,
   onNodeDoubleClick,
+  dimmed,
+  draggable,
 }: {
   node: HubNode;
   currentUserMemberId: string | null;
@@ -50,6 +52,8 @@ const DraggableHubNode = memo(function DraggableHubNode({
   onSelect: (id: string, shiftKey: boolean) => void;
   onNodeClick?: (node: HubNode, screenPos: { x: number; y: number }) => void;
   onNodeDoubleClick?: (node: HubNode) => void;
+  dimmed: boolean;
+  draggable: boolean;
 }) {
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const entryCount = getMockEntryTotal(node.id, node.displayName);
@@ -59,7 +63,9 @@ const DraggableHubNode = memo(function DraggableHubNode({
 
   return (
     <div
-      className={`absolute cursor-grab active:cursor-grabbing ${
+      className={`absolute ${
+        draggable ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+      } ${
         isSelected
           ? "outline outline-2 outline-primary/60 outline-offset-4 rounded-2xl"
           : ""
@@ -68,6 +74,8 @@ const DraggableHubNode = memo(function DraggableHubNode({
         transform: `translate(${node.x - nodeOffset}px, ${node.y - nodeOffset}px)`,
         width: nodeWidth,
         zIndex: isSelected ? 5 : 1,
+        opacity: dimmed ? 0.25 : 1,
+        transition: "transform 0.3s ease, opacity 0.2s ease",
       }}
       onDoubleClick={() => {
         // Cancel pending single-click
@@ -88,6 +96,23 @@ const DraggableHubNode = memo(function DraggableHubNode({
 
         e.stopPropagation();
         e.preventDefault();
+
+        // In cluster mode, positions are owned by the view-spec — clicks
+        // still work but drags would fight the layout, so we skip the
+        // drag path entirely and only fire click on pointer-up.
+        if (!draggable) {
+          const onUpClick = (ev: PointerEvent) => {
+            window.removeEventListener("pointerup", onUpClick);
+            if (onNodeClick) {
+              clickTimer.current = setTimeout(() => {
+                clickTimer.current = null;
+                onNodeClick(node, { x: ev.clientX, y: ev.clientY });
+              }, 250);
+            }
+          };
+          window.addEventListener("pointerup", onUpClick);
+          return;
+        }
 
         // Handle selection
         if (e.shiftKey) {
@@ -183,11 +208,59 @@ function MarqueeRect({
 }
 
 // ---------------------------------------------------------------------------
+// Cluster layout math — radial arrangement around the "YOU" node.
+// Mirrors the pattern from people-network-mockup.jsx:getPositions().
+// ---------------------------------------------------------------------------
+const CLUSTER_RADIUS = 900;
+
+function computeClusterPositions(
+  clusters: { label: string; memberIds: string[] }[],
+  center: { x: number; y: number }
+): { positions: Map<string, { x: number; y: number }>; labels: { label: string; x: number; y: number }[] } {
+  const positions = new Map<string, { x: number; y: number }>();
+  const labels: { label: string; x: number; y: number }[] = [];
+  const n = clusters.length;
+  if (n === 0) return { positions, labels };
+
+  for (let i = 0; i < n; i++) {
+    const cluster = clusters[i];
+    const baseAngle = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const clusterCx = center.x + Math.cos(baseAngle) * CLUSTER_RADIUS;
+    const clusterCy = center.y + Math.sin(baseAngle) * CLUSTER_RADIUS;
+    const count = cluster.memberIds.length;
+    const r =
+      count <= 1 ? 0 : count <= 3 ? 180 : count <= 6 ? 240 : 320;
+
+    // Label floats further out than the cluster ring
+    labels.push({
+      label: `${cluster.label} (${count})`,
+      x: center.x + Math.cos(baseAngle) * (CLUSTER_RADIUS + r + 120),
+      y: center.y + Math.sin(baseAngle) * (CLUSTER_RADIUS + r + 120),
+    });
+
+    cluster.memberIds.forEach((id, idx) => {
+      if (count === 1) {
+        positions.set(id, { x: clusterCx, y: clusterCy });
+        return;
+      }
+      const angle = (idx / count) * Math.PI * 2 - Math.PI / 2;
+      positions.set(id, {
+        x: clusterCx + Math.cos(angle) * r,
+        y: clusterCy + Math.sin(angle) * r,
+      });
+    });
+  }
+
+  return { positions, labels };
+}
+
+// ---------------------------------------------------------------------------
 // Canvas — pan, zoom, fit-to-view, marquee select, group drag
 // ---------------------------------------------------------------------------
 export function LegacyHubCanvas({
   members,
   currentUserMemberId,
+  viewSpec,
   onEdit,
   onDelete,
   onInvite,
@@ -196,12 +269,19 @@ export function LegacyHubCanvas({
 }: {
   members: TreeNodeData[];
   currentUserMemberId: string | null;
+  viewSpec?: TreeViewSpec;
   onEdit: (node: HubNode) => void;
   onDelete: (id: string) => void;
   onInvite: (name: string) => void;
   onNodeClick?: (node: HubNode, screenPos: { x: number; y: number }) => void;
   onNodeDoubleClick?: (node: HubNode) => void;
 }) {
+  // Dim / cluster sets for fast lookup in render
+  const dimSet = useMemo(
+    () => new Set(viewSpec?.dimIds ?? []),
+    [viewSpec?.dimIds]
+  );
+  const clusterMode = !!viewSpec?.clusters && viewSpec.clusters.length > 0;
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
@@ -251,24 +331,45 @@ export function LegacyHubCanvas({
     });
   }, [initialNodes]);
 
-  // Build nodes with current positions
+  // Cluster position overrides (if the active view-spec asks for a split view).
+  // Anchored at the ego (YOU) node's current position so clusters orbit around
+  // the user — or at canvas center if ego isn't placed yet.
+  const clusterOverrides = useMemo(() => {
+    if (!clusterMode || !viewSpec?.clusters) {
+      return { positions: new Map<string, { x: number; y: number }>(), labels: [] as { label: string; x: number; y: number }[] };
+    }
+    const egoNode = initialNodes.find((n) => n.isMe);
+    const center = egoNode
+      ? nodePositions.get(egoNode.id) ?? { x: egoNode.x, y: egoNode.y }
+      : { x: 2500, y: 2500 };
+    return computeClusterPositions(viewSpec.clusters, center);
+  }, [clusterMode, viewSpec?.clusters, initialNodes, nodePositions]);
+
+  // Build nodes with current positions — cluster overrides win over saved positions
   const nodes = useMemo(() => {
     return initialNodes.map((n) => {
+      const cluster = clusterOverrides.positions.get(n.id);
+      if (cluster) return { ...n, x: cluster.x, y: cluster.y };
       const pos = nodePositions.get(n.id);
       return pos ? { ...n, x: pos.x, y: pos.y } : n;
     });
-  }, [initialNodes, nodePositions]);
+  }, [initialNodes, nodePositions, clusterOverrides]);
 
   // Build links with resolved positions + endpoint offset
   const NODE_RADIUS = 70;
   const links = useMemo(() => {
     return initialLinks.map((link) => {
-      const src = nodePositions.get(link.sourceId);
-      const tgt = nodePositions.get(link.targetId);
+      const src =
+        clusterOverrides.positions.get(link.sourceId) ??
+        nodePositions.get(link.sourceId);
+      const tgt =
+        clusterOverrides.positions.get(link.targetId) ??
+        nodePositions.get(link.targetId);
       const sx0 = src?.x ?? 0;
       const sy0 = src?.y ?? 0;
       const tx0 = tgt?.x ?? 0;
       const ty0 = tgt?.y ?? 0;
+      const dim = dimSet.has(link.sourceId) || dimSet.has(link.targetId);
 
       const dx = tx0 - sx0;
       const dy = ty0 - sy0;
@@ -283,12 +384,13 @@ export function LegacyHubCanvas({
           sy: sy0 + uy * NODE_RADIUS,
           tx: tx0 - ux * NODE_RADIUS,
           ty: ty0 - uy * NODE_RADIUS,
+          dim,
         };
       }
 
-      return { ...link, sx: sx0, sy: sy0, tx: tx0, ty: ty0 };
+      return { ...link, sx: sx0, sy: sy0, tx: tx0, ty: ty0, dim };
     });
-  }, [initialLinks, nodePositions]);
+  }, [initialLinks, nodePositions, clusterOverrides, dimSet]);
 
   // ─── Selection state ───
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -566,6 +668,16 @@ export function LegacyHubCanvas({
     }
   }, [nodes.length, containerSize.width, fitToView]);
 
+  // Re-fit whenever cluster mode toggles — cluster positions sit far from
+  // the saved positions, so the user would otherwise have to hunt for them.
+  const prevClusterMode = useRef(clusterMode);
+  useEffect(() => {
+    if (prevClusterMode.current !== clusterMode && containerSize.width > 0) {
+      prevClusterMode.current = clusterMode;
+      fitToView();
+    }
+  }, [clusterMode, containerSize.width, fitToView]);
+
   // Keyboard: Escape to deselect, Ctrl+A to select all
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -654,6 +766,18 @@ export function LegacyHubCanvas({
           {/* SVG link layer */}
           <LegacyHubLinks links={links} width={canvasW} height={canvasH} />
 
+          {/* Cluster labels (split-view mode) */}
+          {clusterMode &&
+            clusterOverrides.labels.map((l) => (
+              <div
+                key={l.label}
+                className="absolute pointer-events-none z-[4] -translate-x-1/2 -translate-y-1/2 rounded-full border border-primary/20 bg-card/90 backdrop-blur-sm px-3 py-1 text-[11px] font-semibold tracking-wider uppercase text-primary shadow-sm"
+                style={{ left: l.x, top: l.y }}
+              >
+                {l.label}
+              </div>
+            ))}
+
           {/* Node cards */}
           {nodes.map((node) => (
             <DraggableHubNode
@@ -672,6 +796,8 @@ export function LegacyHubCanvas({
               onSelect={handleSelect}
               onNodeClick={onNodeClick}
               onNodeDoubleClick={onNodeDoubleClick}
+              dimmed={dimSet.has(node.id)}
+              draggable={!clusterMode}
             />
           ))}
         </div>

@@ -10,7 +10,7 @@ import {
 import { MoreVertical, Pencil, Trash2, UserCheck, Mail } from "lucide-react";
 import Link from "next/link";
 
-import type { TreeGroupType } from "@/types/database";
+import type { TreeGroupType, TreeSide } from "@/types/database";
 
 export interface TreeNodeData {
   id: string;
@@ -27,6 +27,11 @@ export interface TreeNodeData {
   position_y?: number | null;
   connection_type?: string | null;
   group_type?: TreeGroupType | null;
+  side?: TreeSide | null;
+  tags?: string[];
+  occupation?: string | null;
+  location?: string | null;
+  bio?: string | null;
 }
 
 interface FamilyTreeNodeProps {

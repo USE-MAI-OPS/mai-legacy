@@ -35,6 +35,8 @@ export type TreeGroupType =
   | "community"
   | "other";
 
+export type TreeSide = "mom" | "dad";
+
 export type GoalStatus = "active" | "completed" | "archived";
 
 export type RsvpStatus = "going" | "maybe" | "not_going";
@@ -677,6 +679,11 @@ export interface Database {
           position_y: number | null;
           connection_type: string | null;
           group_type: TreeGroupType | null;
+          side: TreeSide | null;
+          tags: string[];
+          occupation: string | null;
+          location: string | null;
+          bio: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -697,6 +704,11 @@ export interface Database {
           position_y?: number | null;
           connection_type?: string | null;
           group_type?: TreeGroupType | null;
+          side?: TreeSide | null;
+          tags?: string[];
+          occupation?: string | null;
+          location?: string | null;
+          bio?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -717,8 +729,46 @@ export interface Database {
           position_y?: number | null;
           connection_type?: string | null;
           group_type?: TreeGroupType | null;
+          side?: TreeSide | null;
+          tags?: string[];
+          occupation?: string | null;
+          location?: string | null;
+          bio?: string | null;
           created_at?: string;
           updated_at?: string;
+        };
+        Relationships: [];
+      };
+      tree_views: {
+        Row: {
+          id: string;
+          family_id: string;
+          user_id: string;
+          label: string;
+          icon: string;
+          filters: TreeFilterSpec;
+          split: TreeSplitSpec | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          family_id: string;
+          user_id: string;
+          label: string;
+          icon?: string;
+          filters?: TreeFilterSpec;
+          split?: TreeSplitSpec | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          user_id?: string;
+          label?: string;
+          icon?: string;
+          filters?: TreeFilterSpec;
+          split?: TreeSplitSpec | null;
+          created_at?: string;
         };
         Relationships: [];
       };
@@ -1123,6 +1173,29 @@ export interface TutorialStep {
   title: string;
   description: string;
   tips?: string;
+}
+
+// ---------------------------------------------------------------------------
+// MAI Tree — filter + view shapes (mirrored on client in mai-tree-types.ts)
+// ---------------------------------------------------------------------------
+
+export interface TreeFilterSpec {
+  groups?: TreeGroupType[];
+  tags?: string[];
+  side?: TreeSide;
+  q?: string;
+  minAge?: number;
+  maxAge?: number;
+  location?: string;
+}
+
+export interface TreeSplitSide extends TreeFilterSpec {
+  label: string;
+}
+
+export interface TreeSplitSpec {
+  left: TreeSplitSide;
+  right: TreeSplitSide;
 }
 
 export interface ConversationMessage {

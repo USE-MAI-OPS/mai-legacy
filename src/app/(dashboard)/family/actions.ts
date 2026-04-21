@@ -59,6 +59,11 @@ export async function addTreeMember(data: {
   linkedMemberId?: string | null;
   connectionType?: string | null;
   groupType?: string | null;
+  side?: string | null;
+  tags?: string[];
+  occupation?: string | null;
+  location?: string | null;
+  bio?: string | null;
 }) {
   const supabase = await createClient();
   const {
@@ -68,6 +73,7 @@ export async function addTreeMember(data: {
 
   const linkedId = clean(data.linkedMemberId ?? null);
   const groupType = clean(data.groupType ?? null);
+  const side = clean(data.side ?? null);
 
   const { data: inserted, error } = await supabase
     .from("family_tree_members")
@@ -83,6 +89,11 @@ export async function addTreeMember(data: {
       added_by: user.id,
       ...(data.connectionType ? { connection_type: data.connectionType } : {}),
       ...(groupType ? { group_type: groupType as import("@/types/database").TreeGroupType } : {}),
+      ...(side ? { side: side as import("@/types/database").TreeSide } : {}),
+      ...(data.tags ? { tags: data.tags } : {}),
+      ...(data.occupation !== undefined ? { occupation: clean(data.occupation) } : {}),
+      ...(data.location !== undefined ? { location: clean(data.location) } : {}),
+      ...(data.bio !== undefined ? { bio: clean(data.bio) } : {}),
       ...(linkedId ? { linked_member_id: linkedId } : {}),
     })
     .select("id")
@@ -116,6 +127,11 @@ export async function updateTreeMember(
     linkedMemberId: string | null;
     connectionType: string | null;
     groupType: string | null;
+    side: string | null;
+    tags: string[];
+    occupation: string | null;
+    location: string | null;
+    bio: string | null;
   }>
 ) {
   const supabase = await createClient();
@@ -135,6 +151,11 @@ export async function updateTreeMember(
     linked_member_id?: string | null;
     connection_type?: string | null;
     group_type?: import("@/types/database").TreeGroupType | null;
+    side?: import("@/types/database").TreeSide | null;
+    tags?: string[];
+    occupation?: string | null;
+    location?: string | null;
+    bio?: string | null;
   } = {};
   if (data.displayName !== undefined) update.display_name = capitalizeName(data.displayName);
   if (data.relationshipLabel !== undefined)
@@ -150,6 +171,12 @@ export async function updateTreeMember(
     update.connection_type = data.connectionType;
   if (data.groupType !== undefined)
     update.group_type = clean(data.groupType) as import("@/types/database").TreeGroupType | null;
+  if (data.side !== undefined)
+    update.side = clean(data.side) as import("@/types/database").TreeSide | null;
+  if (data.tags !== undefined) update.tags = data.tags;
+  if (data.occupation !== undefined) update.occupation = clean(data.occupation);
+  if (data.location !== undefined) update.location = clean(data.location);
+  if (data.bio !== undefined) update.bio = clean(data.bio);
 
   // Update the member
   const { error } = await supabase
@@ -318,5 +345,61 @@ export async function deleteEvent(eventId: string) {
 
   if (error) return { success: false, error: error.message };
   revalidatePath("/family");
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
+// Tree View Actions (MAI Tree saved filter presets)
+// ---------------------------------------------------------------------------
+
+import type { TreeFilterSpec, TreeSplitSpec } from "@/types/database";
+
+export async function saveTreeView(data: {
+  familyId: string;
+  label: string;
+  icon: string;
+  filters: TreeFilterSpec;
+  split: TreeSplitSpec | null;
+}) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Not authenticated" };
+
+  const { data: inserted, error } = await supabase
+    .from("tree_views")
+    .insert({
+      family_id: data.familyId,
+      user_id: user.id,
+      label: data.label,
+      icon: data.icon,
+      filters: data.filters,
+      split: data.split,
+    })
+    .select("id")
+    .single();
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/family/tree");
+  return { success: true, id: (inserted?.id as string) ?? undefined };
+}
+
+export async function deleteTreeView(id: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Not authenticated" };
+
+  // RLS ensures the user can only delete their own views; a mismatched id
+  // just returns 0 rows affected which we treat as idempotent success.
+  const { error } = await supabase
+    .from("tree_views")
+    .delete()
+    .eq("id", id);
+
+  if (error) return { success: false, error: error.message };
+  revalidatePath("/family/tree");
   return { success: true };
 }

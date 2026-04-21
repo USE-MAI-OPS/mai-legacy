@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { searchFamilyKnowledge } from "@/lib/rag/search";
 import { getConnectionChain } from "@/lib/connection-chain";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import {
@@ -13,33 +12,40 @@ const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_MODEL = "minimax/minimax-m2.5";
 
 // ---------------------------------------------------------------------------
-// Response shapes
+// FilterPlan response — matches the client-side FilterPlan type in
+// mai-tree-types.ts. Mirrors what planFromQuery emits locally so the client
+// can fall back to local parsing without changing its data contract.
 // ---------------------------------------------------------------------------
 
-interface TreeViewCluster {
+type TreeGroup = "family" | "friend" | "work" | "school" | "mentor" | "community" | "other";
+type TreeSide = "mom" | "dad";
+
+interface FilterSpec {
+  groups?: TreeGroup[];
+  tags?: string[];
+  side?: TreeSide;
+  q?: string;
+  minAge?: number;
+  maxAge?: number;
+  location?: string;
+  __label?: string;
+}
+
+interface SplitSpec {
+  left: FilterSpec & { label: string };
+  right: FilterSpec & { label: string };
   label: string;
-  memberIds: string[];
 }
 
-interface TreeViewSpecResponse {
-  visibleIds: string[] | null;
-  dimIds: string[];
-  clusters: TreeViewCluster[] | null;
-  pillLabel: string | null;
-  source: "griot";
-}
-
-interface TreeViewApiResponse {
-  viewSpec: TreeViewSpecResponse;
-  narration: string;
+interface FilterPlan {
+  type: "filter" | "split";
+  filters?: FilterSpec[];
+  split?: SplitSpec;
+  summary: string;
 }
 
 // ---------------------------------------------------------------------------
 // POST /api/griot/tree-view
-//
-// One-shot JSON endpoint that turns a natural-language query into a
-// TreeViewSpec the MAI Tree canvas can render. Backed by the same RAG
-// pipeline as /api/griot but returns structured JSON instead of prose.
 // ---------------------------------------------------------------------------
 export async function POST(request: NextRequest) {
   try {
@@ -50,10 +56,7 @@ export async function POST(request: NextRequest) {
     };
 
     if (!query || !familyId) {
-      return json(
-        { error: "Missing required fields: query, familyId" },
-        400
-      );
+      return json({ error: "Missing required fields: query, familyId" }, 400);
     }
 
     const apiKey = process.env.OPENROUTER_API_KEY;
@@ -71,180 +74,68 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
     if (authError || !user) return json({ error: "Unauthorized" }, 401);
 
-    // Rate limit: 15 / minute per user — a little tighter than /api/griot
-    // since every call costs an LLM round-trip.
     const rl = rateLimit(`griot-tree-view:${user.id}`, 15);
     if (rl.limited) return rateLimitResponse(rl.retryAfterMs);
 
     const chain = await getConnectionChain(supabase, familyId, user.id);
 
-    // ------------------------------------------------------------------
-    // Fetch the roster scoped to connected members. Include group_type
-    // so the model knows the existing sidebar-preset affiliations.
-    // ------------------------------------------------------------------
-    // Visibility: DNA-connected members OR anyone the user added. Matches
-    // the same relaxation in /family/tree/page.tsx — friends/work/school
-    // have no DNA edges so connection-chain alone misses them.
+    // Roster — same visibility relaxation as the tree page.
     const idFilter =
       chain.connectedTreeMemberIds.length === 0
         ? `added_by.eq.${user.id}`
         : `id.in.(${chain.connectedTreeMemberIds.map((id) => `"${id}"`).join(",")}),added_by.eq.${user.id}`;
 
-    const treeQuery = supabase
+    const { data: rosterRows, error: rosterError } = await supabase
       .from("family_tree_members")
-      .select(
-        "id, display_name, birth_year, relationship_label, group_type, is_deceased, linked_member_id"
-      )
+      .select("display_name, group_type, side, tags, occupation, location")
       .eq("family_id", familyId)
       .or(idFilter);
 
-    const { data: rosterRows, error: rosterError } = await treeQuery;
     if (rosterError) {
       console.error("[griot-tree-view] roster error:", rosterError);
-      return json({ error: "Failed to load family roster" }, 500);
+      return json(emptyPlan("I couldn't load your network just now."), 200);
     }
 
-    type RosterRow = {
-      id: string;
-      display_name: string;
-      birth_year: number | null;
-      relationship_label: string | null;
-      group_type: string | null;
-      is_deceased: boolean;
-      linked_member_id: string | null;
-    };
+    const roster = rosterRows ?? [];
 
-    const roster: RosterRow[] = rosterRows ?? [];
-
-    if (roster.length === 0) {
-      // Nothing to filter — return an empty spec with a gentle narration.
-      return json<TreeViewApiResponse>({
-        viewSpec: {
-          visibleIds: null,
-          dimIds: [],
-          clusters: null,
-          pillLabel: null,
-          source: "griot",
-        },
-        narration:
-          "Your tree is empty right now. Add a few people and I'll be able to rearrange the view however you'd like.",
-      });
+    // Collect vocabulary from the roster so the prompt can hint at real
+    // filter targets (tags that actually exist in the data).
+    const tagSet = new Set<string>();
+    const locSet = new Set<string>();
+    for (const r of roster) {
+      const row = r as { tags?: string[] | null; location?: string | null };
+      for (const t of row.tags ?? []) if (t) tagSet.add(t);
+      if (row.location) locSet.add(row.location);
     }
 
-    // Build nickname/first-name index for PII sanitization + chunk scanning.
+    // PII sanitizer (light-touch — we don't ship chunks through the LLM here).
+    const piiMembers: KnownMember[] = [];
     const { data: memberRows } = await supabase
       .from("family_members")
       .select("display_name, email, phone, nickname")
       .eq("family_id", familyId)
       .in("user_id", chain.connectedUserIds);
-
-    const piiMembers: KnownMember[] = (memberRows ?? []).map((r) => ({
-      displayName: r.display_name,
-      email: r.email,
-      phone: r.phone,
-      nickname: r.nickname,
-    }));
-    // Also include tree-member names so we can scan chunks for them.
-    for (const t of roster) {
-      if (!piiMembers.some((m) => m.displayName === t.display_name)) {
-        piiMembers.push({ displayName: t.display_name });
+    for (const m of memberRows ?? []) {
+      piiMembers.push({
+        displayName: m.display_name,
+        email: m.email,
+        phone: m.phone,
+        nickname: m.nickname,
+      });
+    }
+    for (const r of roster) {
+      const row = r as { display_name: string };
+      if (!piiMembers.some((m) => m.displayName === row.display_name)) {
+        piiMembers.push({ displayName: row.display_name });
       }
     }
     const piiCtx = buildPiiContext(piiMembers);
 
-    // ------------------------------------------------------------------
-    // RAG: pull top chunks relevant to the query and scan each for
-    // roster-member mentions. This is the "entity linking" grounding
-    // that lets queries like "who did I go to school with" find people
-    // named in education-context entries.
-    // ------------------------------------------------------------------
-    let searchResults: Awaited<ReturnType<typeof searchFamilyKnowledge>> = [];
-    try {
-      searchResults = await searchFamilyKnowledge(
-        query,
-        familyId,
-        8,
-        chain.connectedUserIds
-      );
-    } catch (err) {
-      console.error("[griot-tree-view] RAG search failed:", err);
-      // Continue without RAG context — model will fall back to group_type.
-    }
-
-    // Build a lookup of roster-member names (plus first-name tokens >= 3 chars)
-    // so chunk mentions can be tied back to specific IDs.
-    const nameToIds = new Map<string, string[]>();
-    const addName = (name: string, id: string) => {
-      const key = name.toLowerCase().trim();
-      if (!key) return;
-      const list = nameToIds.get(key) ?? [];
-      if (!list.includes(id)) list.push(id);
-      nameToIds.set(key, list);
-    };
-    for (const r of roster) {
-      addName(r.display_name, r.id);
-      const first = r.display_name.split(/\s+/)[0];
-      if (first && first.length >= 3) addName(first, r.id);
-    }
-
-    const annotatedChunks = searchResults.map((chunk, i) => {
-      const lower = chunk.chunk_text.toLowerCase();
-      const mentioned = new Set<string>();
-      for (const [name, ids] of nameToIds) {
-        // word-boundary check — avoid "Rose" matching "Roseanne"
-        const re = new RegExp(`\\b${escapeRegex(name)}\\b`, "i");
-        if (re.test(lower)) {
-          for (const id of ids) mentioned.add(id);
-        }
-      }
-      return {
-        idx: i + 1,
-        title: chunk.title || "Untitled entry",
-        text: chunk.chunk_text,
-        mentioned_member_ids: Array.from(mentioned),
-      };
-    });
-
-    // ------------------------------------------------------------------
-    // Build prompt.
-    // ------------------------------------------------------------------
-    const rosterBlock = roster
-      .map((r) => {
-        const bits = [`id=${r.id}`, `name="${r.display_name}"`];
-        if (r.group_type) bits.push(`group=${r.group_type}`);
-        if (r.relationship_label) bits.push(`rel="${r.relationship_label}"`);
-        if (r.birth_year) bits.push(`born=${r.birth_year}`);
-        if (r.is_deceased) bits.push("deceased");
-        return `- { ${bits.join(", ")} }`;
-      })
-      .join("\n");
-
-    const chunkBlock =
-      annotatedChunks.length > 0
-        ? annotatedChunks
-            .map(
-              (c) =>
-                `[#${c.idx}] "${c.title}"\nmentioned_member_ids: ${JSON.stringify(c.mentioned_member_ids)}\n${c.text}`
-            )
-            .join("\n\n---\n\n")
-        : "(no relevant entries found)";
-
-    const allowedIds = roster.map((r) => r.id);
-
     const systemPrompt = buildSystemPrompt({
-      rosterBlock,
-      chunkBlock,
-      allowedIds,
+      tagExamples: Array.from(tagSet).slice(0, 30),
+      locationExamples: Array.from(locSet).slice(0, 12),
     });
 
-    const userMessage = sanitize(query, piiCtx);
-
-    // ------------------------------------------------------------------
-    // Call OpenRouter. We intentionally do NOT send response_format here:
-    // MiniMax M2.5 on OpenRouter returned empty content when that param
-    // was present (silent reject). Strict prompting + brace extraction
-    // handles the JSON contract instead.
-    // ------------------------------------------------------------------
     const llmResponse = await fetch(OPENROUTER_API_URL, {
       method: "POST",
       headers: {
@@ -257,17 +148,18 @@ export async function POST(request: NextRequest) {
         model: OPENROUTER_MODEL,
         messages: [
           { role: "system", content: sanitize(systemPrompt, piiCtx) },
-          { role: "user", content: userMessage },
+          { role: "user", content: sanitize(query, piiCtx) },
         ],
         temperature: 0.2,
-        max_tokens: 768,
+        max_tokens: 512,
       }),
     });
 
     if (!llmResponse.ok) {
       const errorBody = await llmResponse.text();
       console.error("[griot-tree-view] OpenRouter error:", llmResponse.status, errorBody);
-      return json({ error: "Failed to get a response from the Griot" }, 502);
+      // 200 with null plan triggers client fallback cleanly.
+      return json({ plan: null }, 200);
     }
 
     const llmJson = (await llmResponse.json()) as {
@@ -276,154 +168,173 @@ export async function POST(request: NextRequest) {
     };
 
     if (llmJson.error?.message) {
-      console.error("[griot-tree-view] OpenRouter returned error payload:", llmJson.error);
-      return json({ error: "The Griot couldn't answer right now" }, 502);
+      console.error("[griot-tree-view] OpenRouter payload error:", llmJson.error);
+      return json({ plan: null }, 200);
     }
 
     const raw = llmJson.choices?.[0]?.message?.content ?? "";
-    if (!raw.trim()) {
-      console.error("[griot-tree-view] Empty content from model:", JSON.stringify(llmJson).slice(0, 500));
-      return json({ error: "The Griot didn't say anything — try rephrasing your question" }, 502);
-    }
-
     const parsed = parseModelJson(raw);
     if (!parsed) {
-      console.error("[griot-tree-view] Failed to parse model JSON. Raw content:", raw.slice(0, 500));
-      return json({ error: "The Griot's reply wasn't valid JSON" }, 502);
+      console.error("[griot-tree-view] Failed to parse model JSON. Raw:", raw.slice(0, 400));
+      return json({ plan: null }, 200);
     }
 
-    // ------------------------------------------------------------------
-    // Validate + clamp the spec against the allowed roster.
-    // ------------------------------------------------------------------
-    const allowedSet = new Set(allowedIds);
-    const filterIds = (ids: unknown): string[] =>
-      Array.isArray(ids)
-        ? ids.filter((v): v is string => typeof v === "string" && allowedSet.has(v))
-        : [];
+    const clampedPlan = clampPlan(parsed);
+    if (!clampedPlan) {
+      return json({ plan: null }, 200);
+    }
 
-    const rawSpec = (parsed.viewSpec ?? {}) as Record<string, unknown>;
-    const visibleIds =
-      rawSpec.visibleIds === null
-        ? null
-        : filterIds(rawSpec.visibleIds);
-    const dimIds = filterIds(rawSpec.dimIds);
-
-    const rawClusters = Array.isArray(rawSpec.clusters)
-      ? (rawSpec.clusters as unknown[])
-      : null;
-    const clusters: TreeViewCluster[] | null = rawClusters
-      ? rawClusters
-          .map((c): TreeViewCluster | null => {
-            if (!c || typeof c !== "object") return null;
-            const rec = c as Record<string, unknown>;
-            const label = typeof rec.label === "string" ? rec.label : null;
-            const ids = filterIds(rec.memberIds);
-            if (!label || ids.length === 0) return null;
-            return { label, memberIds: ids };
-          })
-          .filter((c): c is TreeViewCluster => c !== null)
-      : null;
-
-    const pillLabel =
-      typeof rawSpec.pillLabel === "string" && rawSpec.pillLabel.trim()
-        ? rawSpec.pillLabel.trim()
-        : null;
-
-    const narration =
-      typeof parsed.narration === "string"
-        ? parsed.narration
-        : "Here's the view you asked for.";
-
-    // If the model returned no usable selection AND no clusters, treat it
-    // as a "no matches" outcome — clear spec + keep its narration (which
-    // typically explains why).
-    const hasSelection =
-      (visibleIds && visibleIds.length > 0) ||
-      (clusters && clusters.length > 0);
-
-    const viewSpec: TreeViewSpecResponse = hasSelection
-      ? {
-          visibleIds,
-          dimIds,
-          clusters: clusters && clusters.length > 0 ? clusters : null,
-          pillLabel,
-          source: "griot",
-        }
-      : {
-          visibleIds: null,
-          dimIds: [],
-          clusters: null,
-          pillLabel: null,
-          source: "griot",
-        };
-
-    return json<TreeViewApiResponse>({ viewSpec, narration });
+    return json({ plan: clampedPlan });
   } catch (error) {
     console.error("[griot-tree-view] Unexpected error:", error);
-    return json(
-      {
-        error:
-          error instanceof Error ? error.message : "Internal server error",
-      },
-      500
-    );
+    return json({ plan: null }, 200);
   }
 }
 
 // ---------------------------------------------------------------------------
 // Prompt
 // ---------------------------------------------------------------------------
-
 function buildSystemPrompt(args: {
-  rosterBlock: string;
-  chunkBlock: string;
-  allowedIds: string[];
+  tagExamples: string[];
+  locationExamples: string[];
 }): string {
-  return `You are the Griot's layout advisor for the MAI Tree (a visual people-network).
-Your job: turn the user's question into a structured view of the tree.
+  const tags = args.tagExamples.length ? JSON.stringify(args.tagExamples) : "[]";
+  const locs = args.locationExamples.length ? JSON.stringify(args.locationExamples) : "[]";
 
-OUTPUT CONTRACT — read carefully:
-- You MUST respond with a single JSON object and NOTHING ELSE.
-- No leading text. No trailing text. No markdown code fences. No explanation before or after.
-- The very first character of your reply must be \`{\` and the very last must be \`}\`.
-- If you cannot comply, still emit the empty-match JSON shape below — never refuse with prose.
+  return `You translate the user's natural-language query into a FilterPlan for the MAI Tree canvas.
 
-Required shape:
+OUTPUT CONTRACT:
+- Reply with ONE JSON object. No prose outside JSON. No markdown code fences. First character must be "{", last must be "}".
+- Always include a "summary" string — one warm sentence explaining what you did.
 
+Shape:
 {
-  "viewSpec": {
-    "visibleIds": string[] | null,
-    "dimIds":     string[],
-    "clusters":   null | [ { "label": string, "memberIds": string[] } ],
-    "pillLabel":  string | null
+  "type": "filter" | "split",
+  // For type="filter":
+  "filters": [ { "groups"?: ["family"|"friend"|"work"|"school"|"mentor"|"community"|"other"],
+                 "tags"?: string[],
+                 "side"?: "mom"|"dad",
+                 "q"?: string,
+                 "minAge"?: number, "maxAge"?: number,
+                 "location"?: string,
+                 "__label"?: string } ],
+  // For type="split":
+  "split": {
+    "left":  { ...FilterSpec fields..., "label": string },
+    "right": { ...FilterSpec fields..., "label": string },
+    "label": string
   },
-  "narration": string
+  "summary": string
 }
 
-Field meanings:
-- visibleIds: tree-member IDs to keep sharp. null = no filter (all nodes normal).
-- dimIds: tree-member IDs to fade (default [] when no dimming needed).
-- clusters: null unless the user asked for a split view comparing 2+ groups.
-- pillLabel: short phrase shown above the canvas (e.g. "People you went to school with"), or null.
-- narration: 1-2 warm sentences explaining the result.
-
 Rules:
-- You may ONLY use IDs from this allowed set:
-${JSON.stringify(args.allowedIds)}
-  Never invent IDs. Drop any name you can't tie to an ID.
-- If the user is asking for a single group (e.g. "just my family", "show friends"), return visibleIds of matching members and put everyone else in dimIds. Do NOT return clusters.
-- If the user asks to compare groups or see multiple buckets side by side (e.g. "family and coworkers", "school vs work"), return 2+ entries in "clusters". Leave visibleIds null when clusters is set.
-- If the query references an entry-driven context ("people I went to school with", "who I worked with at Google"), use the FAMILY KNOWLEDGE chunks below to identify members. A member qualifies ONLY if they appear in a chunk that matches the context — either by being in mentioned_member_ids, or (for the user themselves) when the chunk's context otherwise implies the relationship. Do not guess based on vibes.
-- If nothing matches, set visibleIds=null, dimIds=[], clusters=null, pillLabel=null, and say so warmly in narration.
-- Never answer generic questions, tell stories, or add info beyond the spec + narration. You are strictly a layout planner.
+- Use "split" when the user compares two groups ("mom vs dad", "family vs friends", "work vs school"). Otherwise use "filter".
+- Multiple independent asks → multiple filter entries in the filters array (they AND together).
+- Tag-based queries ("tech people", "Morehouse alumni") go under tags. Use only tags that actually exist.
+- Age ranges: "elders" → minAge: 60. "young cousins" → maxAge: 30.
+- Location matching is substring ("Jackson" matches "Jackson, MS").
+- Always set __label on each filter to a short human label (e.g. "Mom's side", "Tech", "60+").
+- If the ask is vague and nothing matches, still emit a valid filter that narrows to groups: [] with a summary explaining you weren't sure.
 
---- FAMILY ROSTER ---
-${args.rosterBlock}
---- END FAMILY ROSTER ---
+Available tag vocabulary (real values from this user's network):
+${tags}
 
---- FAMILY KNOWLEDGE (RAG chunks) ---
-${args.chunkBlock}
---- END FAMILY KNOWLEDGE ---`;
+Example locations in this network:
+${locs}
+
+Examples of perfect output:
+
+Query: "show me mom's side"
+{"type":"filter","filters":[{"groups":["family"],"side":"mom","__label":"Mom's side"}],"summary":"Showing your mom's side of the family."}
+
+Query: "family vs friends"
+{"type":"split","split":{"left":{"groups":["family"],"label":"Family"},"right":{"groups":["friend"],"label":"Friends"},"label":"Family vs Friends"},"summary":"Family clustered on the left, friends on the right."}
+
+Query: "who's in tech"
+{"type":"filter","filters":[{"tags":["tech"],"__label":"Tech"}],"summary":"Everyone you know in tech."}
+
+Query: "morehouse alumni who are doctors"
+{"type":"filter","filters":[{"tags":["Morehouse"],"__label":"Morehouse"},{"q":"doctor","__label":"doctor"}],"summary":"Morehouse alumni whose profile mentions doctor."}`;
+}
+
+// ---------------------------------------------------------------------------
+// Plan validation + clamping
+// ---------------------------------------------------------------------------
+
+const ALLOWED_GROUPS: TreeGroup[] = [
+  "family",
+  "friend",
+  "work",
+  "school",
+  "mentor",
+  "community",
+  "other",
+];
+
+function clampFilter(raw: unknown): FilterSpec | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const out: FilterSpec = {};
+
+  if (Array.isArray(r.groups)) {
+    const g = r.groups.filter(
+      (v): v is TreeGroup => typeof v === "string" && ALLOWED_GROUPS.includes(v as TreeGroup)
+    );
+    out.groups = g;
+  }
+  if (Array.isArray(r.tags)) {
+    out.tags = r.tags.filter((v): v is string => typeof v === "string");
+  }
+  if (r.side === "mom" || r.side === "dad") out.side = r.side;
+  if (typeof r.q === "string") out.q = r.q;
+  if (typeof r.minAge === "number") out.minAge = r.minAge;
+  if (typeof r.maxAge === "number") out.maxAge = r.maxAge;
+  if (typeof r.location === "string") out.location = r.location;
+  if (typeof r.__label === "string") out.__label = r.__label;
+
+  return out;
+}
+
+function clampSplitSide(raw: unknown): (FilterSpec & { label: string }) | null {
+  const base = clampFilter(raw);
+  if (!base) return null;
+  const label = typeof (raw as { label?: unknown }).label === "string"
+    ? ((raw as { label: string }).label)
+    : "Group";
+  return { ...base, label };
+}
+
+function clampPlan(raw: unknown): FilterPlan | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const summary = typeof r.summary === "string" ? r.summary : "Here's the view you asked for.";
+
+  if (r.type === "split" && r.split && typeof r.split === "object") {
+    const s = r.split as Record<string, unknown>;
+    const left = clampSplitSide(s.left);
+    const right = clampSplitSide(s.right);
+    const label = typeof s.label === "string" ? s.label : `${left?.label ?? ""} vs ${right?.label ?? ""}`;
+    if (!left || !right) return null;
+    return { type: "split", split: { left, right, label }, summary };
+  }
+
+  if (r.type === "filter") {
+    const fs = Array.isArray(r.filters) ? r.filters : [];
+    const filters = fs.map(clampFilter).filter((f): f is FilterSpec => f !== null);
+    return { type: "filter", filters, summary };
+  }
+
+  return null;
+}
+
+function emptyPlan(summary: string): { plan: FilterPlan } {
+  return {
+    plan: {
+      type: "filter",
+      filters: [{ groups: [], __label: "Everyone" }],
+      summary,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -437,22 +348,12 @@ function json<T>(payload: T, status: number = 200): Response {
   });
 }
 
-function escapeRegex(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/**
- * Parse the model's JSON output. MiniMax with response_format=json_object
- * should return clean JSON, but fall back to a brace-extraction pass in
- * case the model wraps it in code fences or prose.
- */
 function parseModelJson(raw: string): Record<string, unknown> | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
   try {
     return JSON.parse(trimmed) as Record<string, unknown>;
   } catch {
-    // Try to extract the first balanced JSON object.
     const start = trimmed.indexOf("{");
     const end = trimmed.lastIndexOf("}");
     if (start === -1 || end === -1 || end <= start) return null;

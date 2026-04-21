@@ -1,11 +1,12 @@
 "use client";
 
-import {
-  useState,
-  useTransition,
-  useCallback,
-  useRef,
-} from "react";
+// FamilyTree — thin wrapper around MaiTreeCanvas that handles the existing
+// Add/Edit dialogs + delete confirmation. Canvas logic lives in mai-tree-canvas.tsx.
+
+import { useCallback, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,97 +17,176 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Plus,
-  Mail,
-  UserPlus,
-  X,
-} from "lucide-react";
+
 import { type TreeNodeData } from "./family-tree-node";
 import { AddTreeMemberDialog } from "./add-tree-member-dialog";
-import { InviteMemberDialog } from "./invite-member-dialog";
-import { addTreeMember, deleteTreeMember } from "../actions";
-import { toast } from "sonner";
-import { LegacyHubCanvas } from "./legacy-hub";
-import type { HubNode, TreeViewSpec } from "./legacy-hub-types";
-import { EMPTY_VIEW_SPEC } from "./legacy-hub-types";
-import { getMockProfile } from "./mai-tree-mock-data";
+import { deleteTreeMember, saveTreeView, deleteTreeView } from "../actions";
+import { MaiTreeCanvas } from "./mai-tree-canvas";
+import type { Person, View, TreeFilterSpec, TreeSplitSpec } from "./mai-tree-types";
 
-// New components
-import { MaiTreeSidebar } from "./mai-tree-sidebar";
-import { MaiTreeEmptyState } from "./mai-tree-empty-state";
-import { MaiTreeQuickCard } from "./mai-tree-quick-card";
-import { MaiTreeProfileModal } from "./mai-tree-profile-modal";
-import { MaiTreeGroitPanel } from "./mai-tree-griot-panel";
-import { MaiTreeInstructionBar } from "./mai-tree-instruction-bar";
-
-// ---------------------------------------------------------------------------
-// Main component
-// ---------------------------------------------------------------------------
 interface RealMember {
   id: string;
   display_name: string;
+  user_id: string;
+}
+
+interface SavedViewRow {
+  id: string;
+  label: string;
+  icon: string;
+  filters: TreeFilterSpec;
+  split: TreeSplitSpec | null;
 }
 
 interface FamilyTreeProps {
   treeMembers: TreeNodeData[];
   realMembers: RealMember[];
+  savedViews: SavedViewRow[];
+  storyCounts: Record<string, number>;
+  recipeCounts: Record<string, number>;
   familyId: string;
+  familyName: string;
   currentUserId: string;
   currentUserMemberId: string | null;
   currentUserDisplayName: string | null;
+  currentUserOccupation: string | null;
+  currentUserLocation: string | null;
+}
+
+function currentYear(): number {
+  return new Date().getFullYear();
+}
+
+// Transform a DB row → the design's Person shape.
+function rowToPerson(
+  row: TreeNodeData,
+  realMembers: RealMember[],
+  storyCounts: Record<string, number>,
+  recipeCounts: Record<string, number>
+): Person {
+  const linked = row.linked_member_id
+    ? realMembers.find((m) => m.id === row.linked_member_id)
+    : null;
+  const uid = linked?.user_id ?? null;
+
+  const age = row.birth_year ? Math.max(0, currentYear() - row.birth_year) : null;
+  const name = row.display_name;
+  const first = name.split(" ")[0] ?? name;
+
+  return {
+    id: row.id,
+    name,
+    first,
+    relationship: row.relationship_label ?? null,
+    group: (row.group_type ?? "other") as Person["group"],
+    side: row.side ?? null,
+    age,
+    occupation: row.occupation ?? null,
+    location: row.location ?? null,
+    tags: row.tags ?? [],
+    stories: uid ? storyCounts[uid] ?? 0 : 0,
+    recipes: uid ? recipeCounts[uid] ?? 0 : 0,
+    bio: row.bio ?? null,
+    linkedMemberId: row.linked_member_id,
+    avatarUrl: row.avatar_url,
+    isDeceased: row.is_deceased,
+  };
 }
 
 export function FamilyTree({
   treeMembers,
   realMembers,
+  savedViews,
+  storyCounts,
+  recipeCounts,
   familyId,
+  familyName,
   currentUserId,
   currentUserMemberId,
   currentUserDisplayName,
+  currentUserOccupation,
+  currentUserLocation,
 }: FamilyTreeProps) {
-  // ─── Existing state ───
+  const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editNode, setEditNode] = useState<TreeNodeData | null>(null);
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteForName, setInviteForName] = useState<string | null>(null);
-  const [addingSelf, setAddingSelf] = useState(false);
   const [memberToDelete, setMemberToDelete] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  // ─── New MAI Tree state ───
-  const [viewSpec, setViewSpec] = useState<TreeViewSpec>(EMPTY_VIEW_SPEC);
-  const [quickCardNode, setQuickCardNode] = useState<HubNode | null>(null);
-  const [quickCardPos, setQuickCardPos] = useState<{ x: number; y: number } | null>(null);
-  const [profileNode, setProfileNode] = useState<HubNode | null>(null);
-
-  // Derive active preset value from view-spec so the sidebar highlights the
-  // right button regardless of whether the spec came from a preset click or
-  // Griot. A Griot-produced spec may still match a preset shape.
-  const activeFilter =
-    viewSpec.source === "preset" && viewSpec.pillLabel
-      ? viewSpec.pillLabel.replace(/^Filtered: /i, "").toLowerCase()
+  // ─── Build Person list + ME ────────────────────────────────
+  const { me, people } = useMemo(() => {
+    const egoRow = currentUserMemberId
+      ? treeMembers.find((m) => m.linked_member_id === currentUserMemberId)
       : null;
 
-  const canvasContainerRef = useRef<HTMLDivElement>(null);
+    let meOut: Person;
+    const otherRows: TreeNodeData[] = [];
 
-  const userInTree = currentUserMemberId
-    ? treeMembers.some((m) => m.linked_member_id === currentUserMemberId)
-    : false;
+    if (egoRow) {
+      meOut = {
+        ...rowToPerson(egoRow, realMembers, storyCounts, recipeCounts),
+        group: "me",
+      };
+      for (const r of treeMembers) if (r.id !== egoRow.id) otherRows.push(r);
+    } else {
+      // User has no tree node yet — synthesize a placeholder "YOU" so the
+      // canvas still renders. It won't have stats/bio but centers the view.
+      meOut = {
+        id: "me-placeholder",
+        name: currentUserDisplayName ?? "You",
+        first: (currentUserDisplayName ?? "You").split(" ")[0] ?? "You",
+        relationship: "You",
+        group: "me",
+        side: null,
+        age: null,
+        occupation: currentUserOccupation,
+        location: currentUserLocation,
+        tags: [],
+        stories: storyCounts[currentUserId] ?? 0,
+        recipes: recipeCounts[currentUserId] ?? 0,
+        bio: null,
+        linkedMemberId: currentUserMemberId,
+        avatarUrl: null,
+        isDeceased: false,
+      };
+      otherRows.push(...treeMembers);
+    }
 
-  // ─── Existing handlers ───
-  const handleHubEdit = useCallback(
-    (hubNode: HubNode) => {
-      const original = treeMembers.find((m) => m.id === hubNode.id);
-      if (original) {
-        setEditNode(original);
-        setDialogOpen(true);
-      }
-    },
-    [treeMembers]
+    const peopleOut = otherRows.map((r) =>
+      rowToPerson(r, realMembers, storyCounts, recipeCounts)
+    );
+    return { me: meOut, people: peopleOut };
+  }, [
+    treeMembers,
+    realMembers,
+    storyCounts,
+    recipeCounts,
+    currentUserMemberId,
+    currentUserDisplayName,
+    currentUserOccupation,
+    currentUserLocation,
+    currentUserId,
+  ]);
+
+  // ─── Saved views → View[] ───────────────────────────────────
+  const savedViewsTyped: View[] = useMemo(
+    () =>
+      savedViews.map((v) => ({
+        id: v.id,
+        label: v.label,
+        icon: (v.icon as View["icon"]) ?? "bookmark",
+        filters: v.filters ?? {},
+        split: v.split ?? null,
+        builtin: false,
+      })),
+    [savedViews]
   );
+
+  // ─── Dialog handlers ────────────────────────────────────────
+  const handleAddNew = useCallback(() => {
+    setEditNode(null);
+    setDialogOpen(true);
+  }, []);
 
   const handleDelete = useCallback((id: string) => {
     setMemberToDelete(id);
@@ -126,141 +206,62 @@ export function FamilyTree({
     });
   }
 
-  const handleAddNew = useCallback(() => {
-    setEditNode(null);
-    setDialogOpen(true);
-  }, []);
-
-  const handleInvite = useCallback((memberName: string) => {
-    setInviteForName(memberName);
-    setInviteOpen(true);
-  }, []);
-
-  const handleAddSelf = useCallback(() => {
-    if (!currentUserMemberId || !currentUserDisplayName) return;
-    setAddingSelf(true);
-    startTransition(async () => {
-      try {
-        const result = await addTreeMember({
-          familyId,
-          displayName: currentUserDisplayName,
-          relationshipLabel: null,
-          parentId: null,
-          spouseId: null,
-          birthYear: null,
-          isDeceased: false,
-          linkedMemberId: currentUserMemberId,
-        });
-        if (!result.success) {
-          toast.error(result.error ?? "Failed to add yourself");
-        } else {
-          toast.success("You\u2019ve been added to the tree!");
-        }
-      } catch {
-        toast.error("Something went wrong");
-      } finally {
-        setAddingSelf(false);
-      }
-    });
-  }, [familyId, currentUserMemberId, currentUserDisplayName]);
-
-  // ─── New MAI Tree handlers ───
-  const handleNodeClick = useCallback(
-    (node: HubNode, screenPos: { x: number; y: number }) => {
-      // Convert screen coords to container-relative coords
-      const rect = canvasContainerRef.current?.getBoundingClientRect();
-      const relX = rect ? screenPos.x - rect.left : screenPos.x;
-      const relY = rect ? screenPos.y - rect.top : screenPos.y;
-
-      // Clamp position so card doesn't overflow
-      const cardW = 224; // w-56
-      const cardH = 280;
-      const maxX = rect ? rect.width - cardW - 8 : relX;
-      const maxY = rect ? rect.height - cardH - 8 : relY;
-
-      setQuickCardNode(node);
-      setQuickCardPos({
-        x: Math.min(relX + 16, maxX),
-        y: Math.min(relY - 40, Math.max(8, maxY)),
+  // ─── Save / delete view ─────────────────────────────────────
+  const onSaveView = useCallback(
+    async (view: Omit<View, "id">) => {
+      const result = await saveTreeView({
+        familyId,
+        label: view.label,
+        icon: view.icon,
+        filters: view.filters,
+        split: view.split,
       });
+      if (!result.success) {
+        return { error: result.error };
+      }
+      // Optimistically reflected in canvas; also refresh so server-state aligns.
+      router.refresh();
+      return { id: result.id };
     },
-    []
+    [familyId, router]
   );
 
-  const handleNodeDoubleClick = useCallback((node: HubNode) => {
-    setQuickCardNode(null);
-    setQuickCardPos(null);
-    setProfileNode(node);
-  }, []);
-
-  const handleQuickCardClose = useCallback(() => {
-    setQuickCardNode(null);
-    setQuickCardPos(null);
-  }, []);
-
-  const handleViewProfile = useCallback(() => {
-    if (quickCardNode) {
-      setProfileNode(quickCardNode);
-      setQuickCardNode(null);
-      setQuickCardPos(null);
-    }
-  }, [quickCardNode]);
-
-  // Build a TreeViewSpec from a sidebar preset (or clear it).
-  const handleFilterChange = useCallback(
-    (filter: string | null) => {
-      if (!filter) {
-        setViewSpec(EMPTY_VIEW_SPEC);
-        return;
-      }
-      const matching: string[] = [];
-      const nonMatching: string[] = [];
-      for (const m of treeMembers) {
-        // Members without an explicit group_type (pre-migration rows that
-        // bypassed the fallback) get treated as 'family' so presets stay
-        // predictable even if the DB column hasn't been backfilled yet.
-        const group = m.group_type ?? "family";
-        if (group === filter) matching.push(m.id);
-        else nonMatching.push(m.id);
-      }
-      const label = filter.charAt(0).toUpperCase() + filter.slice(1);
-      setViewSpec({
-        visibleIds: matching,
-        dimIds: nonMatching,
-        clusters: null,
-        pillLabel: `Filtered: ${label}`,
-        source: "preset",
-      });
+  const onDeleteView = useCallback(
+    async (id: string) => {
+      const result = await deleteTreeView(id);
+      if (!result.success) return { error: result.error };
+      router.refresh();
+      return {};
     },
-    [treeMembers]
+    [router]
   );
 
-  const handleClearViewSpec = useCallback(() => {
-    setViewSpec(EMPTY_VIEW_SPEC);
-  }, []);
+  // Suppress unused-warning for handleDelete while the canvas doesn't wire
+  // right-click-delete yet — the delete-confirm dialog is still used via the
+  // existing profile modal button path in a later iteration.
+  void handleDelete;
 
-  const handleViewSpecFromGriot = useCallback((spec: TreeViewSpec) => {
-    setViewSpec(spec);
-  }, []);
+  return (
+    <div className="h-full w-full">
+      <MaiTreeCanvas
+        people={people}
+        me={me}
+        familyId={familyId}
+        familyName={familyName}
+        savedViews={savedViewsTyped}
+        onSaveView={onSaveView}
+        onDeleteView={onDeleteView}
+        onAddMember={handleAddNew}
+      />
 
-  // ─── Shared dialogs (rendered in both empty + populated states) ───
-  const dialogs = (
-    <>
       <AddTreeMemberDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         familyId={familyId}
         existingMembers={treeMembers}
-        realMembers={realMembers}
+        realMembers={realMembers.map((m) => ({ id: m.id, display_name: m.display_name }))}
         editNode={editNode}
         currentUserMemberId={currentUserMemberId}
-      />
-
-      <InviteMemberDialog
-        open={inviteOpen}
-        onOpenChange={setInviteOpen}
-        familyId={familyId}
-        forMemberName={inviteForName}
       />
 
       <AlertDialog
@@ -288,127 +289,6 @@ export function FamilyTree({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <MaiTreeProfileModal
-        open={!!profileNode}
-        onOpenChange={(open) => {
-          if (!open) setProfileNode(null);
-        }}
-        node={profileNode}
-        mockProfile={
-          profileNode
-            ? getMockProfile(profileNode.id, profileNode.displayName)
-            : null
-        }
-      />
-    </>
-  );
-
-  // ─── Empty state ───
-  if (treeMembers.length === 0) {
-    return (
-      <div className="flex h-full">
-        <MaiTreeSidebar
-          activeFilter={activeFilter}
-          onFilterChange={handleFilterChange}
-          onAddNew={handleAddNew}
-        />
-        <div className="flex-1 relative min-w-0">
-          <MaiTreeEmptyState
-            currentUserDisplayName={currentUserDisplayName}
-            onAddNew={handleAddNew}
-          />
-        </div>
-        {dialogs}
-      </div>
-    );
-  }
-
-  // ─── Populated state ───
-  return (
-    <div className="flex h-full">
-      <MaiTreeSidebar
-        activeFilter={activeFilter}
-        onFilterChange={handleFilterChange}
-        onAddNew={handleAddNew}
-      />
-      <div ref={canvasContainerRef} className="flex-1 relative min-w-0 overflow-hidden">
-        {/* "Not in tree" banner */}
-        {!userInTree && currentUserMemberId && currentUserDisplayName && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 rounded-full border border-primary/20 bg-card/90 backdrop-blur-sm shadow-sm px-4 py-2">
-            <div className="flex items-center gap-2 min-w-0">
-              <UserPlus className="h-4 w-4 text-primary shrink-0" />
-              <p className="text-xs text-muted-foreground whitespace-nowrap">
-                You&apos;re not in the tree yet.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              onClick={handleAddSelf}
-              disabled={addingSelf}
-              className="shrink-0 rounded-full h-7 text-xs"
-            >
-              {addingSelf ? "Adding..." : "Add Myself"}
-            </Button>
-          </div>
-        )}
-
-        {/* Filter / Griot view pill */}
-        {viewSpec.pillLabel && (
-          <div className="absolute top-3 right-14 z-20">
-            <Badge
-              variant="secondary"
-              className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20"
-            >
-              {viewSpec.pillLabel}
-              <button
-                onClick={handleClearViewSpec}
-                className="ml-0.5 hover:text-foreground transition-colors"
-                aria-label="Clear view"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          </div>
-        )}
-
-        {/* Canvas */}
-        <LegacyHubCanvas
-          members={treeMembers}
-          currentUserMemberId={currentUserMemberId}
-          viewSpec={viewSpec}
-          onEdit={handleHubEdit}
-          onDelete={handleDelete}
-          onInvite={handleInvite}
-          onNodeClick={handleNodeClick}
-          onNodeDoubleClick={handleNodeDoubleClick}
-        />
-
-        {/* Instruction bar */}
-        <MaiTreeInstructionBar />
-
-        {/* Quick card */}
-        {quickCardNode && quickCardPos && (
-          <MaiTreeQuickCard
-            node={quickCardNode}
-            position={quickCardPos}
-            mockProfile={getMockProfile(
-              quickCardNode.id,
-              quickCardNode.displayName
-            )}
-            onClose={handleQuickCardClose}
-            onViewProfile={handleViewProfile}
-          />
-        )}
-
-        {/* Griot panel */}
-        <MaiTreeGroitPanel
-          familyId={familyId}
-          onViewSpec={handleViewSpecFromGriot}
-        />
-      </div>
-
-      {dialogs}
     </div>
   );
 }

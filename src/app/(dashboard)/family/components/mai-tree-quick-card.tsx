@@ -1,128 +1,141 @@
 "use client";
 
-import { useRef, useEffect } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
-import type { HubNode } from "./legacy-hub-types";
-import type { MockMemberProfile } from "./mai-tree-mock-data";
+// MAI Tree — quick card. Ported from handoff/MAITree.jsx :439-485.
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-interface MaiTreeQuickCardProps {
-  node: HubNode;
-  position: { x: number; y: number };
-  mockProfile: MockMemberProfile;
+import type { Person } from "./mai-tree-types";
+import { borderColorFor, getHue, getInitials } from "./mai-tree-layout";
+
+interface QuickCardProps {
+  person: Person | null;
+  pos: { x: number; y: number } | undefined;
+  size: { w: number; h: number };
   onClose: () => void;
-  onViewProfile: () => void;
+  onOpen: () => void;
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-export function MaiTreeQuickCard({
-  node,
-  position,
-  mockProfile,
-  onClose,
-  onViewProfile,
-}: MaiTreeQuickCardProps) {
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  // Click-outside to dismiss
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    }
-    // Delay to avoid the same click that opened the card
-    const timer = setTimeout(() => {
-      document.addEventListener("mousedown", handleClick);
-    }, 50);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("mousedown", handleClick);
-    };
-  }, [onClose]);
-
-  // Top 2 entry types
-  const topEntries = mockProfile.entryCounts
-    .filter((e) => e.count > 0)
-    .slice(0, 2);
-
-  const relationshipLabel =
-    node.relationshipLabel ?? (node.connectionType === "spouse" ? "Spouse" : node.connectionType === "friend" ? "Friend" : "Family");
+export function MaiTreeQuickCard({ person, pos, size, onClose, onOpen }: QuickCardProps) {
+  if (!person || !pos) return null;
+  const color = borderColorFor(person.group);
+  const cardW = 250;
+  const x = Math.min(Math.max(pos.x + 50, 20), size.w - cardW - 20);
+  const y = Math.max(Math.min(pos.y - 40, size.h - 240), 80);
 
   return (
     <div
-      ref={cardRef}
-      className="absolute z-30 w-56 bg-card border rounded-xl shadow-lg p-4 flex flex-col items-center gap-2.5 animate-in fade-in zoom-in-95 duration-150"
+      onClick={(e) => e.stopPropagation()}
       style={{
-        left: position.x,
-        top: position.y,
+        position: "absolute",
+        left: x,
+        top: y,
+        width: cardW,
+        zIndex: 120,
+        background: "#FDF9F3",
+        borderRadius: 16,
+        border: "1px solid rgba(192,112,74,0.18)",
+        boxShadow: "0 16px 48px rgba(61,43,31,0.16)",
+        padding: 18,
+        fontFamily: "system-ui, -apple-system, sans-serif",
+        animation: "maiTreeFadeIn 0.2s ease",
       }}
     >
-      {/* Avatar */}
-      <Avatar className="h-12 w-12">
-        {node.avatarUrl && (
-          <AvatarImage src={node.avatarUrl} alt={node.displayName} />
-        )}
-        <AvatarFallback className="bg-primary/90 text-primary-foreground text-sm font-bold">
-          {getInitials(node.displayName)}
-        </AvatarFallback>
-      </Avatar>
-
-      {/* Name */}
-      <p className="font-serif font-bold text-sm text-center leading-tight">
-        {node.displayName}
-      </p>
-
-      {/* Relationship badge */}
-      <Badge className="bg-[#C17B54]/10 text-[#C17B54] border-[#C17B54]/20 text-[10px] uppercase tracking-wider font-bold hover:bg-[#C17B54]/10">
-        {relationshipLabel}
-      </Badge>
-
-      {/* Age + Occupation */}
-      <p className="text-xs text-muted-foreground text-center">
-        {mockProfile.age} yrs &middot; {mockProfile.occupation}
-      </p>
-
-      {/* Entry count summary */}
-      {topEntries.length > 0 && (
-        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-          {topEntries.map((e) => (
-            <span key={e.type} className="flex items-center gap-1">
-              {e.emoji} {e.count} {e.type}
-            </span>
-          ))}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+        <div
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: "50%",
+            background: `radial-gradient(circle at 35% 30%, hsl(${getHue(person.name)} 38% 78%), hsl(${getHue(person.name)} 35% 62%))`,
+            border: `2px solid ${color}`,
+            display: "grid",
+            placeItems: "center",
+            color: "#fff",
+            fontWeight: 600,
+            fontSize: 13,
+            fontFamily: "'Lora', Georgia, serif",
+          }}
+        >
+          {getInitials(person.name)}
         </div>
-      )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontFamily: "'Lora', Georgia, serif",
+              fontSize: 17,
+              fontWeight: 700,
+              color: "#3D2B1F",
+              lineHeight: 1.2,
+            }}
+          >
+            {person.name}
+          </div>
+          <div
+            style={{
+              display: "inline-block",
+              marginTop: 3,
+              padding: "2px 9px",
+              borderRadius: 8,
+              background: person.group === "family" ? "rgba(192,112,74,0.12)" : "rgba(26,20,16,0.08)",
+              color,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+            }}
+          >
+            {(person.relationship || person.group).toUpperCase()}
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          style={{
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            color: "#9b8670",
+            fontSize: 18,
+            lineHeight: 1,
+            padding: 4,
+          }}
+        >
+          ×
+        </button>
+      </div>
 
-      {/* View Full Profile */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={onViewProfile}
-        className="w-full mt-1 rounded-full text-xs border-[#C17B54]/30 text-[#C17B54] hover:bg-[#C17B54]/5"
+      <div style={{ fontSize: 13, color: "#7a6550", lineHeight: 1.45, marginBottom: 10 }}>
+        {person.age != null ? `${person.age} yrs` : ""}
+        {person.age != null && person.occupation ? " · " : ""}
+        {person.occupation ?? ""}
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          gap: 14,
+          fontSize: 12,
+          color: "#5b4a3a",
+          marginBottom: 12,
+        }}
       >
-        View Full Profile
-        <ArrowRight className="h-3 w-3 ml-1" />
-      </Button>
+        <span>📖 {person.stories} Stories</span>
+        <span>🍴 {person.recipes} Recipes</span>
+      </div>
+
+      <button
+        onClick={onOpen}
+        style={{
+          width: "100%",
+          padding: "9px 0",
+          borderRadius: 10,
+          border: `1.5px solid ${color}`,
+          background: "transparent",
+          color,
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: "pointer",
+        }}
+      >
+        View Full Profile →
+      </button>
     </div>
   );
 }

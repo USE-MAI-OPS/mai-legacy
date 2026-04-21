@@ -1,213 +1,326 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
-import { Sparkles, X, Send, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "sonner";
-import type { TreeViewSpec } from "./legacy-hub-types";
+// MAI Tree — Griot panel. Ported from handoff/MAITree.jsx :765-862, with the
+// LLM call as primary (returns a FilterPlan JSON) and local planFromQuery as
+// fallback on any failure. Matches the handoff's graceful-degradation behavior.
 
-interface PanelMessage {
-  role: "user" | "assistant";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { X, Send } from "lucide-react";
+import { planFromQuery } from "./mai-tree-plan-from-query";
+import type { FilterPlan } from "./mai-tree-types";
+
+interface Message {
+  role: "user" | "griot";
   text: string;
 }
 
-interface MaiTreeGroitPanelProps {
+interface MaiTreeGriotPanelProps {
   familyId: string;
-  onViewSpec: (spec: TreeViewSpec) => void;
+  onPlan: (plan: FilterPlan) => void;
 }
 
 const SUGGESTIONS = [
-  "Show me just my family",
-  "Show family and friends separately",
-  "Who did I go to school with?",
+  "Show me mom's side",
+  "Family vs Friends",
+  "Everyone in tech",
+  "Morehouse alumni",
+  "Dad's side + tech",
 ];
 
-export function MaiTreeGroitPanel({
-  familyId,
-  onViewSpec,
-}: MaiTreeGroitPanelProps) {
+export function MaiTreeGriotPanel({ familyId, onPlan }: MaiTreeGriotPanelProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<PanelMessage[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [pending, setPending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Keep chat scrolled to the latest message
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, pending]);
 
-  const submit = useCallback(
+  const send = useCallback(
     async (text: string) => {
-      const query = text.trim();
-      if (!query || pending) return;
+      const q = text.trim();
+      if (!q || pending) return;
 
-      setMessages((prev) => [...prev, { role: "user", text: query }]);
+      setMessages((m) => [...m, { role: "user", text: q }]);
       setInput("");
       setPending(true);
 
+      let plan: FilterPlan | null = null;
+
+      // Primary: the LLM endpoint.
       try {
         const res = await fetch("/api/griot/tree-view", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query, familyId }),
+          body: JSON.stringify({ query: q, familyId }),
         });
-
-        if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as {
-            error?: string;
-          };
-          toast.error(body.error ?? "Griot couldn't reorganize the view");
-          // Keep the user's message so they can try again; don't touch spec.
-          return;
+        if (res.ok) {
+          const json = (await res.json()) as { plan?: FilterPlan };
+          if (json.plan && (json.plan.type === "filter" || json.plan.type === "split")) {
+            plan = json.plan;
+          }
         }
-
-        const data = (await res.json()) as {
-          viewSpec: TreeViewSpec;
-          narration: string;
-        };
-
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", text: data.narration },
-        ]);
-        onViewSpec(data.viewSpec);
-      } catch (err) {
-        console.error("[griot-panel] request failed", err);
-        toast.error("Couldn't reach the Griot");
-      } finally {
-        setPending(false);
+      } catch {
+        // fall through to local fallback
       }
+
+      // Fallback: local keyword parser. Always produces something.
+      if (!plan) {
+        plan = planFromQuery(q);
+      }
+
+      setMessages((m) => [...m, { role: "griot", text: plan!.summary }]);
+      onPlan(plan);
+      setPending(false);
     },
-    [familyId, onViewSpec, pending]
+    [familyId, onPlan, pending]
   );
 
   if (!open) {
     return (
-      <Button
+      <button
         onClick={() => setOpen(true)}
-        className="absolute bottom-4 right-4 z-20 h-12 w-12 rounded-full shadow-lg bg-primary hover:bg-primary/90"
-        size="icon"
         aria-label="Open Griot"
+        style={{
+          position: "absolute",
+          bottom: 22,
+          right: 22,
+          zIndex: 100,
+          width: 52,
+          height: 52,
+          borderRadius: "50%",
+          background: "#C0704A",
+          color: "#fff",
+          border: "none",
+          boxShadow: "0 8px 22px rgba(192,112,74,0.42)",
+          display: "grid",
+          placeItems: "center",
+          cursor: "pointer",
+          fontSize: 22,
+          fontFamily: "'Lora', Georgia, serif",
+        }}
       >
-        <Sparkles className="h-5 w-5" />
-      </Button>
+        ✦
+      </button>
     );
   }
 
   return (
-    <div className="absolute bottom-4 right-4 z-20 w-80 bg-card border rounded-2xl shadow-xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
-        <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-            <Sparkles className="h-3.5 w-3.5 text-orange-500" />
-          </div>
-          <span className="text-sm font-semibold">The Griot</span>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={() => setOpen(false)}
-          aria-label="Close Griot"
+    <>
+      <div
+        style={{
+          position: "absolute",
+          right: 22,
+          bottom: 86,
+          zIndex: 110,
+          width: 340,
+          maxHeight: 460,
+          background: "#FDF9F3",
+          borderRadius: 18,
+          border: "1px solid rgba(192,112,74,0.2)",
+          boxShadow: "0 18px 48px rgba(61,43,31,0.18)",
+          display: "flex",
+          flexDirection: "column",
+          fontFamily: "system-ui, sans-serif",
+          animation: "maiTreeSlideUp 0.25s ease",
+        }}
+      >
+        <div
+          style={{
+            padding: "14px 18px",
+            borderBottom: "1px solid rgba(192,112,74,0.15)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
         >
-          <X className="h-3.5 w-3.5" />
-        </Button>
-      </div>
+          <span style={{ color: "#C0704A", fontSize: 16 }}>✦</span>
+          <span
+            style={{
+              fontFamily: "'Lora', Georgia, serif",
+              fontSize: 16,
+              fontWeight: 700,
+              color: "#3D2B1F",
+            }}
+          >
+            Griot
+          </span>
+          <span style={{ fontSize: 11, color: "#9b8670", flex: 1 }}>
+            — ask me to reorganize
+          </span>
+          <button
+            onClick={() => setOpen(false)}
+            aria-label="Close Griot"
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "#9b8670",
+              padding: 2,
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+          >
+            <X size={14} />
+          </button>
+        </div>
 
-      {/* Chat area */}
-      <ScrollArea className="flex-1 max-h-64">
-        <div ref={scrollRef} className="p-4 space-y-3">
+        <div
+          ref={scrollRef}
+          style={{
+            flex: 1,
+            padding: "12px 16px",
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}
+        >
           {messages.length === 0 && !pending && (
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">
-                Ask me to reorganize the view. Try:
-              </p>
-              <div className="flex flex-col gap-1.5">
+            <>
+              <div style={{ fontSize: 12, color: "#9b8670", marginBottom: 4 }}>
+                Try one of these:
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {SUGGESTIONS.map((s) => (
                   <button
                     key={s}
-                    onClick={() => submit(s)}
-                    className="text-left text-xs rounded-lg px-3 py-2 bg-muted/60 hover:bg-muted transition-colors text-foreground"
+                    onClick={() => send(s)}
+                    style={{
+                      padding: "6px 10px",
+                      borderRadius: 999,
+                      background: "rgba(192,112,74,0.08)",
+                      border: "1px solid rgba(192,112,74,0.2)",
+                      color: "#C0704A",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
                   >
                     {s}
                   </button>
                 ))}
               </div>
-            </div>
+            </>
           )}
-
-          {messages.map((msg, i) => (
+          {messages.map((m, i) => (
             <div
               key={i}
-              className={`flex ${
-                msg.role === "user" ? "justify-end" : "justify-start"
-              }`}
+              style={{
+                alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+                maxWidth: "85%",
+                padding: "8px 12px",
+                borderRadius: 14,
+                background: m.role === "user" ? "#3D2B1F" : "rgba(192,112,74,0.08)",
+                color: m.role === "user" ? "#fff" : "#3D2B1F",
+                border: m.role === "griot" ? "1px solid rgba(192,112,74,0.18)" : "none",
+                fontSize: 13,
+                lineHeight: 1.4,
+              }}
             >
-              <div
-                className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground rounded-br-md"
-                    : "bg-muted text-foreground rounded-bl-md"
-                }`}
-              >
-                {msg.role === "assistant" && (
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
-                    <span className="text-[10px] font-semibold text-muted-foreground">
-                      Griot
-                    </span>
-                  </div>
-                )}
-                {msg.text}
-              </div>
+              {m.role === "griot" && (
+                <span style={{ color: "#C0704A", marginRight: 4 }}>✦</span>
+              )}
+              {m.text}
             </div>
           ))}
-
           {pending && (
-            <div className="flex justify-start">
-              <div className="bg-muted rounded-2xl rounded-bl-md px-3.5 py-2.5 flex items-center gap-2">
-                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                <span className="text-[10px] text-muted-foreground">
-                  Reorganizing…
-                </span>
-              </div>
+            <div
+              style={{
+                alignSelf: "flex-start",
+                maxWidth: "85%",
+                padding: "8px 12px",
+                borderRadius: 14,
+                background: "rgba(192,112,74,0.08)",
+                border: "1px solid rgba(192,112,74,0.18)",
+                color: "#9b8670",
+                fontSize: 13,
+                fontStyle: "italic",
+              }}
+            >
+              <span style={{ color: "#C0704A", marginRight: 4 }}>✦</span>
+              Reorganizing…
             </div>
           )}
         </div>
-      </ScrollArea>
 
-      {/* Input bar */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit(input);
-        }}
-        className="flex items-center gap-2 px-3 py-2.5 border-t"
-      >
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about your network..."
-          className="h-8 text-xs rounded-full bg-muted border-0"
-          disabled={pending}
-        />
-        <Button
-          type="submit"
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          disabled={pending || !input.trim()}
-          aria-label="Send"
+        <div
+          style={{
+            padding: 12,
+            borderTop: "1px solid rgba(192,112,74,0.15)",
+            display: "flex",
+            gap: 8,
+          }}
         >
-          <Send className="h-3.5 w-3.5" />
-        </Button>
-      </form>
-    </div>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") send(input);
+            }}
+            placeholder="Ask about your network..."
+            disabled={pending}
+            style={{
+              flex: 1,
+              padding: "9px 14px",
+              borderRadius: 10,
+              border: "1px solid rgba(192,112,74,0.2)",
+              background: "#fff",
+              color: "#3D2B1F",
+              fontSize: 13,
+              outline: "none",
+              fontFamily: "system-ui, sans-serif",
+            }}
+          />
+          <button
+            onClick={() => send(input)}
+            disabled={pending || !input.trim()}
+            aria-label="Send"
+            style={{
+              padding: "9px 12px",
+              borderRadius: 10,
+              border: "none",
+              background: "#C0704A",
+              color: "#fff",
+              cursor: pending || !input.trim() ? "default" : "pointer",
+              opacity: pending || !input.trim() ? 0.5 : 1,
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+          >
+            <Send size={14} />
+          </button>
+        </div>
+      </div>
+
+      <button
+        onClick={() => setOpen(false)}
+        aria-label="Close Griot"
+        style={{
+          position: "absolute",
+          bottom: 22,
+          right: 22,
+          zIndex: 100,
+          width: 52,
+          height: 52,
+          borderRadius: "50%",
+          background: "#C0704A",
+          color: "#fff",
+          border: "none",
+          boxShadow: "0 8px 22px rgba(192,112,74,0.42)",
+          display: "grid",
+          placeItems: "center",
+          cursor: "pointer",
+          fontSize: 22,
+          fontFamily: "'Lora', Georgia, serif",
+        }}
+      >
+        ✦
+      </button>
+    </>
   );
 }

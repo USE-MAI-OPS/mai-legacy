@@ -414,6 +414,11 @@ export function AddTreeMemberDialog({
   const [displayName, setDisplayName] = useState("");
   const [connectionType, setConnectionType] = useState("dna");
   const [groupType, setGroupType] = useState<string>("family");
+  const [side, setSide] = useState<string>("none");
+  const [tagsInput, setTagsInput] = useState("");
+  const [occupation, setOccupation] = useState("");
+  const [location, setLocation] = useState("");
+  const [bio, setBio] = useState("");
   const [relationshipLabel, setRelationshipLabel] = useState("none");
   const [parentId, setParentId] = useState("none");
   const [parent2Id, setParent2Id] = useState("none");
@@ -437,6 +442,11 @@ export function AddTreeMemberDialog({
       setDisplayName(editNode?.display_name ?? "");
       setConnectionType(editNode?.connection_type ?? "dna");
       setGroupType(editNode?.group_type ?? "family");
+      setSide(editNode?.side ?? "none");
+      setTagsInput((editNode?.tags ?? []).join(", "));
+      setOccupation(editNode?.occupation ?? "");
+      setLocation(editNode?.location ?? "");
+      setBio(editNode?.bio ?? "");
       setRelationshipLabel(editNode?.relationship_label ?? "none");
       setParentId(editNode?.parent_id ?? "none");
       setParent2Id(editNode?.parent2_id ?? "none");
@@ -449,6 +459,12 @@ export function AddTreeMemberDialog({
       setNewChildren([]);
     }
   }, [open, editNode]);
+
+  // Parse the comma-separated tag input into an array.
+  const tagsArray = tagsInput
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0);
 
   // Nudge group_type when connection_type changes via the picker below —
   // handled inline in the onClick so we don't need an effect that watches
@@ -620,6 +636,11 @@ export function AddTreeMemberDialog({
             linkedMemberId: uuidOrNull(linkedMemberId),
             connectionType,
             groupType,
+            side: side === "none" ? null : side,
+            tags: tagsArray,
+            occupation: occupation.trim() || null,
+            location: location.trim() || null,
+            bio: bio.trim() || null,
           });
           if (!result.success) {
             toast.error(result.error ?? "Failed to update member");
@@ -718,6 +739,11 @@ export function AddTreeMemberDialog({
             isDeceased,
             connectionType,
             groupType,
+            side: side === "none" ? null : side,
+            tags: tagsArray,
+            occupation: occupation.trim() || null,
+            location: location.trim() || null,
+            bio: bio.trim() || null,
           });
           if (!result.success) {
             toast.error(result.error ?? "Failed to add member");
@@ -891,6 +917,76 @@ export function AddTreeMemberDialog({
               Powers the sidebar filter views. A cousin you went to school with
               can be either — pick whichever network matters most.
             </p>
+          </div>
+
+          {/* ─── Family side (only for family) — drives Mom's side / Dad's side views ─── */}
+          {groupType === "family" && (
+            <div className="space-y-1.5">
+              <Label>Side of family</Label>
+              <Select value={side} onValueChange={setSide}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="No side" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No side / unspecified</SelectItem>
+                  <SelectItem value="mom">Mom&apos;s side</SelectItem>
+                  <SelectItem value="dad">Dad&apos;s side</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* ─── Profile details (occupation / location / tags / bio) ─── */}
+          <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+            <p className="text-sm font-medium">Profile details</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Occupation</Label>
+                <Input
+                  value={occupation}
+                  onChange={(e) => setOccupation(e.target.value)}
+                  placeholder="e.g. Nurse"
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-muted-foreground">Location</Label>
+                <Input
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="e.g. Jackson, MS"
+                  className="h-8 text-sm"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] text-muted-foreground">
+                Tags (comma-separated)
+              </Label>
+              <Input
+                value={tagsInput}
+                onChange={(e) => setTagsInput(e.target.value)}
+                placeholder="e.g. tech, Morehouse, healthcare"
+                className="h-8 text-sm"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Used by saved views and Griot queries. Common tags:
+                <code className="ml-1">tech</code>,{" "}
+                <code>Morehouse</code>, <code>Howard</code>,{" "}
+                <code>Spelman</code>, <code>engineering</code>,{" "}
+                <code>healthcare</code>.
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] text-muted-foreground">Bio</Label>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="One-line sentiment shown in their profile modal."
+                rows={2}
+                className="w-full text-sm rounded-md border border-input bg-transparent p-2 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+              />
+            </div>
           </div>
 
           {/* ─── Relationship Label ─── */}

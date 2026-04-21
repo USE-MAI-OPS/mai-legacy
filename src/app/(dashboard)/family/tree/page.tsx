@@ -5,12 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getFamilyContext } from "@/lib/get-family-context";
 import { FamilyTree } from "../components/family-tree";
+import type {
+  TreeGroupType,
+  TreeSide,
+  TreeFilterSpec,
+  TreeSplitSpec,
+} from "@/types/database";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-import type { TreeGroupType } from "@/types/database";
-
 interface TreeMemberRow {
   id: string;
   display_name: string;
@@ -26,16 +30,32 @@ interface TreeMemberRow {
   position_y: number | null;
   connection_type: string | null;
   group_type: TreeGroupType | null;
+  side: TreeSide | null;
+  tags: string[] | null;
+  occupation: string | null;
+  location: string | null;
+  bio: string | null;
 }
 
 interface RealMemberRow {
   id: string;
   display_name: string;
   user_id: string;
+  occupation: string | null;
+  country: string | null;
+  state: string | null;
+}
+
+interface SavedViewRow {
+  id: string;
+  label: string;
+  icon: string;
+  filters: TreeFilterSpec;
+  split: TreeSplitSpec | null;
 }
 
 // ---------------------------------------------------------------------------
-// Data fetching (tree-specific subset)
+// Data fetching
 // ---------------------------------------------------------------------------
 async function getTreeData() {
   try {
@@ -45,64 +65,82 @@ async function getTreeData() {
 
     const sb = supabase;
 
-    // Build tree query — try with all optional columns, fall back to basics
-    // if a newer column doesn't exist yet in this environment.
-    const fullSelect = "id, display_name, relationship_label, parent_id, parent2_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url, position_x, position_y, connection_type, group_type";
-    const basicSelect = "id, display_name, relationship_label, parent_id, parent2_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url";
+    const fullSelect =
+      "id, display_name, relationship_label, parent_id, parent2_id, spouse_id, linked_member_id, birth_year, is_deceased, avatar_url, position_x, position_y, connection_type, group_type, side, tags, occupation, location, bio";
 
-    // Visibility rule for the MAI Tree: show members connected to the user
-    // via DNA / spouse edges (connectedTreeMemberIds) PLUS anyone the user
-    // added themselves — friends, coworkers, schoolmates have no DNA edges
-    // so the connection chain alone misses them. Own-adds carry over.
-    const buildIdOrAddedByFilter = () => {
-      if (connectedTreeMemberIds.length === 0) {
-        return `added_by.eq.${userId}`;
-      }
-      const quoted = connectedTreeMemberIds.map((id) => `"${id}"`).join(",");
-      return `id.in.(${quoted}),added_by.eq.${userId}`;
-    };
+    // Same visibility relaxation we applied in commit c79243b — include members
+    // the user added themselves so friends/work/school (no DNA edges) aren't
+    // stripped by the connection-chain filter.
+    const idOrAddedByFilter =
+      connectedTreeMemberIds.length === 0
+        ? `added_by.eq.${userId}`
+        : `id.in.(${connectedTreeMemberIds.map((id) => `"${id}"`).join(",")}),added_by.eq.${userId}`;
 
-    const treeQuery = sb
-      .from("family_tree_members")
-      .select(fullSelect)
-      .eq("family_id", familyId)
-      .or(buildIdOrAddedByFilter())
-      .order("created_at", { ascending: true });
-
-    const [familyResult, treeMembersResult, realMembersResult] =
+    const [familyResult, treeMembersResult, realMembersResult, savedViewsResult] =
       await Promise.all([
         sb.from("families").select("name").eq("id", familyId).single(),
-        treeQuery,
+        sb
+          .from("family_tree_members")
+          .select(fullSelect)
+          .eq("family_id", familyId)
+          .or(idOrAddedByFilter)
+          .order("created_at", { ascending: true }),
         sb
           .from("family_members")
-          .select("id, display_name, user_id")
+          .select("id, display_name, user_id, occupation, country, state")
           .eq("family_id", familyId)
           .order("joined_at", { ascending: true }),
+        sb
+          .from("tree_views")
+          .select("id, label, icon, filters, split")
+          .eq("family_id", familyId)
+          .eq("user_id", userId)
+          .order("created_at", { ascending: true }),
       ]);
 
-    // If position columns don't exist yet, retry without them
-    let treeMembersData: TreeMemberRow[] | null = treeMembersResult.data as TreeMemberRow[] | null;
-    if (treeMembersResult.error?.message?.includes("does not exist")) {
-      const fallbackQuery = sb
-        .from("family_tree_members")
-        .select(basicSelect)
-        .eq("family_id", familyId)
-        .or(buildIdOrAddedByFilter())
-        .order("created_at", { ascending: true });
-      const fallback = await fallbackQuery;
-      treeMembersData = (fallback.data as TreeMemberRow[] | null);
-    }
-
+    const treeMembersData = (treeMembersResult.data as TreeMemberRow[] | null) ?? [];
     const realMembers = (realMembersResult.data as RealMemberRow[]) ?? [];
+    const savedViews = (savedViewsResult.data as SavedViewRow[] | null) ?? [];
     const currentUserMember = realMembers.find((m) => m.user_id === userId);
+
+    // Count entries per author_id once, for tree members linked to real accounts.
+    // Splits into stories vs recipes using entries.type.
+    const linkedUserIds = treeMembersData
+      .map((m) => {
+        const fm = realMembers.find((r) => r.id === m.linked_member_id);
+        return fm?.user_id;
+      })
+      .filter((v): v is string => !!v);
+
+    const storyCounts = new Map<string, number>();
+    const recipeCounts = new Map<string, number>();
+    if (linkedUserIds.length > 0) {
+      const { data: entries } = await sb
+        .from("entries")
+        .select("author_id, type")
+        .eq("family_id", familyId)
+        .in("author_id", linkedUserIds);
+      for (const e of entries ?? []) {
+        const uid = (e as { author_id: string }).author_id;
+        const type = (e as { type: string }).type;
+        if (type === "recipe") recipeCounts.set(uid, (recipeCounts.get(uid) ?? 0) + 1);
+        else storyCounts.set(uid, (storyCounts.get(uid) ?? 0) + 1);
+      }
+    }
 
     return {
       familyName: familyResult.data?.name ?? "Your Family",
-      treeMembers: treeMembersData ?? [],
+      treeMembers: treeMembersData,
       realMembers,
+      savedViews,
+      storyCounts: Object.fromEntries(storyCounts),
+      recipeCounts: Object.fromEntries(recipeCounts),
       currentUserId: userId,
       currentUserMemberId: currentUserMember?.id ?? null,
       currentUserDisplayName: currentUserMember?.display_name ?? null,
+      currentUserOccupation: currentUserMember?.occupation ?? null,
+      currentUserLocation:
+        [currentUserMember?.state, currentUserMember?.country].filter(Boolean).join(", ") || null,
       familyId,
     };
   } catch (err) {
@@ -115,7 +153,6 @@ async function getTreeData() {
 // Page
 // ---------------------------------------------------------------------------
 export default async function FamilyTreePage() {
-  // Redirect to onboarding if user has no family
   const ctx = await getFamilyContext();
   if (!ctx) {
     redirect("/onboarding");
@@ -165,18 +202,28 @@ export default async function FamilyTreePage() {
         </div>
       </div>
 
-      {/* Tree fills remaining height — viewport handles its own pan/zoom */}
+      {/* Canvas fills remaining height */}
       <div className="flex-1 overflow-hidden">
         <FamilyTree
-          treeMembers={data.treeMembers}
+          treeMembers={data.treeMembers.map((m) => ({
+            ...m,
+            tags: m.tags ?? [],
+          }))}
           realMembers={data.realMembers.map((m) => ({
             id: m.id,
             display_name: m.display_name,
+            user_id: m.user_id,
           }))}
+          savedViews={data.savedViews}
+          storyCounts={data.storyCounts}
+          recipeCounts={data.recipeCounts}
           familyId={data.familyId}
+          familyName={data.familyName}
           currentUserId={data.currentUserId}
           currentUserMemberId={data.currentUserMemberId}
           currentUserDisplayName={data.currentUserDisplayName}
+          currentUserOccupation={data.currentUserOccupation}
+          currentUserLocation={data.currentUserLocation}
         />
       </div>
     </div>

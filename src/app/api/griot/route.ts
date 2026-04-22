@@ -1,9 +1,8 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getFamilyContext } from "@/lib/get-family-context";
 import { searchFamilyKnowledge } from "@/lib/rag/search";
-import { getConnectionChain } from "@/lib/connection-chain";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
-import { requireTier } from "@/lib/tier-check";
 import {
   buildPiiContext,
   sanitize,
@@ -19,29 +18,32 @@ const OPENROUTER_MODEL = "minimax/minimax-m2.5";
 /**
  * POST /api/griot
  *
- * Streaming chat endpoint for the Griot -- the family's AI knowledge keeper.
+ * Streaming chat endpoint for Griot -- the viewer's AI knowledge keeper.
+ *
+ * Griot is cross-hub: it searches every family and circle the viewer belongs
+ * to, so asking about a person or story doesn't depend on which hub happens
+ * to be active. `familyId` in the body is optional and used only to tag the
+ * persisted conversation row with an "active hub" for the sidebar.
  *
  * Body:
  *   - message:         string    (the user's latest message)
- *   - familyId:        string    (which family's knowledge to search)
+ *   - familyId?:       string    (active hub — used only for conversation persistence)
  *   - conversationId?: string    (existing conversation to continue)
  *   - history?:        ConversationMessage[]  (prior messages for context)
- *
- * Response: a ReadableStream of the Griot's reply, streamed as it is generated.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { message, familyId, conversationId, history } = body as {
+    const { message, familyId: bodyFamilyId, conversationId, history } = body as {
       message?: string;
       familyId?: string;
       conversationId?: string;
       history?: ConversationMessage[];
     };
 
-    if (!message || !familyId) {
+    if (!message) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields: message, familyId" }),
+        JSON.stringify({ error: "Missing required field: message" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -54,66 +56,75 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify authentication.
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    // Resolve full context in one call: auth + familyIds (every hub the
+    // viewer belongs to) + connectedUserIdsAll (union connection chain).
+    const ctx = await getFamilyContext();
+    if (!ctx) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
       });
     }
+    const { userId, familyId: activeFamilyId, familyIds, connectedUserIdsAll, connectedTreeMemberIdsAll, supabase } = ctx;
+
+    // Persistence tag: trust the client's active-hub hint if it's one the
+    // viewer actually belongs to; otherwise fall back to the server's.
+    const conversationFamilyId =
+      bodyFamilyId && familyIds.includes(bodyFamilyId)
+        ? bodyFamilyId
+        : activeFamilyId;
 
     // Rate limit: 20 requests per minute per user
-    const rl = rateLimit(`griot:${user.id}`, 20);
+    const rl = rateLimit(`griot:${userId}`, 20);
     if (rl.limited) return rateLimitResponse(rl.retryAfterMs);
 
     // ------------------------------------------------------------------
-    // 0. Resolve connection chain for filtering
-    // ------------------------------------------------------------------
-    const chain = await getConnectionChain(supabase, familyId, user.id);
-
-    // ------------------------------------------------------------------
-    // 1. Retrieve the family name for the Griot persona.
+    // 1. Retrieve the active hub's name for the Griot persona. We keep
+    //    the persona hub-centric so the voice stays consistent as the
+    //    user moves around, even though the knowledge spans every hub.
     // ------------------------------------------------------------------
     const { data: family } = await supabase
       .from("families")
       .select("name")
-      .eq("id", familyId)
+      .eq("id", activeFamilyId)
       .single();
 
     const familyName = family?.name ?? "your family";
 
     // ------------------------------------------------------------------
-    // 1b. Fetch the family member roster so the Griot knows who's who.
-    //     Filtered to connected members only.
+    // 1b. Fetch the roster across every hub the viewer belongs to. Same
+    //     connection-chain filter as before, just aggregated.
     // ------------------------------------------------------------------
     let familyRoster = "";
 
     try {
-      // Get family_members (real accounts) — filtered by connection chain
-      const { data: members } = await supabase
+      // Account-holder members across every hub — deduped by display_name so
+      // the same person doesn't appear twice (once per hub).
+      const { data: rawMembers } = await supabase
         .from("family_members")
         .select(
-          "id, display_name, role, occupation, specialty, nickname, phone, email, country, state, life_story"
+          "id, user_id, display_name, role, occupation, specialty, nickname, phone, email, country, state, life_story"
         )
-        .eq("family_id", familyId)
-        .in("user_id", chain.connectedUserIds);
+        .in("family_id", familyIds)
+        .in("user_id", connectedUserIdsAll);
 
-      // Get family_tree_members — filtered by connection chain
+      const seenMemberUsers = new Set<string>();
+      const members = (rawMembers ?? []).filter((m) => {
+        if (!m.user_id || seenMemberUsers.has(m.user_id)) return false;
+        seenMemberUsers.add(m.user_id);
+        return true;
+      });
+
+      // Tree members across every hub.
       let treeQuery = supabase
         .from("family_tree_members")
         .select(
           "id, display_name, birth_year, relationship_label, is_deceased, linked_member_id"
         )
-        .eq("family_id", familyId);
+        .in("family_id", familyIds);
 
-      if (chain.connectedTreeMemberIds.length > 0) {
-        treeQuery = treeQuery.in("id", chain.connectedTreeMemberIds);
+      if (connectedTreeMemberIdsAll.length > 0) {
+        treeQuery = treeQuery.in("id", connectedTreeMemberIdsAll);
       }
 
       const { data: treeMembers } = await treeQuery;
@@ -281,41 +292,38 @@ export async function POST(request: NextRequest) {
     }
 
     // ------------------------------------------------------------------
-    // 1c. Build PII context from family members for sanitization.
+    // 1c. Build PII context across every hub. Deduped by display_name so
+    //     we don't emit duplicate sanitiser tokens for the same person.
     // ------------------------------------------------------------------
     const piiMembers: KnownMember[] = [];
     try {
-      // Re-query just the PII-relevant fields (members already fetched above
-      // but scoped inside the try — pull what we need for the sanitizer).
       const { data: piiRows } = await supabase
         .from("family_members")
-        .select("display_name, email, phone, nickname")
-        .eq("family_id", familyId)
-        .in("user_id", chain.connectedUserIds);
+        .select("user_id, display_name, email, phone, nickname")
+        .in("family_id", familyIds)
+        .in("user_id", connectedUserIdsAll);
 
-      if (piiRows) {
-        for (const r of piiRows) {
-          piiMembers.push({
-            displayName: r.display_name,
-            email: r.email,
-            phone: r.phone,
-            nickname: r.nickname,
-          });
-        }
+      const seenPiiUsers = new Set<string>();
+      for (const r of piiRows ?? []) {
+        if (!r.user_id || seenPiiUsers.has(r.user_id)) continue;
+        seenPiiUsers.add(r.user_id);
+        piiMembers.push({
+          displayName: r.display_name,
+          email: r.email,
+          phone: r.phone,
+          nickname: r.nickname,
+        });
       }
 
-      // Also include unlinked tree members (name-only)
+      // Include tree-only members across every hub.
       const { data: treePii } = await supabase
         .from("family_tree_members")
         .select("display_name")
-        .eq("family_id", familyId);
+        .in("family_id", familyIds);
 
-      if (treePii) {
-        for (const t of treePii) {
-          // Avoid duplicates with the members we already have
-          if (!piiMembers.some((m) => m.displayName === t.display_name)) {
-            piiMembers.push({ displayName: t.display_name });
-          }
+      for (const t of treePii ?? []) {
+        if (!piiMembers.some((m) => m.displayName === t.display_name)) {
+          piiMembers.push({ displayName: t.display_name });
         }
       }
     } catch (err) {
@@ -325,9 +333,9 @@ export async function POST(request: NextRequest) {
     const piiCtx = buildPiiContext(piiMembers);
 
     // ------------------------------------------------------------------
-    // 2. RAG: search for relevant family knowledge.
+    // 2. RAG: search across every hub the viewer belongs to.
     // ------------------------------------------------------------------
-    const searchResults = await searchFamilyKnowledge(message, familyId, 6, chain.connectedUserIds);
+    const searchResults = await searchFamilyKnowledge(message, familyIds, 6, connectedUserIdsAll);
 
     // Build the context block for the system prompt.
     let knowledgeContext = "";
@@ -513,8 +521,8 @@ export async function POST(request: NextRequest) {
             persistConversation(
               supabase,
               conversationId,
-              familyId,
-              user.id,
+              conversationFamilyId,
+              userId,
               message,
               fullResponse,
               searchResults.map((r) => ({

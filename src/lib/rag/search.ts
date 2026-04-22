@@ -18,44 +18,71 @@ export interface SearchResult {
 }
 
 /**
- * Search the family's knowledge base for chunks relevant to a given query.
+ * Search the viewer's knowledge base for chunks relevant to a given query.
  *
- * @param query        - The natural-language question or search string.
- * @param familyId     - The family whose knowledge to search.
- * @param matchCount   - Maximum number of results to return (default 8).
- * @returns Matching entry chunks ranked by cosine similarity (descending),
- *          each annotated with the parent entry's title so the UI can
- *          render proper source labels instead of "Untitled Entry".
+ * Accepts an array of family IDs so the Griot can search across every hub
+ * the viewer belongs to — family + circles — in a single call. The RPC
+ * `match_entry_embeddings` takes one family at a time, so we fan out in
+ * parallel, then merge/dedupe/rank by similarity and cap at matchCount.
+ *
+ * @param query            - The natural-language question or search string.
+ * @param familyIds        - Families whose knowledge to search (1 or more).
+ * @param matchCount       - Maximum number of results to return (default 8).
+ * @param allowedAuthorIds - Optional whitelist of author_ids (the viewer's
+ *                           combined connection chain across all hubs).
  */
 export async function searchFamilyKnowledge(
   query: string,
-  familyId: string,
+  familyIds: string[],
   matchCount: number = 8,
   allowedAuthorIds?: string[]
 ): Promise<SearchResult[]> {
-  // 1. Embed the query using RETRIEVAL_QUERY task type for search.
+  if (familyIds.length === 0) return [];
+
+  // 1. Embed the query once and reuse it across every hub's RPC call.
   const queryEmbedding = await generateEmbedding(query, "RETRIEVAL_QUERY");
 
-  // 2. Call the Supabase RPC for vector similarity search.
+  // 2. Fan out the vector-similarity RPC across every hub the viewer belongs
+  //    to. The RPC has a single `match_family_id` parameter so we parallelise
+  //    rather than issuing N serial round-trips.
   const supabase = await createClient();
 
-  const { data, error } = await supabase.rpc("match_entry_embeddings", {
-    query_embedding: queryEmbedding,
-    match_family_id: familyId,
-    match_threshold: 0.3, // Only return reasonably relevant results.
-    match_count: matchCount,
-    allowed_author_ids: allowedAuthorIds ?? null,
-  });
+  const perHubResults = await Promise.all(
+    familyIds.map(async (fid) => {
+      const { data, error } = await supabase.rpc("match_entry_embeddings", {
+        query_embedding: queryEmbedding,
+        match_family_id: fid,
+        match_threshold: 0.3,
+        // Overfetch per-hub so the cross-hub ranking has enough candidates
+        // to pick good results when one hub dominates the relevance signal.
+        match_count: matchCount * 2,
+        allowed_author_ids: allowedAuthorIds ?? null,
+      });
+      if (error) {
+        console.error(`[rag] Vector search failed for family ${fid}:`, error);
+        return [] as Omit<SearchResult, "title">[];
+      }
+      return (data ?? []) as Omit<SearchResult, "title">[];
+    })
+  );
 
-  if (error) {
-    throw new Error(`Vector search failed: ${error.message}`);
+  // 3. Merge, dedupe by chunk id, sort by similarity desc, cap.
+  const seenChunkIds = new Set<string>();
+  const merged: Omit<SearchResult, "title">[] = [];
+  for (const hubRows of perHubResults) {
+    for (const row of hubRows) {
+      if (seenChunkIds.has(row.id)) continue;
+      seenChunkIds.add(row.id);
+      merged.push(row);
+    }
   }
+  merged.sort((a, b) => b.similarity - a.similarity);
+  const top = merged.slice(0, matchCount);
+  if (top.length === 0) return [];
 
-  const rows = (data ?? []) as Omit<SearchResult, "title">[];
-  if (rows.length === 0) return [];
-
-  // 3. Resolve titles for all matched entries in a single batch query.
-  const entryIds = Array.from(new Set(rows.map((r) => r.entry_id)));
+  // 4. Resolve titles for all matched entries in a single batch query across
+  //    every surfaced entry.
+  const entryIds = Array.from(new Set(top.map((r) => r.entry_id)));
   const { data: entries } = await supabase
     .from("entries")
     .select("id, title")
@@ -66,7 +93,7 @@ export async function searchFamilyKnowledge(
     titleMap.set(e.id as string, (e.title as string) ?? "");
   }
 
-  return rows.map((r) => ({
+  return top.map((r) => ({
     ...r,
     title: titleMap.get(r.entry_id) ?? "",
   }));

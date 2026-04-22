@@ -237,7 +237,7 @@ export function DashboardNav() {
                 <Link href="/goals" className="w-full cursor-pointer">Goals</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/family#traditions" className="w-full cursor-pointer">Traditions</Link>
+                <Link href="/traditions" className="w-full cursor-pointer">Traditions</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -974,6 +974,7 @@ export interface Database {
           participant_ids: string[];
           last_message_at: string | null;
           created_at: string;
+          type: "direct" | "family_group";
         };
         Insert: {
           id?: string;
@@ -981,6 +982,7 @@ export interface Database {
           participant_ids: string[];
           last_message_at?: string | null;
           created_at?: string;
+          type?: "direct" | "family_group";
         };
         Update: {
           id?: string;
@@ -988,6 +990,7 @@ export interface Database {
           participant_ids?: string[];
           last_message_at?: string | null;
           created_at?: string;
+          type?: "direct" | "family_group";
         };
         Relationships: [];
       };

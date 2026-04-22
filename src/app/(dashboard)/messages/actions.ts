@@ -24,6 +24,10 @@ export interface ConversationPreview {
   lastMessageContent: string | null;
   lastMessageAt: string | null;
   unreadCount: number;
+  /** 'direct' (1:1) or 'family_group' (hub-wide Message Board) */
+  type: "direct" | "family_group";
+  /** For family_group: number of members in the group */
+  participantCount?: number;
 }
 
 export interface Message {
@@ -54,7 +58,8 @@ export async function getConversations(): Promise<ConversationPreview[]> {
     const ctx = await getUserFamily();
     if (!ctx) return [];
 
-    // Fetch conversations where the current user is a participant
+    // Fetch conversations where the current user is a participant (includes
+    // both direct DMs and the hub's family_group "Message Board").
     const { data: conversations, error } = await ctx.sb
       .from("dm_conversations")
       .select("*")
@@ -64,10 +69,13 @@ export async function getConversations(): Promise<ConversationPreview[]> {
 
     if (error || !conversations) return [];
 
-    // Get all participant IDs (other than current user) to resolve names
-    const otherIds = conversations.map((c) =>
-      c.participant_ids.find((id: string) => id !== ctx.userId)
-    ).filter(Boolean) as string[];
+    // Resolve names for the "other" side. For direct DMs we only need one
+    // other user's display_name; for group chats we show the hub name instead
+    // (fetched once below).
+    const otherIds = conversations
+      .filter((c) => c.type !== "family_group")
+      .map((c) => c.participant_ids.find((id: string) => id !== ctx.userId))
+      .filter(Boolean) as string[];
 
     const nameMap: Record<string, string> = {};
     if (otherIds.length > 0) {
@@ -81,17 +89,28 @@ export async function getConversations(): Promise<ConversationPreview[]> {
       }
     }
 
-    // Batch-fetch last messages and unread counts in parallel (avoid N+1)
-    const convIds = conversations.map((c) => c.id);
+    // Hub name for the group conversation's display.
+    let hubName = "Family";
+    const hasGroup = conversations.some((c) => c.type === "family_group");
+    if (hasGroup) {
+      const { data: hub } = await ctx.sb
+        .from("families")
+        .select("name, type")
+        .eq("id", ctx.familyId)
+        .maybeSingle();
+      if (hub?.name) {
+        hubName = hub.type === "circle" ? hub.name : hub.name;
+      }
+    }
 
+    // Batch-fetch last messages and unread counts in parallel.
+    const convIds = conversations.map((c) => c.id);
     const [lastMessagesResult, unreadResult] = await Promise.all([
-      // Single query: latest message per conversation via descending order
       ctx.sb
         .from("direct_messages")
         .select("conversation_id, content, created_at")
         .in("conversation_id", convIds)
         .order("created_at", { ascending: false }),
-      // Single query: all unread messages from others across all conversations
       ctx.sb
         .from("direct_messages")
         .select("conversation_id")
@@ -100,7 +119,6 @@ export async function getConversations(): Promise<ConversationPreview[]> {
         .neq("sender_id", ctx.userId),
     ]);
 
-    // Build last-message map (first occurrence per conversation_id is the latest)
     const lastMsgMap: Record<string, string | null> = {};
     for (const msg of lastMessagesResult.data ?? []) {
       if (!(msg.conversation_id in lastMsgMap)) {
@@ -108,24 +126,37 @@ export async function getConversations(): Promise<ConversationPreview[]> {
       }
     }
 
-    // Build unread-count map
     const unreadMap: Record<string, number> = {};
     for (const msg of unreadResult.data ?? []) {
       unreadMap[msg.conversation_id] = (unreadMap[msg.conversation_id] ?? 0) + 1;
     }
 
     const previews: ConversationPreview[] = conversations.map((conv) => {
-      const otherId = conv.participant_ids.find(
-        (id: string) => id !== ctx.userId
-      ) ?? "";
+      const isGroup = conv.type === "family_group";
+      const otherId = isGroup
+        ? ""
+        : conv.participant_ids.find((id: string) => id !== ctx.userId) ?? "";
+
       return {
         id: conv.id,
-        otherParticipantName: nameMap[otherId] ?? "Unknown",
+        otherParticipantName: isGroup
+          ? `${hubName} Message Board`
+          : nameMap[otherId] ?? "Unknown",
         otherParticipantId: otherId,
         lastMessageContent: lastMsgMap[conv.id] ?? null,
         lastMessageAt: conv.last_message_at,
         unreadCount: unreadMap[conv.id] ?? 0,
+        type: isGroup ? "family_group" : "direct",
+        participantCount: isGroup ? conv.participant_ids.length : undefined,
       };
+    });
+
+    // Surface the group conversation on top regardless of activity — it's
+    // the shared space so making it instantly findable matters.
+    previews.sort((a, b) => {
+      if (a.type === "family_group" && b.type !== "family_group") return -1;
+      if (b.type === "family_group" && a.type !== "family_group") return 1;
+      return 0;
     });
 
     return previews;
@@ -334,22 +365,43 @@ export async function getFamilyMembers(): Promise<FamilyMember[]> {
 }
 
 /**
- * Get the other participant's name for a conversation.
+ * Get the conversation header info. For 1:1 DMs returns the other user; for
+ * the hub's group conversation returns the hub name.
  */
-export async function getConversationInfo(conversationId: string): Promise<{ otherName: string; otherUserId: string } | null> {
+export async function getConversationInfo(conversationId: string): Promise<{
+  otherName: string;
+  otherUserId: string;
+  type: "direct" | "family_group";
+  participantCount: number;
+} | null> {
   try {
     const ctx = await getUserFamily();
     if (!ctx) return null;
 
     const { data: conv } = await ctx.sb
       .from("dm_conversations")
-      .select("participant_ids")
+      .select("participant_ids, type")
       .eq("id", conversationId)
       .eq("family_id", ctx.familyId)
       .maybeSingle();
 
     if (!conv) return null;
     if (!conv.participant_ids.includes(ctx.userId)) return null;
+
+    const isGroup = conv.type === "family_group";
+    if (isGroup) {
+      const { data: hub } = await ctx.sb
+        .from("families")
+        .select("name")
+        .eq("id", ctx.familyId)
+        .maybeSingle();
+      return {
+        otherName: `${hub?.name ?? "Family"} Message Board`,
+        otherUserId: "",
+        type: "family_group",
+        participantCount: conv.participant_ids.length,
+      };
+    }
 
     const otherId = conv.participant_ids.find(
       (id: string) => id !== ctx.userId
@@ -365,6 +417,8 @@ export async function getConversationInfo(conversationId: string): Promise<{ oth
     return {
       otherName: member?.display_name ?? "Unknown",
       otherUserId: otherId,
+      type: "direct",
+      participantCount: conv.participant_ids.length,
     };
   } catch {
     return null;

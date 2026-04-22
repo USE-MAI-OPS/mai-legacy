@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Users, Plus, TreePine, ArrowRight, Target } from "lucide-react";
+import { Users, Plus, TreePine, ArrowRight, Target, Settings, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,6 +38,7 @@ interface RealMemberRow {
   id: string;
   display_name: string;
   user_id: string;
+  role: string;
 }
 
 interface EntryCountRow {
@@ -73,12 +74,13 @@ async function getFamilyData() {
       eventsResult,
       traditionsResult,
       goalsResult,
+      groupConvResult,
     ] = await Promise.all([
       sb.from("families").select("name, type").eq("id", familyId).single(),
       treeCountQuery,
       sb
         .from("family_members")
-        .select("id, display_name, user_id")
+        .select("id, display_name, user_id, role")
         .eq("family_id", familyId)
         .in("user_id", connectedUserIds)
         .order("joined_at", { ascending: true }),
@@ -103,6 +105,14 @@ async function getFamilyData() {
         .eq("status", "active")
         .order("created_at", { ascending: false })
         .limit(5),
+      // The hub's "Message Board" conversation (one per hub, created by
+      // migration 036 + createFamily/acceptInvite hooks).
+      sb
+        .from("dm_conversations")
+        .select("id")
+        .eq("family_id", familyId)
+        .eq("type", "family_group")
+        .maybeSingle(),
     ]);
 
     const events = (eventsResult.data as EventRow[]) ?? [];
@@ -167,6 +177,8 @@ async function getFamilyData() {
       currentUserId: userId,
       currentUserMemberId: currentUserMember?.id ?? null,
       currentUserDisplayName: currentUserMember?.display_name ?? null,
+      currentUserIsAdmin: currentUserMember?.role === "admin",
+      groupConversationId: (groupConvResult.data?.id as string | undefined) ?? null,
       familyId,
       memberCount: realMembers.length,
       goals: (goalsResult.data ?? []) as Array<{ id: string; title: string; target_count: number; current_count: number }>,
@@ -217,9 +229,19 @@ export default async function FamilyPage() {
   return (
     <HubContentWrapper>
     <div className="p-6 space-y-8 max-w-6xl mx-auto">
-      {/* Hub switcher — lives here so non-hub pages stay stable while the
-          user still has a clear way to jump between family and circles. */}
-      <div className="flex justify-end">
+      {/* Hub switcher + admin-only Settings entry — lives here so non-hub
+          pages stay stable while the user still has a clear way to switch
+          hubs and admins can jump to hub settings without digging through
+          the avatar menu. */}
+      <div className="flex justify-end items-center gap-2">
+        {data.currentUserIsAdmin && (
+          <Button variant="outline" size="sm" asChild className="rounded-full">
+            <Link href="/family/settings">
+              <Settings className="mr-1.5 h-3.5 w-3.5" />
+              {data.hubType === "circle" ? "Circle Settings" : "Family Settings"}
+            </Link>
+          </Button>
+        )}
         <HubSwitcher />
       </div>
 
@@ -263,6 +285,32 @@ export default async function FamilyPage() {
           </div>
         </div>
       </section>
+
+      {/* Message Board — hub-wide group chat. Everyone who joins is
+          auto-added; clicking opens the conversation inside /messages. */}
+      {data.groupConversationId && (
+        <section>
+          <Link
+            href={`/messages/${data.groupConversationId}`}
+            className="flex items-center gap-4 p-5 rounded-2xl border bg-card shadow-sm hover:shadow-md hover:border-primary/40 transition-all group"
+          >
+            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <MessageSquare className="h-6 w-6" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base font-semibold leading-tight">
+                {data.hubType === "circle" ? "Circle" : "Family"} Message Board
+              </h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Group chat with {data.memberCount} member
+                {data.memberCount === 1 ? "" : "s"} — share updates, ask
+                questions, stay in touch.
+              </p>
+            </div>
+            <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
+          </Link>
+        </section>
+      )}
 
       {/* Upcoming Events */}
       <section>

@@ -2,6 +2,7 @@
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ConversationPreview } from "../actions";
 
@@ -48,6 +49,7 @@ export function ConversationList({
     <div className="space-y-1">
       {conversations.map((conv) => {
         const isActive = activeId === conv.id;
+        const isGroup = conv.type === "family_group";
         return (
           <button
             key={conv.id}
@@ -59,20 +61,20 @@ export function ConversationList({
                 : "hover:bg-accent/50 border-l-2 border-l-transparent"
             )}
           >
-            <Avatar className="h-10 w-10 shrink-0">
-              <AvatarFallback className="text-sm">
-                {getInitials(conv.otherParticipantName)}
+            <Avatar
+              className={cn(
+                "h-10 w-10 shrink-0",
+                isGroup && "bg-primary/10"
+              )}
+            >
+              <AvatarFallback className={cn("text-sm", isGroup && "bg-primary/10 text-primary")}>
+                {isGroup ? <Users className="h-5 w-5" /> : getInitials(conv.otherParticipantName)}
               </AvatarFallback>
             </Avatar>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <span
-                  className={cn(
-                    "text-sm font-semibold truncate",
-                    isActive ? "text-foreground" : "text-foreground"
-                  )}
-                >
+                <span className="text-sm font-semibold truncate text-foreground">
                   {conv.otherParticipantName}
                 </span>
                 {conv.lastMessageAt && (
@@ -83,7 +85,10 @@ export function ConversationList({
               </div>
               <div className="flex items-center justify-between gap-2 mt-0.5">
                 <p className="text-sm text-muted-foreground truncate">
-                  {conv.lastMessageContent ?? "No messages yet"}
+                  {conv.lastMessageContent ??
+                    (isGroup
+                      ? `Group chat · ${conv.participantCount ?? 0} members`
+                      : "No messages yet")}
                 </p>
                 {conv.unreadCount > 0 && (
                   <Badge

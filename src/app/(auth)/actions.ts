@@ -197,6 +197,22 @@ export async function createFamily(
     return { error: memberError.message };
   }
 
+  // Create the hub's "Message Board" — a group conversation everyone in the
+  // hub is auto-added to. Per migration 036 each hub has exactly one.
+  try {
+    await admin
+      .from("dm_conversations")
+      .insert({
+        family_id: family.id,
+        type: "family_group",
+        participant_ids: [user.id],
+        last_message_at: null,
+      } as never);
+  } catch (groupError) {
+    // Non-critical — can be created lazily on first open of the hub page.
+    console.error("Failed to create family group conversation:", groupError);
+  }
+
   // Set this as the active family cookie (first created becomes active)
   try {
     await setActiveFamilyCookie(family.id);
@@ -418,6 +434,44 @@ export async function acceptInvite(inviteId: string, displayName: string) {
     .from("family_invites")
     .update({ accepted: true })
     .eq("id", inviteId);
+
+  // Add the new member to the hub's group conversation. Safe to run even if
+  // they're somehow already in there — array_append dedupes via DISTINCT in
+  // the RPC. We use a simple read-modify-write here since it's a one-shot on
+  // invite acceptance and the group row has a unique-per-hub index so there's
+  // no risk of duplicates.
+  try {
+    const { data: groupConv } = await admin
+      .from("dm_conversations")
+      .select("id, participant_ids")
+      .eq("family_id", invite.family_id)
+      .eq("type", "family_group")
+      .maybeSingle();
+
+    if (groupConv) {
+      const current = (groupConv.participant_ids ?? []) as string[];
+      if (!current.includes(user.id)) {
+        await admin
+          .from("dm_conversations")
+          .update({ participant_ids: [...current, user.id] })
+          .eq("id", groupConv.id);
+      }
+    } else {
+      // Backfill: the hub predates migration 036's backfill window, so create
+      // its group conversation now.
+      await admin
+        .from("dm_conversations")
+        .insert({
+          family_id: invite.family_id,
+          type: "family_group",
+          participant_ids: [user.id],
+          last_message_at: null,
+        } as never);
+    }
+  } catch (groupError) {
+    // Non-critical — user can still message individuals.
+    console.error("Failed to add member to family group:", groupError);
+  }
 
   // Set active family cookie
   try {

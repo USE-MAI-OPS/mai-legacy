@@ -348,7 +348,7 @@ export async function saveExtractedEntries(
 
     // 4. Revalidate paths
     revalidatePath("/entries");
-    revalidatePath("/dashboard");
+    revalidatePath("/feed");
     revalidatePath("/family");
     revalidatePath("/skills");
 

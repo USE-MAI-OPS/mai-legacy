@@ -144,7 +144,7 @@ export function DashboardNav() {
       >
         {/* Logo */}
         <Link
-          href="/dashboard"
+          href="/feed"
           className="flex items-center gap-2 shrink-0"
         >
           <span className="text-xl font-bold">MAI</span>
@@ -152,18 +152,6 @@ export function DashboardNav() {
 
         {/* Nav links - absolutely centered in viewport */}
         <nav className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1">
-          <Link
-            href="/dashboard"
-            className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-md text-base font-medium transition-colors whitespace-nowrap",
-              pathname === "/dashboard"
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            )}
-          >
-            Dashboard
-          </Link>
-
           <Link
             href="/feed"
             className={cn(

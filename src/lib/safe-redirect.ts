@@ -4,7 +4,7 @@
  */
 export function getSafeRedirect(
   url: string | null | undefined,
-  fallback: string = "/dashboard"
+  fallback: string = "/feed"
 ): string {
   if (!url) return fallback;
 

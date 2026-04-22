@@ -33,7 +33,7 @@ export default function DashboardError({ error, reset }: ErrorProps) {
           Try again
         </Button>
         <Button asChild>
-          <Link href="/dashboard">
+          <Link href="/feed">
             <Home className="size-4 mr-2" />
             Go home
           </Link>

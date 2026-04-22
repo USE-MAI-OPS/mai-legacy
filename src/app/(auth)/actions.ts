@@ -31,7 +31,7 @@ export async function login(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}${rp}`);
   }
 
-  redirect(getSafeRedirect(redirectTo, "/dashboard"));
+  redirect(getSafeRedirect(redirectTo, "/feed"));
 }
 
 export async function signup(formData: FormData) {

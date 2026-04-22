@@ -78,7 +78,7 @@ export async function createGoal(input: {
     if (error) return { error: error.message };
 
     revalidatePath("/goals");
-    revalidatePath("/dashboard");
+    revalidatePath("/feed");
     return { success: true };
   } catch {
     return { error: "An unexpected error occurred." };
@@ -123,7 +123,7 @@ export async function updateGoal(
     if (error) return { error: error.message };
 
     revalidatePath("/goals");
-    revalidatePath("/dashboard");
+    revalidatePath("/feed");
     return { success: true };
   } catch {
     return { error: "An unexpected error occurred." };
@@ -168,7 +168,7 @@ export async function incrementProgress(id: string) {
     if (error) return { error: error.message };
 
     revalidatePath("/goals");
-    revalidatePath("/dashboard");
+    revalidatePath("/feed");
     return { success: true, completed: isComplete };
   } catch {
     return { error: "An unexpected error occurred." };
@@ -203,7 +203,7 @@ export async function completeGoal(id: string) {
     if (error) return { error: error.message };
 
     revalidatePath("/goals");
-    revalidatePath("/dashboard");
+    revalidatePath("/feed");
     return { success: true };
   } catch {
     return { error: "An unexpected error occurred." };
@@ -225,7 +225,7 @@ export async function deleteGoal(id: string) {
     if (error) return { error: error.message };
 
     revalidatePath("/goals");
-    revalidatePath("/dashboard");
+    revalidatePath("/feed");
     return { success: true };
   } catch {
     return { error: "An unexpected error occurred." };

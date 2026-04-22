@@ -167,7 +167,7 @@ export async function updateSession(request: NextRequest) {
 
     if (hasFamilyMembership && pathname === "/onboarding") {
       const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
+      url.pathname = "/feed";
       return NextResponse.redirect(url);
     }
   }

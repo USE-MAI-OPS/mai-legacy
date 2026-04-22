@@ -82,7 +82,7 @@ export async function copyEntryToFamilies(
     }
 
     revalidatePath("/entries");
-    revalidatePath("/dashboard");
+    revalidatePath("/feed");
     revalidatePath("/skills");
 
     return { success: true, copiedCount: newEntries?.length ?? 0 };
@@ -134,7 +134,7 @@ export async function deleteEntry(entryId: string) {
     }
 
     revalidatePath("/entries");
-    revalidatePath("/dashboard");
+    revalidatePath("/feed");
   } catch {
     return { error: "An unexpected error occurred." };
   }
@@ -221,7 +221,7 @@ export async function updateEntry(entryId: string, input: UpdateEntryInput) {
 
     revalidatePath("/entries");
     revalidatePath(`/entries/${entryId}`);
-    revalidatePath("/dashboard");
+    revalidatePath("/feed");
 
     return { data: entry };
   } catch {

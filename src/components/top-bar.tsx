@@ -34,7 +34,7 @@ export function TopBar() {
       )}
     >
       {/* Left: Brand */}
-      <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
+      <Link href="/feed" className="flex items-center gap-2 shrink-0">
         <span className="text-lg font-bold">MAI</span>
       </Link>
 

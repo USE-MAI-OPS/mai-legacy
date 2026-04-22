@@ -63,7 +63,7 @@ export async function createEntry(input: CreateEntryInput) {
     }
 
     revalidatePath("/entries");
-    revalidatePath("/dashboard");
+    revalidatePath("/feed");
     revalidatePath("/skills");
 
     return { data: entry };

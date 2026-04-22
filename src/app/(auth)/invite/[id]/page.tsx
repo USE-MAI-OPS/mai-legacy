@@ -57,7 +57,7 @@ export default function AcceptInvitePage() {
         }
 
         if (result.alreadyMember) {
-          window.location.href = "/dashboard";
+          window.location.href = "/feed";
           return;
         }
 
@@ -91,7 +91,7 @@ export default function AcceptInvitePage() {
 
       if (result.alreadyMember) {
         setAccepted(true);
-        setTimeout(() => (window.location.href = "/dashboard"), 1500);
+        setTimeout(() => (window.location.href = "/feed"), 1500);
         return;
       }
 
@@ -183,7 +183,7 @@ export default function AcceptInvitePage() {
       } catch (e) {
         console.error("Failed to save profile:", e);
       }
-      window.location.href = "/dashboard";
+      window.location.href = "/feed";
     };
 
     return (
@@ -243,7 +243,7 @@ export default function AcceptInvitePage() {
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => { window.location.href = "/dashboard"; }}
+                onClick={() => { window.location.href = "/feed"; }}
               >
                 Skip
               </Button>

@@ -31,7 +31,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: "welcome",
     target: "dashboard-welcome",
-    navigateTo: "/dashboard",
+    navigateTo: "/feed",
     position: "bottom",
     icon: Sparkles,
     iconColor: "text-amber-600",

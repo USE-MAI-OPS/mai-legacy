@@ -533,7 +533,7 @@ export async function sendDripWelcome(opts: {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" style="padding:8px 0;">
-                    <a href="${appUrl}/dashboard" style="display:inline-block;background-color:#18181b;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:8px;">
+                    <a href="${appUrl}/feed" style="display:inline-block;background-color:#18181b;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:8px;">
                       Start Your Legacy
                     </a>
                   </td>
@@ -629,7 +629,7 @@ export async function sendDripDay3(opts: {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center">
-                    <a href="${appUrl}/dashboard" style="display:inline-block;background-color:#18181b;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:8px;">
+                    <a href="${appUrl}/feed" style="display:inline-block;background-color:#18181b;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:8px;">
                       Add an Entry Now
                     </a>
                   </td>
@@ -738,7 +738,7 @@ export async function sendDripDay7(opts: {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center">
-                    <a href="${appUrl}/dashboard" style="display:inline-block;background-color:#18181b;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:8px;">
+                    <a href="${appUrl}/feed" style="display:inline-block;background-color:#18181b;color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:12px 32px;border-radius:8px;">
                       Continue Building Your Archive
                     </a>
                   </td>

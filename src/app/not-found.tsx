@@ -20,9 +20,9 @@ export default function NotFound() {
           </Link>
         </Button>
         <Button asChild>
-          <Link href="/dashboard">
+          <Link href="/feed">
             <Home className="mr-2 h-4 w-4" />
-            Dashboard
+            Feed
           </Link>
         </Button>
       </div>

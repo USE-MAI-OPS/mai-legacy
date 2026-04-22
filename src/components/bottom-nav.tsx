@@ -35,7 +35,7 @@ export function BottomNav() {
   const [createOpen, setCreateOpen] = useState(false);
 
   function isActive(href: string) {
-    if (href === "/feed") return pathname === "/feed" || pathname === "/dashboard";
+    if (href === "/feed") return pathname === "/feed";
     return pathname.startsWith(href);
   }
 

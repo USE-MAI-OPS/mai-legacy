@@ -101,7 +101,7 @@ export default function OnboardingPage() {
         setAcceptingInviteId(null);
         return;
       }
-      window.location.href = "/dashboard";
+      window.location.href = "/feed";
     } catch (e) {
       console.error("Accept invite error:", e);
       setError("Something went wrong. Please try again.");
@@ -149,7 +149,7 @@ export default function OnboardingPage() {
       }
 
       // Use full page reload to ensure cookies/session are picked up
-      window.location.href = "/dashboard";
+      window.location.href = "/feed";
     } catch (e) {
       console.error("Onboarding error:", e);
       setError("Something went wrong. Please try again.");

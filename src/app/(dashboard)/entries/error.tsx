@@ -33,9 +33,9 @@ export default function EntriesError({ error, reset }: ErrorProps) {
           Try again
         </Button>
         <Button asChild variant="ghost">
-          <Link href="/dashboard">
+          <Link href="/feed">
             <BookOpen className="size-4 mr-2" />
-            Dashboard
+            Feed
           </Link>
         </Button>
       </div>

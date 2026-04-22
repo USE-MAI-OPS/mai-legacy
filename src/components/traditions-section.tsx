@@ -51,7 +51,7 @@ import {
   updateTradition,
   deleteTradition,
   addTraditionMemory,
-} from "@/app/(dashboard)/dashboard/tradition-actions";
+} from "@/app/(dashboard)/tradition-actions";
 
 // ---------------------------------------------------------------------------
 // Types

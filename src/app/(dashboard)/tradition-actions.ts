@@ -48,7 +48,7 @@ export async function createTradition(input: {
 
     if (error) return { error: error.message };
 
-    revalidatePath("/dashboard");
+    revalidatePath("/feed");
     return { success: true };
   } catch {
     return { error: "An unexpected error occurred." };
@@ -92,7 +92,7 @@ export async function updateTradition(
 
     if (error) return { error: error.message };
 
-    revalidatePath("/dashboard");
+    revalidatePath("/feed");
     return { success: true };
   } catch {
     return { error: "An unexpected error occurred." };
@@ -113,7 +113,7 @@ export async function deleteTradition(id: string) {
 
     if (error) return { error: error.message };
 
-    revalidatePath("/dashboard");
+    revalidatePath("/feed");
     return { success: true };
   } catch {
     return { error: "An unexpected error occurred." };
@@ -176,7 +176,7 @@ export async function addTraditionMemory(input: {
         .eq("id", input.tradition_id);
     }
 
-    revalidatePath("/dashboard");
+    revalidatePath("/feed");
     return { success: true };
   } catch {
     return { error: "An unexpected error occurred." };
@@ -198,7 +198,7 @@ export async function deleteTraditionMemory(memoryId: string) {
 
     if (error) return { error: error.message };
 
-    revalidatePath("/dashboard");
+    revalidatePath("/feed");
     return { success: true };
   } catch {
     return { error: "An unexpected error occurred." };

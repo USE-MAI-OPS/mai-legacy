@@ -7,22 +7,21 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { TranscriptInput } from "@/components/interview/transcript-input";
 import { ExtractionReview } from "@/components/interview/extraction-review";
-import { createClient } from "@/lib/supabase/client";
-import { saveTranscriptRecord, saveExtractedEntries } from "./actions";
+import {
+  saveTranscriptRecord,
+  saveExtractedEntries,
+  getInterviewSubjects,
+  type InterviewSubject,
+} from "./actions";
 import type {
   ExtractionResult,
   ReviewableEntry,
   ExtractedProfileUpdates,
 } from "@/lib/interview/types";
-import type { LifeStory } from "@/types/database";
 
 type Step = "input" | "processing" | "review" | "success";
 
-interface FamilyMember {
-  id: string;
-  display_name: string;
-  life_story: LifeStory | null;
-}
+type FamilyMember = InterviewSubject;
 
 export default function ImportInterviewPage() {
   return (
@@ -67,50 +66,24 @@ function ImportInterviewContent() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Load family members on mount
+  // Load every possible interview subject on mount — account holders across
+  // every hub + tree-only members (grandparents, etc.). Uses a server action
+  // so we benefit from the shared getFamilyContext plumbing and RLS.
   useEffect(() => {
-    async function loadMembers() {
+    let cancelled = false;
+    (async () => {
       try {
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user) {
-          setFamilyMembers([]);
-          setLoadingMembers(false);
-          return;
-        }
-
-        // Get family
-        const { data: membership } = await supabase
-          .from("family_members")
-          .select("family_id")
-          .eq("user_id", user.id)
-          .single();
-
-        if (!membership) {
-          setFamilyMembers([]);
-          setLoadingMembers(false);
-          return;
-        }
-
-        // Get all family members
-        const { data: members } = await supabase
-          .from("family_members")
-          .select("id, display_name, life_story")
-          .eq("family_id", membership.family_id)
-          .order("display_name");
-
-        setFamilyMembers(members || []);
+        const subjects = await getInterviewSubjects();
+        if (!cancelled) setFamilyMembers(subjects);
       } catch (err) {
-        console.error("Failed to load family members:", err);
+        console.error("Failed to load interview subjects:", err);
       } finally {
-        setLoadingMembers(false);
+        if (!cancelled) setLoadingMembers(false);
       }
-    }
-
-    loadMembers();
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Handle transcript submission

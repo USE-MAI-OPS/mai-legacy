@@ -11,6 +11,82 @@ import type { EntryType, EntryStructuredData, LifeStory, StoryData, RecipeData, 
 import { normalizeLifeStory } from "@/types/database";
 
 // ---------------------------------------------------------------------------
+// Interview subjects — everyone the viewer can document an interview for
+// ---------------------------------------------------------------------------
+
+export type InterviewSubjectKind = "account" | "tree";
+
+export interface InterviewSubject {
+  id: string;
+  display_name: string;
+  life_story: LifeStory | null;
+  kind: InterviewSubjectKind;
+}
+
+/**
+ * Returns all people the viewer can record an interview for, aggregated across
+ * every hub they belong to:
+ *   - `account` subjects are `family_members` rows (someone with a login).
+ *     Deduped across hubs by user_id so the same person shows once.
+ *   - `tree` subjects are `family_tree_members` without a linked account —
+ *     e.g. deceased grandparents you've added to the tree but who don't have
+ *     a MAI Legacy login. Deduped by tree-member id (each tree node is a
+ *     distinct person; members shared across hubs would have separate rows).
+ */
+export async function getInterviewSubjects(): Promise<InterviewSubject[]> {
+  try {
+    const ctx = await getFamilyContext();
+    if (!ctx) return [];
+    const { familyIds, supabase } = ctx;
+
+    const [accountRes, treeRes] = await Promise.all([
+      supabase
+        .from("family_members")
+        .select("id, user_id, display_name, life_story")
+        .in("family_id", familyIds)
+        .order("display_name"),
+      supabase
+        .from("family_tree_members")
+        .select("id, display_name, linked_member_id")
+        .in("family_id", familyIds)
+        .is("linked_member_id", null)
+        .order("display_name"),
+    ]);
+
+    // Dedupe account holders across hubs — prefer the first sighting so the
+    // display_name stays stable.
+    const seenUserIds = new Set<string>();
+    const accountSubjects: InterviewSubject[] = [];
+    for (const m of accountRes.data ?? []) {
+      if (!m.user_id || seenUserIds.has(m.user_id)) continue;
+      seenUserIds.add(m.user_id);
+      accountSubjects.push({
+        id: m.id,
+        display_name: m.display_name,
+        life_story: (m.life_story ?? null) as LifeStory | null,
+        kind: "account",
+      });
+    }
+
+    // Tree-only members (no linked account). These don't carry a life_story
+    // in the same shape — null keeps the extraction "no prior profile" path.
+    const treeSubjects: InterviewSubject[] = (treeRes.data ?? []).map((t) => ({
+      id: t.id,
+      display_name: t.display_name,
+      life_story: null,
+      kind: "tree" as const,
+    }));
+
+    // Account holders first (they'll usually be the viewer + close family),
+    // then tree-only members alphabetically.
+    return [...accountSubjects, ...treeSubjects];
+  } catch (err) {
+    console.error("[interview] Failed to load subjects:", err);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Save transcript record
 // ---------------------------------------------------------------------------
 

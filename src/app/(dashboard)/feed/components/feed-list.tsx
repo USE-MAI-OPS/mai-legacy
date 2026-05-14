@@ -54,6 +54,7 @@ import type { EntryType, EntryStructuredData } from "@/types/database";
 import type { FamilyMember } from "./family-strip";
 import { GoalCard } from "./goal-card";
 import { GriotInsightCard } from "./griot-insight-card";
+import { BirthdayCard } from "./birthday-card";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -839,6 +840,8 @@ export function FeedList({
             return <GoalCard key={`goal-${item.id}`} item={item} />;
           case "griot_insight":
             return <GriotInsightCard key={`insight-${item.id}`} item={item} />;
+          case "birthday":
+            return <BirthdayCard key={item.id} item={item} />;
           default:
             return null;
         }

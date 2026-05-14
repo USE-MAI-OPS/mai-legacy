@@ -86,7 +86,28 @@ export interface FeedGriotInsight {
   created_at: string;
 }
 
-export type FeedItem = FeedEntry | FeedPrompt | FeedEvent | FeedDiscovery | FeedGoal | FeedGriotInsight;
+export interface FeedBirthday {
+  kind: "birthday";
+  id: string; // `birthday-<tree_member_id>`
+  tree_member_id: string;
+  /** User ID to DM if this tree member is linked to an account. */
+  linked_user_id: string | null;
+  display_name: string;
+  hub_id: string;
+  hub_name: string;
+  /** Full birth_date (YYYY-MM-DD) so the UI can compute age if wanted. */
+  birth_date: string;
+  created_at: string; // today; used for sort/display
+}
+
+export type FeedItem =
+  | FeedEntry
+  | FeedPrompt
+  | FeedEvent
+  | FeedDiscovery
+  | FeedGoal
+  | FeedGriotInsight
+  | FeedBirthday;
 
 // ---------------------------------------------------------------------------
 // Valid entry types for the ?type= filter
@@ -101,7 +122,7 @@ export async function GET(req: NextRequest) {
   if (!ctx) {
     return NextResponse.json({ items: [], nextCursor: null });
   }
-  const { userId, familyIds, supabase, connectedUserIdsAll } = ctx;
+  const { userId, familyIds, supabase, connectedUserIdsAll, connectedTreeMemberIdsAll } = ctx;
 
   // Rate limit
   const rl = rateLimit(`feed:${userId}`, 30);
@@ -434,14 +455,114 @@ export async function GET(req: NextRequest) {
     } catch { /* table may not exist yet */ }
   }
 
+  // --- Fetch birthdays (only on first page, no filters) ---
+  // "Today is Alice's birthday" cards. Timezone is America/New_York for MVP —
+  // good enough for the US user base and means the card flips at midnight ET,
+  // not UTC. We restrict to the viewer's connection chain so birthdays for
+  // people the viewer isn't connected to don't leak in.
+  const birthdayItems: FeedBirthday[] = [];
+  if (!cursor && filterTypes.length === 0 && !searchQuery) {
+    try {
+      const now = new Date();
+      // Format today's month/day in America/New_York. toLocaleString with a
+      // timeZone is the cheapest way to get TZ-correct month/day in JS.
+      const tzFormatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        month: "2-digit",
+        day: "2-digit",
+      });
+      const parts = tzFormatter.formatToParts(now);
+      const month = Number(parts.find((p) => p.type === "month")?.value ?? "0");
+      const day = Number(parts.find((p) => p.type === "day")?.value ?? "0");
+
+      if (month > 0 && day > 0 && connectedTreeMemberIdsAll.length > 0) {
+        const { data: birthdayRows } = await sb
+          .from("family_tree_members")
+          .select(
+            "id, display_name, family_id, birth_date, linked_member_id"
+          )
+          .in("family_id", familyIds)
+          .in("id", connectedTreeMemberIdsAll)
+          .not("birth_date", "is", null);
+
+        // Filter to today's month+day in app code — Postgres-side EXTRACT would
+        // need a raw SQL function; the in-memory filter is fine because the
+        // connection-chain restriction already bounds the result size.
+        const todaysBirthdays = (birthdayRows ?? []).filter((r) => {
+          if (!r.birth_date) return false;
+          // birth_date is a DATE (no time) — new Date parses it as UTC midnight.
+          // For month/day comparison that's stable enough.
+          const d = new Date(r.birth_date);
+          return d.getUTCMonth() + 1 === month && d.getUTCDate() === day;
+        });
+
+        if (todaysBirthdays.length > 0) {
+          // Resolve hub names for display.
+          const uniqueHubIds = Array.from(
+            new Set(todaysBirthdays.map((r) => r.family_id as string))
+          );
+          const { data: hubs } = await sb
+            .from("families")
+            .select("id, name")
+            .in("id", uniqueHubIds);
+          const hubNameMap: Record<string, string> = {};
+          for (const h of hubs ?? []) {
+            if (h.id && h.name) hubNameMap[h.id] = h.name;
+          }
+
+          // Resolve linked user_id (for DM deep-link) for members that have
+          // a linked account.
+          const linkedMemberIds = todaysBirthdays
+            .map((r) => r.linked_member_id)
+            .filter((v): v is string => !!v);
+          const linkedUserMap: Record<string, string> = {};
+          if (linkedMemberIds.length > 0) {
+            const { data: linked } = await sb
+              .from("family_members")
+              .select("id, user_id")
+              .in("id", linkedMemberIds);
+            for (const lm of linked ?? []) {
+              if (lm.id && lm.user_id) linkedUserMap[lm.id] = lm.user_id;
+            }
+          }
+
+          const nowIso = new Date().toISOString();
+          for (const r of todaysBirthdays) {
+            const hubId = r.family_id as string;
+            birthdayItems.push({
+              kind: "birthday",
+              id: `birthday-${r.id}`,
+              tree_member_id: r.id,
+              linked_user_id: r.linked_member_id
+                ? linkedUserMap[r.linked_member_id] ?? null
+                : null,
+              display_name: r.display_name,
+              hub_id: hubId,
+              hub_name: hubNameMap[hubId] ?? "Family",
+              birth_date: r.birth_date!,
+              created_at: nowIso,
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Feed birthdays error:", err);
+    }
+  }
+
   // --- Merge & interleave ---
-  // Entries are the backbone; discoveries, events, prompts, goals, insights interleaved
+  // Entries are the backbone; discoveries, events, prompts, goals, insights, birthdays interleaved
   const items: FeedItem[] = [];
   let eventIdx = 0;
   let promptIdx = 0;
   let discoveryIdx = 0;
   let goalIdx = 0;
   let insightIdx = 0;
+  let birthdayIdx = 0;
+
+  // Birthdays are time-sensitive (today only) — put them at the top so they
+  // don't get buried under a long entries list.
+  while (birthdayIdx < birthdayItems.length) items.push(birthdayItems[birthdayIdx++]);
 
   for (let i = 0; i < feedEntries.length; i++) {
     items.push(feedEntries[i]);

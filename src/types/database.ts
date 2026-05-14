@@ -690,6 +690,7 @@ export interface Database {
           spouse_id: string | null;
           linked_member_id: string | null;
           birth_year: number | null;
+          birth_date: string | null;
           is_deceased: boolean;
           avatar_url: string | null;
           added_by: string;
@@ -715,6 +716,7 @@ export interface Database {
           spouse_id?: string | null;
           linked_member_id?: string | null;
           birth_year?: number | null;
+          birth_date?: string | null;
           is_deceased?: boolean;
           avatar_url?: string | null;
           added_by?: string;
@@ -740,6 +742,7 @@ export interface Database {
           spouse_id?: string | null;
           linked_member_id?: string | null;
           birth_year?: number | null;
+          birth_date?: string | null;
           is_deceased?: boolean;
           avatar_url?: string | null;
           added_by?: string;

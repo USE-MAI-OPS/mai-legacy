@@ -74,9 +74,16 @@ export function ConversationList({
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-semibold truncate text-foreground">
-                  {conv.otherParticipantName}
-                </span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm font-semibold truncate text-foreground">
+                    {conv.otherParticipantName}
+                  </span>
+                  {!isGroup && (
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0 px-1.5 py-0.5 rounded bg-muted/60">
+                      {conv.hubName}
+                    </span>
+                  )}
+                </div>
                 {conv.lastMessageAt && (
                   <span className="text-xs text-muted-foreground shrink-0">
                     {formatRelativeTime(conv.lastMessageAt)}

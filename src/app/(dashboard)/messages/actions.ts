@@ -10,7 +10,14 @@ import { getFamilyContext } from "@/lib/get-family-context";
 async function getUserFamily() {
   const ctx = await getFamilyContext();
   if (!ctx) return null;
-  return { userId: ctx.userId, familyId: ctx.familyId, sb: ctx.supabase };
+  return {
+    userId: ctx.userId,
+    /** Active hub — used when we have to pick *one* (e.g. home for a new DM). */
+    familyId: ctx.familyId,
+    /** Every hub the user belongs to — used to aggregate DMs. */
+    familyIds: ctx.familyIds,
+    sb: ctx.supabase,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -28,6 +35,9 @@ export interface ConversationPreview {
   type: "direct" | "family_group";
   /** For family_group: number of members in the group */
   participantCount?: number;
+  /** Hub the conversation lives in (for the subtitle badge). */
+  hubId: string;
+  hubName: string;
 }
 
 export interface Message {
@@ -50,28 +60,27 @@ export interface FamilyMember {
 // ---------------------------------------------------------------------------
 
 /**
- * List the current user's conversations with last message preview and
- * other participant name.
+ * List the current user's conversations across every hub they belong to.
+ * Each conversation is tagged with its hub name so the UI can show a badge
+ * — we keep per-hub 1:1 threads distinct rather than merging them.
  */
 export async function getConversations(): Promise<ConversationPreview[]> {
   try {
     const ctx = await getUserFamily();
     if (!ctx) return [];
 
-    // Fetch conversations where the current user is a participant (includes
-    // both direct DMs and the hub's family_group "Message Board").
+    // Fetch conversations across every hub the user belongs to.
     const { data: conversations, error } = await ctx.sb
       .from("dm_conversations")
       .select("*")
-      .eq("family_id", ctx.familyId)
+      .in("family_id", ctx.familyIds)
       .contains("participant_ids", [ctx.userId])
       .order("last_message_at", { ascending: false, nullsFirst: false });
 
     if (error || !conversations) return [];
 
-    // Resolve names for the "other" side. For direct DMs we only need one
-    // other user's display_name; for group chats we show the hub name instead
-    // (fetched once below).
+    // Resolve the "other" participant's display name. Look across all hubs
+    // since the other user might be in a different hub than the active one.
     const otherIds = conversations
       .filter((c) => c.type !== "family_group")
       .map((c) => c.participant_ids.find((id: string) => id !== ctx.userId))
@@ -82,24 +91,27 @@ export async function getConversations(): Promise<ConversationPreview[]> {
       const { data: members } = await ctx.sb
         .from("family_members")
         .select("user_id, display_name")
-        .eq("family_id", ctx.familyId)
+        .in("family_id", ctx.familyIds)
         .in("user_id", otherIds);
       for (const m of members ?? []) {
-        if (m.user_id && m.display_name) nameMap[m.user_id] = m.display_name;
+        if (m.user_id && m.display_name && !(m.user_id in nameMap)) {
+          nameMap[m.user_id] = m.display_name;
+        }
       }
     }
 
-    // Hub name for the group conversation's display.
-    let hubName = "Family";
-    const hasGroup = conversations.some((c) => c.type === "family_group");
-    if (hasGroup) {
-      const { data: hub } = await ctx.sb
+    // Resolve hub names for every hub that has at least one conversation.
+    const uniqueHubIds = Array.from(
+      new Set(conversations.map((c) => c.family_id as string))
+    );
+    const hubNameMap: Record<string, string> = {};
+    if (uniqueHubIds.length > 0) {
+      const { data: hubs } = await ctx.sb
         .from("families")
-        .select("name, type")
-        .eq("id", ctx.familyId)
-        .maybeSingle();
-      if (hub?.name) {
-        hubName = hub.type === "circle" ? hub.name : hub.name;
+        .select("id, name")
+        .in("id", uniqueHubIds);
+      for (const h of hubs ?? []) {
+        if (h.id && h.name) hubNameMap[h.id] = h.name;
       }
     }
 
@@ -136,6 +148,8 @@ export async function getConversations(): Promise<ConversationPreview[]> {
       const otherId = isGroup
         ? ""
         : conv.participant_ids.find((id: string) => id !== ctx.userId) ?? "";
+      const hubId = conv.family_id as string;
+      const hubName = hubNameMap[hubId] ?? "Family";
 
       return {
         id: conv.id,
@@ -148,14 +162,19 @@ export async function getConversations(): Promise<ConversationPreview[]> {
         unreadCount: unreadMap[conv.id] ?? 0,
         type: isGroup ? "family_group" : "direct",
         participantCount: isGroup ? conv.participant_ids.length : undefined,
+        hubId,
+        hubName,
       };
     });
 
-    // Surface the group conversation on top regardless of activity — it's
-    // the shared space so making it instantly findable matters.
+    // Pin every hub's Message Board to the top, then order 1:1s by recency.
+    // Group-ordering by hub name keeps boards grouped deterministically.
     previews.sort((a, b) => {
       if (a.type === "family_group" && b.type !== "family_group") return -1;
       if (b.type === "family_group" && a.type !== "family_group") return 1;
+      if (a.type === "family_group" && b.type === "family_group") {
+        return a.hubName.localeCompare(b.hubName);
+      }
       return 0;
     });
 
@@ -175,18 +194,17 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
     const ctx = await getUserFamily();
     if (!ctx) return [];
 
-    // Verify user is a participant
+    // Verify user is a participant in a conversation in one of their hubs.
     const { data: conv, error: convError } = await ctx.sb
       .from("dm_conversations")
-      .select("participant_ids")
+      .select("participant_ids, family_id")
       .eq("id", conversationId)
-      .eq("family_id", ctx.familyId)
+      .in("family_id", ctx.familyIds)
       .maybeSingle();
 
     if (convError || !conv) return [];
     if (!conv.participant_ids.includes(ctx.userId)) return [];
 
-    // Fetch messages
     const { data: messages, error: msgError } = await ctx.sb
       .from("direct_messages")
       .select("*")
@@ -195,21 +213,22 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
 
     if (msgError || !messages) return [];
 
-    // Resolve sender names
+    // Resolve sender names across all the user's hubs.
     const senderIds = [...new Set(messages.map((m) => m.sender_id))];
     const nameMap: Record<string, string> = {};
     if (senderIds.length > 0) {
       const { data: members } = await ctx.sb
         .from("family_members")
         .select("user_id, display_name")
-        .eq("family_id", ctx.familyId)
+        .in("family_id", ctx.familyIds)
         .in("user_id", senderIds);
       for (const m of members ?? []) {
-        if (m.user_id && m.display_name) nameMap[m.user_id] = m.display_name;
+        if (m.user_id && m.display_name && !(m.user_id in nameMap)) {
+          nameMap[m.user_id] = m.display_name;
+        }
       }
     }
 
-    // Mark unread messages from others as read
     const unreadIds = messages
       .filter((m) => !m.read && m.sender_id !== ctx.userId)
       .map((m) => m.id);
@@ -247,19 +266,17 @@ export async function sendMessage(conversationId: string, content: string) {
     const trimmed = content.trim();
     if (!trimmed) return { error: "Message cannot be empty" };
 
-    // Verify user is a participant
     const { data: conv } = await ctx.sb
       .from("dm_conversations")
       .select("participant_ids")
       .eq("id", conversationId)
-      .eq("family_id", ctx.familyId)
+      .in("family_id", ctx.familyIds)
       .maybeSingle();
 
     if (!conv || !conv.participant_ids.includes(ctx.userId)) {
       return { error: "Conversation not found" };
     }
 
-    // Insert message
     const { error: insertError } = await ctx.sb
       .from("direct_messages")
       .insert({
@@ -271,7 +288,6 @@ export async function sendMessage(conversationId: string, content: string) {
 
     if (insertError) return { error: insertError.message };
 
-    // Update last_message_at on the conversation
     await ctx.sb
       .from("dm_conversations")
       .update({ last_message_at: new Date().toISOString() })
@@ -286,9 +302,13 @@ export async function sendMessage(conversationId: string, content: string) {
 }
 
 /**
- * Create a new conversation with a family member, or return the existing one.
+ * Create a 1:1 conversation with another user, or return an existing one.
+ * Looks for an existing thread across any hub both users share; only falls
+ * back to creating a fresh thread (in the active hub) if none exists.
  */
-export async function startConversation(recipientUserId: string): Promise<{ conversationId?: string; error?: string }> {
+export async function startConversation(
+  recipientUserId: string
+): Promise<{ conversationId?: string; error?: string }> {
   try {
     const ctx = await getUserFamily();
     if (!ctx) return { error: "Not authenticated" };
@@ -297,15 +317,15 @@ export async function startConversation(recipientUserId: string): Promise<{ conv
       return { error: "Cannot message yourself" };
     }
 
-    // Check if a conversation already exists between these two users
+    // Search across every hub the current user belongs to. Any shared hub
+    // that already has a 1:1 thread between these two users is a match.
     const { data: existing } = await ctx.sb
       .from("dm_conversations")
-      .select("id, participant_ids")
-      .eq("family_id", ctx.familyId)
+      .select("id, participant_ids, family_id")
+      .in("family_id", ctx.familyIds)
       .contains("participant_ids", [ctx.userId])
       .contains("participant_ids", [recipientUserId]);
 
-    // Find an exact 2-person match
     const match = (existing ?? []).find(
       (c) =>
         c.participant_ids.length === 2 &&
@@ -317,11 +337,31 @@ export async function startConversation(recipientUserId: string): Promise<{ conv
       return { conversationId: match.id };
     }
 
-    // Create a new conversation
+    // Pick a hub for the new thread. Prefer the active hub if the recipient
+    // is a member; otherwise fall back to any hub they share with the user.
+    let homeFamilyId: string | null = null;
+    const { data: sharedMembership } = await ctx.sb
+      .from("family_members")
+      .select("family_id")
+      .eq("user_id", recipientUserId)
+      .in("family_id", ctx.familyIds);
+
+    const sharedHubs = (sharedMembership ?? [])
+      .map((r) => r.family_id as string)
+      .filter(Boolean);
+
+    if (sharedHubs.length === 0) {
+      return { error: "No shared hub with this user" };
+    }
+
+    homeFamilyId = sharedHubs.includes(ctx.familyId)
+      ? ctx.familyId
+      : sharedHubs[0];
+
     const { data: newConv, error } = await ctx.sb
       .from("dm_conversations")
       .insert({
-        family_id: ctx.familyId,
+        family_id: homeFamilyId,
         participant_ids: [ctx.userId, recipientUserId],
         last_message_at: null,
       })
@@ -338,7 +378,9 @@ export async function startConversation(recipientUserId: string): Promise<{ conv
 }
 
 /**
- * List family members the current user can message (excludes self).
+ * List family members the current user can start a new DM with. Scoped to
+ * the active hub — the picker is for "start a conversation from this hub",
+ * not an aggregate of everyone you could ever DM.
  */
 export async function getFamilyMembers(): Promise<FamilyMember[]> {
   try {
@@ -366,13 +408,16 @@ export async function getFamilyMembers(): Promise<FamilyMember[]> {
 
 /**
  * Get the conversation header info. For 1:1 DMs returns the other user; for
- * the hub's group conversation returns the hub name.
+ * the hub's group conversation returns the hub name. Returns the hub info
+ * so the header can render the badge too.
  */
 export async function getConversationInfo(conversationId: string): Promise<{
   otherName: string;
   otherUserId: string;
   type: "direct" | "family_group";
   participantCount: number;
+  hubId: string;
+  hubName: string;
 } | null> {
   try {
     const ctx = await getUserFamily();
@@ -380,26 +425,31 @@ export async function getConversationInfo(conversationId: string): Promise<{
 
     const { data: conv } = await ctx.sb
       .from("dm_conversations")
-      .select("participant_ids, type")
+      .select("participant_ids, type, family_id")
       .eq("id", conversationId)
-      .eq("family_id", ctx.familyId)
+      .in("family_id", ctx.familyIds)
       .maybeSingle();
 
     if (!conv) return null;
     if (!conv.participant_ids.includes(ctx.userId)) return null;
 
+    const hubId = conv.family_id as string;
+    const { data: hub } = await ctx.sb
+      .from("families")
+      .select("name")
+      .eq("id", hubId)
+      .maybeSingle();
+    const hubName = hub?.name ?? "Family";
+
     const isGroup = conv.type === "family_group";
     if (isGroup) {
-      const { data: hub } = await ctx.sb
-        .from("families")
-        .select("name")
-        .eq("id", ctx.familyId)
-        .maybeSingle();
       return {
-        otherName: `${hub?.name ?? "Family"} Message Board`,
+        otherName: `${hubName} Message Board`,
         otherUserId: "",
         type: "family_group",
         participantCount: conv.participant_ids.length,
+        hubId,
+        hubName,
       };
     }
 
@@ -407,11 +457,13 @@ export async function getConversationInfo(conversationId: string): Promise<{
       (id: string) => id !== ctx.userId
     ) ?? "";
 
+    // Look up the name across all hubs — the recipient might live elsewhere.
     const { data: member } = await ctx.sb
       .from("family_members")
       .select("display_name")
       .eq("user_id", otherId)
-      .eq("family_id", ctx.familyId)
+      .in("family_id", ctx.familyIds)
+      .limit(1)
       .maybeSingle();
 
     return {
@@ -419,6 +471,8 @@ export async function getConversationInfo(conversationId: string): Promise<{
       otherUserId: otherId,
       type: "direct",
       participantCount: conv.participant_ids.length,
+      hubId,
+      hubName,
     };
   } catch {
     return null;

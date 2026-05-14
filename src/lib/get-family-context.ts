@@ -25,6 +25,13 @@ export type FamilyContext = {
   connectedUserIdsAll: string[];
   /** Tree member UUIDs of connected members across ALL hubs */
   connectedTreeMemberIdsAll: string[];
+  /**
+   * Per-hub chains keyed by family_id. Callers that want strict visibility
+   * ("entry must be in hub H AND authored by someone in chain_H") can apply
+   * the filter per hub instead of using the flat union. Most callers should
+   * keep using `connectedUserIdsAll` — the flat union is fine.
+   */
+  perHubChains: Record<string, ConnectionChain>;
   /** Whether the current user has a linked tree node in the active hub */
   hasTreeNode: boolean;
 };
@@ -79,8 +86,8 @@ export const getFamilyContext = cache(async (): Promise<FamilyContext | null> =>
     }
   }
 
-  // Compute connection chains (active-hub + unioned across all hubs) in parallel
-  const [chain, chainAll]: [ConnectionChain, ConnectionChain] = await Promise.all([
+  // Compute connection chains (active-hub + multi-hub) in parallel.
+  const [chain, multiChain] = await Promise.all([
     getConnectionChain(sb, familyId, user.id),
     getConnectionChainMulti(sb, familyIds, user.id),
   ]);
@@ -92,8 +99,9 @@ export const getFamilyContext = cache(async (): Promise<FamilyContext | null> =>
     supabase,
     connectedUserIds: chain.connectedUserIds,
     connectedTreeMemberIds: chain.connectedTreeMemberIds,
-    connectedUserIdsAll: chainAll.connectedUserIds,
-    connectedTreeMemberIdsAll: chainAll.connectedTreeMemberIds,
+    connectedUserIdsAll: multiChain.combined.connectedUserIds,
+    connectedTreeMemberIdsAll: multiChain.combined.connectedTreeMemberIds,
+    perHubChains: multiChain.perHub,
     hasTreeNode: chain.hasTreeNode,
   };
 });

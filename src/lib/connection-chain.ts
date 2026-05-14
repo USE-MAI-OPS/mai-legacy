@@ -120,24 +120,44 @@ export async function getConnectionChain(
   }
 }
 
+export interface MultiHubChain {
+  /** Flat union of every per-hub chain — what aggregated pages currently filter by. */
+  combined: ConnectionChain;
+  /** Per-hub chain map — for tighter per-hub visibility filtering. */
+  perHub: Record<string, ConnectionChain>;
+}
+
 /**
- * Multi-hub connection chain — unions the per-hub chains across all families
- * the user belongs to. Used for pages that show aggregated data across every
- * hub (dashboard, feed, memories, legacy book, griot) so switching the active
- * hub doesn't change what the user sees.
+ * Multi-hub connection chain — computes a chain per hub and returns both
+ * the per-hub map and the flat union.
+ *
+ * Consumers that need liberal aggregated visibility (dashboard stats, feed
+ * today) read `combined`. Consumers that want strict per-hub filtering
+ * ("entry must be in hub H AND authored by someone in chain_H") read
+ * `perHub` and apply the filter against each hub's chain.
  */
 export async function getConnectionChainMulti(
   supabase: SupabaseClient,
   familyIds: string[],
   userId: string
-): Promise<ConnectionChain> {
+): Promise<MultiHubChain> {
   if (familyIds.length === 0) {
-    return { connectedUserIds: [userId], connectedTreeMemberIds: [], hasTreeNode: false };
+    const empty: ConnectionChain = {
+      connectedUserIds: [userId],
+      connectedTreeMemberIds: [],
+      hasTreeNode: false,
+    };
+    return { combined: empty, perHub: {} };
   }
 
   const chains = await Promise.all(
     familyIds.map((fid) => getConnectionChain(supabase, fid, userId))
   );
+
+  const perHub: Record<string, ConnectionChain> = {};
+  familyIds.forEach((fid, idx) => {
+    perHub[fid] = chains[idx];
+  });
 
   const userSet = new Set<string>([userId]);
   const treeSet = new Set<string>();
@@ -149,9 +169,11 @@ export async function getConnectionChainMulti(
     if (chain.hasTreeNode) anyHasTreeNode = true;
   }
 
-  return {
+  const combined: ConnectionChain = {
     connectedUserIds: Array.from(userSet),
     connectedTreeMemberIds: Array.from(treeSet),
     hasTreeNode: anyHasTreeNode,
   };
+
+  return { combined, perHub };
 }

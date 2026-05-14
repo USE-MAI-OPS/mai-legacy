@@ -122,7 +122,7 @@ export async function GET(req: NextRequest) {
   if (!ctx) {
     return NextResponse.json({ items: [], nextCursor: null });
   }
-  const { userId, familyIds, supabase, connectedUserIdsAll, connectedTreeMemberIdsAll } = ctx;
+  const { userId, familyIds, supabase, connectedUserIdsAll, connectedTreeMemberIdsAll, perHubChains } = ctx;
 
   // Rate limit
   const rl = rateLimit(`feed:${userId}`, 30);
@@ -173,6 +173,31 @@ export async function GET(req: NextRequest) {
       { error: "Failed to load feed" },
       { status: 500 }
     );
+  }
+
+  // --- Chain-delta instrumentation (Phase 5a) ---
+  // Measure the over-sharing risk from the flat-union connection chain.
+  // The correct filter per hub would be: entry is in hub H AND author is in
+  // chain_H. Today we apply the UNION across hubs, which can include entries
+  // authored by someone the viewer isn't connected to IN THAT hub (they're
+  // only connected to them in a different hub). Log the delta so we can
+  // decide if a stricter filter is worth shipping. No behavior change.
+  if (entries && entries.length > 0 && Object.keys(perHubChains).length > 0) {
+    const unionCount = entries.length;
+    const perHubCount = entries.reduce((acc: number, e: { family_id: string; author_id: string }) => {
+      const chain = perHubChains[e.family_id];
+      if (!chain) return acc;
+      return chain.connectedUserIds.includes(e.author_id) ? acc + 1 : acc;
+    }, 0);
+    if (unionCount !== perHubCount) {
+      console.log("[feed/chain-delta]", {
+        userId,
+        familyIds,
+        unionCount,
+        perHubCount,
+        leakedCount: unionCount - perHubCount,
+      });
+    }
   }
 
   // Batch-resolve author names across every hub

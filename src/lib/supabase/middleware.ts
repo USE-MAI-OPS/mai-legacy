@@ -48,6 +48,12 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  // Cron endpoints authenticate via the x-cron-secret header in the route
+  // handler itself — they must skip the session-based redirect to /login.
+  if (pathname.startsWith("/api/cron/")) {
+    return supabaseResponse;
+  }
+
   // Redirect unauthenticated users to login (except for public routes)
   const publicRoutes = ["/", "/login", "/signup", "/invite", "/auth/callback", "/demo", "/terms", "/privacy", "/forgot-password", "/reset-password", "/contact", "/pricing", "/explore", "/blog"];
   const isPublicRoute = publicRoutes.some(

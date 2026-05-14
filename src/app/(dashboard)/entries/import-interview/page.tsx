@@ -151,11 +151,14 @@ function ImportInterviewContent() {
     setIsSaving(true);
 
     try {
+      const subject = familyMembers.find((m) => m.id === subjectMemberId);
+      const subjectKind = subject?.kind ?? "account";
       const result = await saveExtractedEntries(
         entries,
         profileUpdates,
         selectedProfileKeys,
         subjectMemberId,
+        subjectKind,
         transcriptId || undefined
       );
 

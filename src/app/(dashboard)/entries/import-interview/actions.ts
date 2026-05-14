@@ -146,11 +146,153 @@ function buildStructuredData(
   }
 }
 
+/**
+ * Writes extracted profile fields onto a tree-only subject's native columns
+ * (bio / occupation / location). Tree members don't have the structured
+ * `life_story` JSONB that account holders do, so we fold the extraction down
+ * to the three text fields the tree schema supports.
+ *
+ * Rules:
+ *   - `occupation` and `location` are set only if currently empty (never
+ *     overwrite a manually-curated value).
+ *   - `bio` accumulates: a short summary paragraph appended (with a date
+ *     stamp) so repeated interviews stack rather than clobber.
+ */
+async function updateTreeSubjectProfile(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sb: any,
+  subjectMemberId: string,
+  profileUpdates: ExtractedProfileUpdates,
+  selectedProfileKeys: Record<string, boolean>
+): Promise<{ updated: boolean }> {
+  const { data: treeMember, error: readErr } = await sb
+    .from("family_tree_members")
+    .select("bio, occupation, location")
+    .eq("id", subjectMemberId)
+    .maybeSingle();
+
+  if (readErr || !treeMember) {
+    console.error(
+      "[interview] Tree member not found for profile update:",
+      subjectMemberId,
+      readErr
+    );
+    return { updated: false };
+  }
+
+  const selectedCareers = (profileUpdates.career ?? []).filter(
+    (_, idx) => selectedProfileKeys[`career.${idx}`] !== false
+  );
+  const selectedPlaces = (profileUpdates.places_lived ?? []).filter(
+    (_, idx) => selectedProfileKeys[`places_lived.${idx}`] !== false
+  );
+  const selectedEducation = (profileUpdates.education ?? []).filter(
+    (_, idx) => selectedProfileKeys[`education.${idx}`] !== false
+  );
+  const selectedSkills = (profileUpdates.skills ?? []).filter(
+    (_, idx) => selectedProfileKeys[`skills.${idx}`] !== false
+  );
+  const selectedHobbies = (profileUpdates.hobbies ?? []).filter(
+    (_, idx) => selectedProfileKeys[`hobbies.${idx}`] !== false
+  );
+  const selectedMilestones = (profileUpdates.milestones ?? []).filter(
+    (_, idx) => selectedProfileKeys[`milestones.${idx}`] !== false
+  );
+  const includeMilitary =
+    profileUpdates.military != null &&
+    selectedProfileKeys["military.0"] !== false;
+
+  const update: { bio?: string; occupation?: string; location?: string } = {};
+
+  if (!treeMember.occupation && selectedCareers.length > 0) {
+    const first = selectedCareers[0];
+    const parts = [first.job_title, first.company].filter(Boolean);
+    if (parts.length > 0) update.occupation = parts.join(" at ");
+  }
+
+  if (!treeMember.location && selectedPlaces.length > 0) {
+    update.location = selectedPlaces[0].location;
+  }
+
+  const bioSentences: string[] = [];
+  if (selectedCareers.length > 0) {
+    const list = selectedCareers
+      .map((c) => {
+        const title = c.job_title || "";
+        const company = c.company ? ` at ${c.company}` : "";
+        const years = c.years ? ` (${c.years})` : "";
+        return `${title}${company}${years}`.trim();
+      })
+      .filter(Boolean)
+      .join("; ");
+    if (list) bioSentences.push(`Career: ${list}.`);
+  }
+  if (selectedPlaces.length > 0) {
+    const list = selectedPlaces
+      .map((p) => (p.years ? `${p.location} (${p.years})` : p.location))
+      .join("; ");
+    bioSentences.push(`Lived in ${list}.`);
+  }
+  if (selectedEducation.length > 0) {
+    const list = selectedEducation
+      .map((e) => {
+        const parts = [e.degree, e.school].filter(Boolean).join(" at ");
+        return e.year ? `${parts} (${e.year})` : parts;
+      })
+      .filter(Boolean)
+      .join("; ");
+    if (list) bioSentences.push(`Education: ${list}.`);
+  }
+  if (selectedMilestones.length > 0) {
+    const list = selectedMilestones
+      .map((m) => (m.year ? `${m.event} (${m.year})` : m.event))
+      .join("; ");
+    bioSentences.push(`Milestones: ${list}.`);
+  }
+  if (includeMilitary && profileUpdates.military) {
+    const mil = profileUpdates.military;
+    const parts = [mil.branch, mil.rank, mil.years].filter(Boolean).join(", ");
+    if (parts) bioSentences.push(`Military: ${parts}.`);
+  }
+  if (selectedSkills.length > 0) {
+    bioSentences.push(`Skills: ${selectedSkills.join(", ")}.`);
+  }
+  if (selectedHobbies.length > 0) {
+    bioSentences.push(`Hobbies: ${selectedHobbies.join(", ")}.`);
+  }
+
+  if (bioSentences.length > 0) {
+    const newBioSection = bioSentences.join(" ");
+    const existingBio = (treeMember.bio ?? "").trim();
+    const stamp = new Date().toISOString().slice(0, 10);
+    update.bio = existingBio
+      ? `${existingBio}\n\nFrom interview (${stamp}): ${newBioSection}`
+      : newBioSection;
+  }
+
+  if (Object.keys(update).length === 0) {
+    return { updated: false };
+  }
+
+  const { error: updateErr } = await sb
+    .from("family_tree_members")
+    .update(update)
+    .eq("id", subjectMemberId);
+
+  if (updateErr) {
+    console.error("[interview] Tree profile update failed:", updateErr);
+    return { updated: false };
+  }
+
+  return { updated: true };
+}
+
 export async function saveExtractedEntries(
   entries: ReviewableEntry[],
   profileUpdates: ExtractedProfileUpdates,
   selectedProfileKeys: Record<string, boolean>,
   subjectMemberId: string,
+  subjectKind: InterviewSubjectKind,
   transcriptId?: string
 ) {
   try {
@@ -201,7 +343,17 @@ export async function saveExtractedEntries(
       ([, selected]) => selected !== false
     );
 
-    if (hasProfileUpdates) {
+    if (hasProfileUpdates && subjectKind === "tree") {
+      // Tree-only subjects (deceased grandparents, etc.) don't have a
+      // family_members row — the old code silently no-op'd. Write the
+      // extracted fields onto the tree row's native columns instead.
+      await updateTreeSubjectProfile(
+        sb,
+        subjectMemberId,
+        profileUpdates,
+        selectedProfileKeys
+      );
+    } else if (hasProfileUpdates) {
       // Get current profile
       const { data: member } = await sb
         .from("family_members")

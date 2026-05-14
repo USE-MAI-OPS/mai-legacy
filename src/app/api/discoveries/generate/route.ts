@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextRequest, NextResponse } from "next/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { rateLimit, rateLimitResponse } from "@/lib/rate-limit";
 import { getActiveFamilyIdFromCookie } from "@/lib/active-family-server";
 import { buildPiiContext, sanitize, restore, type KnownMember } from "@/lib/pii/sanitizer";
@@ -9,45 +9,23 @@ export const maxDuration = 60;
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseLike = any;
+
+export type GenerationResult =
+  | { ok: true; generated: number; message?: string }
+  | { ok: false; status: number; error: string };
+
 /**
- * POST /api/discoveries/generate
- *
- * Scans the family's entries, members, and events to generate AI-powered
- * discovery cards — connections, patterns, "on this day" moments, and
- * missing-piece prompts.
- *
- * These get inserted into `griot_discoveries` and surfaced in the feed.
+ * Core discovery generation — runs against one family with whichever
+ * Supabase client is passed in (user-session OR admin). Extracted so both
+ * the user-facing POST and the daily cron orchestrator can share the logic.
  */
-export async function POST() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const rl = rateLimit(`discoveries:${user.id}`, 3); // 3 per minute
-  if (rl.limited) return rateLimitResponse(rl.retryAfterMs);
-
-  const cookieFamilyId = await getActiveFamilyIdFromCookie();
-  const sb = supabase;
-
-  let familyId = cookieFamilyId;
-  if (!familyId) {
-    const { data: firstMember } = await sb
-      .from("family_members")
-      .select("family_id")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
-    if (!firstMember) {
-      return NextResponse.json({ error: "No family" }, { status: 400 });
-    }
-    familyId = firstMember.family_id;
-  }
-
-  // Don't generate if we already have recent discoveries (within 24h)
+export async function runDiscoveryGeneration(
+  sb: SupabaseLike,
+  familyId: string
+): Promise<GenerationResult> {
+  // Skip if we already generated within 24h for this family.
   const { data: recentDiscoveries } = await sb
     .from("griot_discoveries")
     .select("id")
@@ -56,16 +34,15 @@ export async function POST() {
     .limit(1);
 
   if (recentDiscoveries && recentDiscoveries.length > 0) {
-    return NextResponse.json({
-      success: true,
-      message: "Discoveries already generated recently",
+    return {
+      ok: true,
       generated: 0,
-    });
+      message: "Discoveries already generated recently",
+    };
   }
 
   // --- Gather family context ---
 
-  // 1. All entries (titles + types + authors + dates)
   const { data: entries } = await sb
     .from("entries")
     .select("id, title, content, type, tags, author_id, created_at, structured_data")
@@ -74,14 +51,13 @@ export async function POST() {
     .limit(100);
 
   if (!entries || entries.length < 2) {
-    return NextResponse.json({
-      success: true,
-      message: "Not enough entries to generate discoveries",
+    return {
+      ok: true,
       generated: 0,
-    });
+      message: "Not enough entries to generate discoveries",
+    };
   }
 
-  // 2. Family members
   const { data: members } = await sb
     .from("family_members")
     .select("user_id, display_name, role")
@@ -92,7 +68,6 @@ export async function POST() {
     if (m.user_id && m.display_name) memberMap[m.user_id] = m.display_name;
   }
 
-  // 3. Family tree members (for relationship context)
   const { data: treeMembers } = await sb
     .from("family_tree_members")
     .select("id, display_name, relationship_label")
@@ -127,7 +102,7 @@ export async function POST() {
     .join("\n");
 
   const treeMemberList = (treeMembers ?? [])
-    .map((m) =>
+    .map((m: { display_name: string; relationship_label: string | null }) =>
       `${m.display_name}${m.relationship_label ? ` (${m.relationship_label})` : ""}`
     )
     .join(", ");
@@ -162,12 +137,11 @@ Be warm, specific, and culturally aware. Reference entry titles and member names
 
 Return ONLY a valid JSON array. No markdown, no explanation.`;
 
-  // Sanitize the prompt to strip PII before sending to external LLM
   const prompt = sanitize(rawPrompt, piiCtx);
 
   // --- Call LLM ---
   if (!OPENROUTER_API_KEY) {
-    return NextResponse.json({ error: "LLM not configured" }, { status: 500 });
+    return { ok: false, status: 500, error: "LLM not configured" };
   }
 
   try {
@@ -191,13 +165,12 @@ Return ONLY a valid JSON array. No markdown, no explanation.`;
     if (!llmRes.ok) {
       const errText = await llmRes.text();
       console.error("[Discoveries] LLM error:", errText);
-      return NextResponse.json({ error: "LLM request failed" }, { status: 502 });
+      return { ok: false, status: 502, error: "LLM request failed" };
     }
 
     const llmData = await llmRes.json();
     const rawContent = llmData.choices?.[0]?.message?.content ?? "[]";
 
-    // Parse JSON from response (strip markdown fences if present)
     let discoveries: Array<{
       discovery_type: string;
       title: string;
@@ -214,11 +187,11 @@ Return ONLY a valid JSON array. No markdown, no explanation.`;
       discoveries = JSON.parse(cleaned);
     } catch {
       console.error("[Discoveries] Failed to parse LLM response:", rawContent);
-      return NextResponse.json({ error: "Failed to parse discoveries" }, { status: 500 });
+      return { ok: false, status: 500, error: "Failed to parse discoveries" };
     }
 
     if (!Array.isArray(discoveries) || discoveries.length === 0) {
-      return NextResponse.json({ success: true, generated: 0 });
+      return { ok: true, generated: 0 };
     }
 
     // Restore PII tokens in discovery text before persisting
@@ -256,9 +229,77 @@ Return ONLY a valid JSON array. No markdown, no explanation.`;
       }
     }
 
-    return NextResponse.json({ success: true, generated: inserted });
+    return { ok: true, generated: inserted };
   } catch (err) {
     console.error("[Discoveries] Error:", err);
-    return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    return { ok: false, status: 500, error: "Internal error" };
   }
+}
+
+/**
+ * POST /api/discoveries/generate
+ *
+ * Two auth paths:
+ *   1. Cookie/session (user-initiated). Rate-limited. Resolves family from
+ *      active-hub cookie (with DB fallback to the user's first family).
+ *   2. Cron (server-initiated). Requires `x-cron-secret` header. Accepts a
+ *      JSON body `{ familyId }` and uses the admin client.
+ */
+export async function POST(request: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET;
+  const suppliedSecret = request.headers.get("x-cron-secret");
+  const isCronCall = !!cronSecret && suppliedSecret === cronSecret;
+
+  let familyId: string;
+  let sb: SupabaseLike;
+
+  if (isCronCall) {
+    const body = (await request.json().catch(() => ({}))) as { familyId?: string };
+    if (!body.familyId) {
+      return NextResponse.json(
+        { error: "familyId required for cron call" },
+        { status: 400 }
+      );
+    }
+    familyId = body.familyId;
+    sb = createAdminClient();
+  } else {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const rl = rateLimit(`discoveries:${user.id}`, 3);
+    if (rl.limited) return rateLimitResponse(rl.retryAfterMs);
+
+    const cookieFamilyId = await getActiveFamilyIdFromCookie();
+    let resolvedFamilyId = cookieFamilyId;
+    if (!resolvedFamilyId) {
+      const { data: firstMember } = await supabase
+        .from("family_members")
+        .select("family_id")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
+      if (!firstMember) {
+        return NextResponse.json({ error: "No family" }, { status: 400 });
+      }
+      resolvedFamilyId = firstMember.family_id;
+    }
+    familyId = resolvedFamilyId;
+    sb = supabase;
+  }
+
+  const result = await runDiscoveryGeneration(sb, familyId);
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
+  }
+  return NextResponse.json({
+    success: true,
+    generated: result.generated,
+    ...(result.message ? { message: result.message } : {}),
+  });
 }

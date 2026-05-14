@@ -69,7 +69,13 @@ The following cron endpoints must be called on schedule (configure via system cr
 | Schedule | Endpoint | Method |
 |----------|----------|--------|
 | Every minute | `/api/cron/process-embedding-jobs` | GET |
+| Daily 08:00 UTC | `/api/cron/generate-discoveries` | GET |
 | Daily 14:00 UTC | `/api/drip/send` | POST |
 | Sundays 20:00 UTC | `/api/digest/send` | POST |
 
 All cron endpoints require the `CRON_SECRET` header for authentication.
+
+The discoveries cron picks families that (a) have ≥2 entries and (b) either
+have never had discoveries generated, or had their last generation ≥7 days
+ago with at least one new entry since. It processes up to 10 families per
+run, so dormant families cost nothing.

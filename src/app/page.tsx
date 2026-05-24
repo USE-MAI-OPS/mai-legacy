@@ -4,7 +4,6 @@ import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -13,14 +12,12 @@ import { PublicHeader } from "@/components/public-header";
 import {
   BookOpen,
   MessageCircle,
-  Users,
   UserPlus,
   ArrowRight,
   Shield,
   Lock,
   EyeOff,
   ChevronDown,
-  Clock,
   Search,
   CheckCircle2,
   TreeDeciduous,
@@ -39,8 +36,8 @@ const GRIOT_PREVIEW_PROMPTS = [
     sources: ["Grandma Rose's Pie", "Holiday Tips"],
   },
   {
-    prompt: "What life lessons has the family documented?",
-    response: "Your family has recorded several key lessons. Grandma Rose shared \"Always Finish What You Start\" and Uncle Ray contributed \"Measure Twice, Cut Once\" about careful decision-making.",
+    prompt: "What life lessons have I saved?",
+    response: "Your context vault has several useful lessons. Grandma Rose shared \"Always Finish What You Start\" and Uncle Ray contributed \"Measure Twice, Cut Once\" about careful decision-making.",
     sources: ["Always Finish What You Start", "Workshop Wisdom"],
   },
   {
@@ -54,26 +51,26 @@ const TRUST_ITEMS = [
   {
     icon: Shield,
     title: "You Own Your Data",
-    description: "Every story, recipe, and memory belongs to your family. You can export or delete everything at any time. We never claim ownership.",
+    description: "Every thought, memory, note, and context entry belongs to you. You can export or delete everything at any time. We never claim ownership.",
   },
   {
     icon: Lock,
     title: "Encrypted and Secure",
-    description: "Your family's knowledge is protected with industry-standard encryption. Access is restricted to invited family members only.",
+    description: "Your private context is protected with industry-standard encryption. Access is restricted to the people and spaces you explicitly allow.",
   },
   {
     icon: EyeOff,
     title: "Never Sold, Never Shared",
-    description: "We will never sell your family's data or share it with advertisers. Your private memories stay private. Period.",
+    description: "We will never sell your context data or share it with advertisers. Your private thoughts and memories stay private. Period.",
   },
 ];
 
 const FAQ_ITEMS = [
-  { question: "Who can see my family's data?", answer: "Only members you explicitly invite to your family can view your entries. Each family is a private, isolated space. No one outside your family — including MAI Legacy staff — browses your content." },
-  { question: "Is my data encrypted?", answer: "Yes. All data is encrypted in transit and at rest using industry-standard encryption. Your family's entries are stored securely with row-level security ensuring complete isolation between families." },
-  { question: "Do you sell our family's data?", answer: "Never. Your family's stories, recipes, and wisdom will never be sold, shared with advertisers, or used for any purpose other than powering your own Griot. Your data is yours." },
-  { question: "How does Griot AI work?", answer: "Griot uses Retrieval-Augmented Generation (RAG). When you ask a question, it searches your family's entries for relevant information, then uses AI to compose a natural answer grounded in what your family has documented. It always cites its sources." },
-  { question: "How do I invite family members?", answer: "From your family dashboard, you can send magic link invitations via email. When a family member clicks the link, they're automatically added to your family and can start contributing right away." },
+  { question: "Who can see my MAI Bot data?", answer: "Only people you explicitly invite to a space can view its entries. Each space is private and isolated. No one outside that space — including MAI Bot staff — browses your content." },
+  { question: "Is my data encrypted?", answer: "Yes. All data is encrypted in transit and at rest using industry-standard encryption. Your entries are stored securely with row-level security helping isolate private spaces from each other." },
+  { question: "Do you sell my context data?", answer: "Never. Your thoughts, context, memories, and source-linked knowledge will never be sold, shared with advertisers, or used for any purpose other than powering your own MAI Bot and Griot experience. Your data is yours." },
+  { question: "How does Griot work?", answer: "Griot uses Retrieval-Augmented Generation (RAG). When you ask a question, it searches your private context entries for relevant information, then uses AI to compose an answer grounded in what you have saved. It cites its sources." },
+  { question: "How do I invite other people?", answer: "From your dashboard, you can send magic link invitations by email. When someone clicks the link, they are added to the right space and can start contributing context right away." },
 ];
 
 // ---------------------------------------------------------------------------
@@ -92,7 +89,7 @@ export default function HomePage() {
         <div className="absolute inset-0 z-0">
           <Image
             src="https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=2940&auto=format&fit=crop"
-            alt="A warm family gathering around a dinner table, representing shared stories and heritage"
+            alt="A warm gathering around a dinner table, representing shared context, stories, and meaning"
             fill
             className="object-cover object-center"
             priority
@@ -105,19 +102,19 @@ export default function HomePage() {
         {/* Content */}
         <div className="relative z-10 max-w-4xl mx-auto flex flex-col items-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
           <Badge variant="outline" className="text-white border-white/20 bg-black/20 backdrop-blur-md mb-8 py-1.5 px-4 font-medium tracking-wide">
-            The Interactive Museum of Your Family
+            We’re a data company
           </Badge>
           <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight leading-[1.1] text-white mb-6 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
-            Your family&apos;s wisdom, <br className="hidden md:block"/>
-            <span className="text-white italic font-medium">preserved forever.</span>
+            Store thoughts. <br className="hidden md:block"/>
+            <span className="text-white italic font-medium">Preserve context.</span>
           </h1>
           <p className="mt-4 text-xl sm:text-2xl text-white/90 max-w-2xl mx-auto font-light leading-relaxed drop-shadow-lg">
-            Document your stories, skills, recipes, and lessons in a private sanctuary. Then ask Griot — your family&apos;s AI — anything.
+            Other platforms store records and files. MAI Bot stores thoughts, context, decisions, stories, and the meaning around them — then lets you ask Griot anything grounded in your own data.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mt-10 justify-center w-full sm:w-auto">
             <Button size="lg" className="h-14 px-8 text-lg font-semibold rounded-full shadow-xl transition-transform hover:scale-105" asChild>
               <Link href="/signup">
-                Start Your Legacy
+                Start Storing Context
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
@@ -143,7 +140,7 @@ export default function HomePage() {
               { label: "Data Ownership", value: "100%" },
               { label: "Encrypted at Rest", value: "Always" },
               { label: "Ads Served", value: "Zero" },
-              { label: "Family-Only Access", value: "By Design" },
+              { label: "Private Context Access", value: "By Design" },
             ].map((stat) => (
               <div key={stat.label} className="flex flex-col items-center justify-center">
                 <span className="text-3xl font-serif font-bold text-foreground mb-1">{stat.value}</span>
@@ -160,10 +157,10 @@ export default function HomePage() {
       <section id="features" className="px-6 py-24 max-w-7xl mx-auto">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
-            More than a journal. <br/> A living archive.
+            More than storage. <br/> A context layer.
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            Experience a beautiful, structured environment designed to make documenting family history effortless and engaging for multiple generations.
+            Capture thoughts, conversations, decisions, media, memories, and relationships in a private context layer your agent can reason over.
           </p>
         </div>
 
@@ -182,7 +179,7 @@ export default function HomePage() {
                   <div className="flex items-center gap-3 mb-4 border-b pb-3">
                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">GR</div>
                     <div>
-                      <h4 className="font-serif font-semibold text-sm">Grandma Rose's Pie</h4>
+                      <h4 className="font-serif font-semibold text-sm">Grandma Rose&apos;s Pie</h4>
                       <p className="text-xs text-muted-foreground">Recipe • Dec 2023</p>
                     </div>
                   </div>
@@ -203,13 +200,13 @@ export default function HomePage() {
                   <div className="p-2.5 rounded-lg bg-primary/10">
                     <BookOpen className="h-5 w-5 text-primary" />
                   </div>
-                  <h3 className="font-serif text-2xl font-bold">Living Knowledge Base</h3>
+                  <h3 className="font-serif text-2xl font-bold">Thought & Context Store</h3>
                 </div>
                 <p className="text-muted-foreground leading-relaxed mb-6">
-                  Document stories, recipes, skills, life lessons, and family connections in one beautifully searchable place. Every entry is indexed and ready for Griot.
+                  Capture notes, media, conversations, decisions, memories, and relationships in one searchable place. Every context entry is indexed and ready for Griot.
                 </p>
                 <span className="inline-flex items-center text-sm font-semibold text-primary transition-all group-hover:gap-2 gap-1">
-                  Explore Entries <ArrowRight className="h-4 w-4" />
+                  Explore Context <ArrowRight className="h-4 w-4" />
                 </span>
               </div>
             </div>
@@ -250,13 +247,13 @@ export default function HomePage() {
                   <div className="p-2.5 rounded-lg bg-primary/10">
                     <TreeDeciduous className="h-5 w-5 text-primary" />
                   </div>
-                  <h3 className="font-serif text-2xl font-bold">Interactive MAI Tree</h3>
+                  <h3 className="font-serif text-2xl font-bold">Context Graph</h3>
                 </div>
                 <p className="text-muted-foreground leading-relaxed mb-6">
-                  Visualize your entire family lineage. Invite members with a magic link so everyone gets their own profile and can add to the shared legacy.
+                  Map people, relationships, projects, memories, and the context that connects them. Invite trusted people when shared context matters.
                 </p>
                 <span className="inline-flex items-center text-sm font-semibold text-primary transition-all group-hover:gap-2 gap-1">
-                  View the Tree <ArrowRight className="h-4 w-4" />
+                  View the Graph <ArrowRight className="h-4 w-4" />
                 </span>
               </div>
             </div>
@@ -274,7 +271,7 @@ export default function HomePage() {
             How it works
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            Three simple steps to preserve your family&apos;s legacy.
+            Three simple steps to build your private context layer.
           </p>
         </div>
 
@@ -283,20 +280,20 @@ export default function HomePage() {
             {
               step: "1",
               icon: UserPlus,
-              title: "Create Your Family",
-              description: "Sign up, name your family, and invite members with a magic link. Everyone gets their own profile instantly.",
+              title: "Create Your Space",
+              description: "Sign up, name your private space, and decide who can contribute context with you.",
             },
             {
               step: "2",
               icon: BookOpen,
-              title: "Document Your Knowledge",
-              description: "Add stories, recipes, skills, and life lessons. Each entry is saved, searchable, and preserved for future generations.",
+              title: "Capture Thoughts & Context",
+              description: "Drop in thoughts, media, notes, memories, motivations, and decisions. MAI Bot turns them into searchable context.",
             },
             {
               step: "3",
               icon: MessageCircle,
               title: "Ask Griot Anything",
-              description: "Your family\u2019s AI searches everything you\u2019ve documented and answers questions with cited sources. Like having a family historian on call.",
+              description: "Griot searches your private context layer and answers questions with cited sources. It becomes the chat interface to your MAI Bot.",
             },
           ].map((item) => (
             <div key={item.step} className="flex flex-col items-center text-center">
@@ -327,17 +324,17 @@ export default function HomePage() {
                 <Search className="h-4 w-4" /> Powered by AI
               </div>
               <h2 className="font-serif text-4xl sm:text-5xl font-bold mb-6 text-foreground">
-                Meet Griot. <br/> Your family&apos;s brain.
+                Meet Griot. <br/> Your MAI Bot interface.
               </h2>
               <p className="text-lg text-muted-foreground leading-relaxed mb-8">
-                Stop losing recipes in group chats. Griot uses the latest AI to search exclusively through the stories, recipes, and lessons your family has documented, providing direct answers with cited sources.
+                Stop losing context across chats, notes, files, and apps. Griot searches your private MAI Bot vault and helps you understand, organize, and eventually act on the context you have saved.
               </p>
 
               <ul className="space-y-4 mb-10">
                 {[
-                  "Answers instantly from your private vault",
-                  "Always cites sources (e.g., 'Grandma Rose's Pie')",
-                  "Never accesses public internet or other families' data"
+                  "Answers from your private thought/context vault",
+                  "Always cites sources from your saved context",
+                  "Designed around private, permissioned context"
                 ].map((feature, idx) => (
                   <li key={idx} className="flex items-start gap-3 text-foreground">
                     <CheckCircle2 className="h-6 w-6 text-primary shrink-0" />
@@ -347,7 +344,7 @@ export default function HomePage() {
               </ul>
 
               <Button size="lg" className="rounded-full font-semibold px-8" asChild>
-                <Link href="/demo#griot">Try the Chatbot Demo</Link>
+                <Link href="/demo#griot">Try the Griot Demo</Link>
               </Button>
             </div>
 
@@ -368,13 +365,13 @@ export default function HomePage() {
         <div className="text-center max-w-2xl mx-auto">
           <Badge variant="secondary" className="mb-4">Early Access</Badge>
           <h2 className="font-serif text-3xl sm:text-4xl font-bold mb-4">
-            Be among the first families
+            Be among the first context builders
           </h2>
           <p className="text-lg text-muted-foreground mb-8">
-            MAI Legacy is just getting started. Join early and help shape the product — your family&apos;s story deserves to be told right.
+            MAI Bot is building the private thought layer for people, families, creators, and businesses. Join early and help shape the system your future agent will use.
           </p>
           <Button size="lg" asChild>
-            <Link href="/signup">Start Your Legacy</Link>
+            <Link href="/signup">Start Storing Context</Link>
           </Button>
         </div>
       </section>
@@ -386,10 +383,10 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <h2 className="font-serif text-3xl sm:text-4xl font-bold mb-4">
-              A private vault, not a social network.
+              A private context layer, not another file dump.
             </h2>
             <p className="text-lg text-muted-foreground">
-              Privacy and trust are the foundation of everything we build. Your stories stay with your family.
+              Privacy and trust are the foundation of everything we build. Your thoughts, context, and source-linked memories stay under your control.
             </p>
           </div>
 
@@ -438,15 +435,15 @@ export default function HomePage() {
           
           <div className="relative z-10">
              <h2 className="font-serif text-4xl sm:text-5xl font-bold tracking-tight mb-6 drop-shadow-sm">
-               Every family has a story <br className="hidden md:block"/> worth keeping.
+               Your thoughts are data <br className="hidden md:block"/> worth keeping.
              </h2>
              <p className="text-xl text-primary-foreground/90 max-w-2xl mx-auto mb-10 font-light">
-               Start documenting your family&apos;s legacy today. Free to start, no credit card required.
+               Start building the private context layer your AI agent can reason over. Free to start, no credit card required.
              </p>
              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                <Button size="lg" variant="secondary" className="h-14 px-10 text-lg font-semibold rounded-full shadow-lg hover:scale-105 transition-transform" asChild>
                  <Link href="/signup">
-                   Create Your Free Account
+                   Create Your MAI Bot Account
                    <ArrowRight className="ml-2 h-5 w-5" />
                  </Link>
                </Button>
@@ -466,10 +463,10 @@ export default function HomePage() {
           {/* Brand */}
           <div className="sm:col-span-2">
             <span className="font-serif text-2xl font-bold text-primary">
-              MAI Legacy
+              MAI Bot
             </span>
             <p className="mt-4 text-base text-muted-foreground w-full max-w-sm leading-relaxed">
-              Built for families, by families. The interactive museum and intelligent archive for your family's most precious wisdom.
+              We’re a data company for thoughts and context — the private layer that makes your memories, decisions, media, and relationships useful to your AI agent.
             </p>
           </div>
 
@@ -479,7 +476,7 @@ export default function HomePage() {
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li><Link href="/" className="hover:text-primary transition-colors">Home</Link></li>
               <li><Link href="/demo" className="hover:text-primary transition-colors">Demo</Link></li>
-              <li><Link href="/explore" className="hover:text-primary transition-colors">Stories</Link></li>
+              <li><Link href="/explore" className="hover:text-primary transition-colors">Use Cases</Link></li>
               <li><Link href="/pricing" className="hover:text-primary transition-colors">Pricing</Link></li>
               <li><Link href="/signup" className="hover:text-primary transition-colors">Sign Up</Link></li>
             </ul>
@@ -498,7 +495,7 @@ export default function HomePage() {
 
         <Separator className="my-10 opacity-50" />
         <p className="text-center text-sm text-muted-foreground/80">
-          &copy; {new Date().getFullYear()} MAI Legacy. All rights reserved.
+          &copy; {new Date().getFullYear()} MAI Bot. All rights reserved.
         </p>
       </footer>
     </div>

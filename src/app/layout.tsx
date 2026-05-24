@@ -20,21 +20,21 @@ const lora = Lora({
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://mailegacy.com";
-const defaultTitle = "MAI Legacy — The Family Knowledge Platform";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://maibot.ai";
+const defaultTitle = "MAI Bot — The Thought & Context Data Company";
 const defaultDescription =
-  "Build your family's living knowledge base. Document stories, skills, recipes, and wisdom. Ask Griot anything.";
+  "MAI Bot stores thoughts and context — not just records or files — so Griot can answer from your private knowledge layer.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
     default: defaultTitle,
-    template: "%s | MAI Legacy",
+    template: "%s | MAI Bot",
   },
   description: defaultDescription,
   openGraph: {
     type: "website",
-    siteName: "MAI Legacy",
+    siteName: "MAI Bot",
     title: defaultTitle,
     description: defaultDescription,
     url: "/",
@@ -44,7 +44,6 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: defaultTitle,
     description: defaultDescription,
-    site: "@mailegacy",
   },
   robots: {
     index: true,

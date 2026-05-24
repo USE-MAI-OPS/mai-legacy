@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/demo", label: "Demo" },
-  { href: "/explore", label: "Stories" },
+  { href: "/explore", label: "Use Cases" },
   { href: "/pricing", label: "Pricing" },
 ];
 
@@ -22,7 +22,7 @@ export function PublicHeader() {
           href="/"
           className="font-serif text-2xl font-bold text-primary hover:opacity-90 transition-opacity"
         >
-          MAI Legacy
+          MAI Bot
         </Link>
 
         {/* Nav — centered */}
@@ -59,7 +59,7 @@ export function PublicHeader() {
             <Link href="/login">Sign In</Link>
           </Button>
           <Button size="sm" className="rounded-full px-5 shadow-sm" asChild>
-            <Link href="/signup">Get Started</Link>
+            <Link href="/signup">Start Storing Context</Link>
           </Button>
         </div>
       </div>
